@@ -35,7 +35,7 @@ Row Level Security is on for every table with no policies, so Supabase's public 
 
 ## Live mode
 
-1. OAuth client "Unemploy" in the Hello Minds Build console (client id `9fe17e1b-c9dd-478c-9591-7aa6605e4311`), redirect URIs `https://unemploy-zeta.vercel.app/auth/callback` and `http://localhost:3000/auth/callback`.
+1. OAuth client "Career Ninja" in the Hello Minds Build console (client id `9d700784-07a2-4ef9-a906-152c00b04528`), redirect URIs `https://careerninja.app/auth/callback` and `http://localhost:3000/auth/callback`. (An older client named "Unemploy" also exists; its name can't be changed.)
 2. Environment: `HM_CLIENT_ID`, `APP_URL`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET` (see `.env.example`).
 3. `APP_URL` must be reachable from the internet: Minds POST their jobs to `$APP_URL/api/ingest`.
 
