@@ -75,12 +75,14 @@ export function PreferencesChat({
   profileId,
   mode,
   initial,
+  seed,
 }: {
   profileId: string;
   mode: "setup" | "edit";
   initial?: Preferences;
+  seed?: Draft; // answers from another headhunter, pre-filled but still asked
 }) {
-  const [draft, setDraft] = useState<Draft>(initial ?? DEFAULTS);
+  const [draft, setDraft] = useState<Draft>(initial ?? { ...DEFAULTS, ...seed });
   const [step, setStep] = useState(initial ? QUESTIONS.length : 0); // QUESTIONS.length = summary
   const [editing, setEditing] = useState(false); // came from summary to fix one answer
   const [pending, start] = useTransition();

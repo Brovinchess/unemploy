@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
@@ -206,6 +206,23 @@ export async function processPush(
     });
     if (existing) {
       rejected.push({ url: job.url, code: "duplicate", hint: "Already sent. Only send new jobs." });
+      continue;
+    }
+
+    // The same user may run several headhunters with overlapping searches; show each
+    // posting once, in whichever shortlist got it first.
+    const elsewhere = await db
+      .select({ id: schema.jobs.id })
+      .from(schema.jobs)
+      .innerJoin(schema.profiles, eq(schema.jobs.profileId, schema.profiles.id))
+      .where(and(eq(schema.profiles.userId, profile.userId), ne(schema.jobs.profileId, profile.id), eq(schema.jobs.url, job.url)))
+      .limit(1);
+    if (elsewhere.length) {
+      rejected.push({
+        url: job.url,
+        code: "found_by_other_headhunter",
+        hint: "The user's other headhunter already sent this job. Skip it and look for different ones.",
+      });
       continue;
     }
 

@@ -73,7 +73,7 @@ JOB fields
 REPLY
   {"accepted":n,"rejected":[{"url","code","hint"}],"remainingToday":n,"skippedRecently":[{"title","company","reason"}]}
   codes: bad_job, work_setting_not_wanted, wrong_country, company_avoided,
-         claim_not_in_resume, duplicate, daily_limit, job_link_dead, bad_url, paused
+         claim_not_in_resume, duplicate, found_by_other_headhunter, daily_limit, job_link_dead, bad_url, paused
   Fix what each hint says. Do not resend accepted jobs.
   skippedRecently lists jobs the user skipped and why. Avoid similar jobs.
 

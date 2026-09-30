@@ -15,6 +15,7 @@ export async function AppShell({
   tab,
   user,
   profiles,
+  unfinished = [],
   current,
   balance,
   children,
@@ -22,6 +23,7 @@ export async function AppShell({
   tab: Tab;
   user: User;
   profiles: Profile[];
+  unfinished?: Profile[];
   current: Profile;
   balance: number | null;
   children: React.ReactNode;
@@ -98,6 +100,17 @@ export async function AppShell({
               </li>
             );
           })}
+          {unfinished.map((p) => (
+            <li key={p.id}>
+              <Link href={`/profiles/${p.id}/setup`} className="flex items-center gap-3 rounded-xl px-3 py-2 hover:bg-white/[0.04]">
+                <Ninja className="size-7 opacity-40" />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm text-white/55">{p.label}</span>
+                  <span className="block text-[11px] text-coral">Finish setup</span>
+                </span>
+              </Link>
+            </li>
+          ))}
           <li>
             <Link href="/profiles/new" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/50 hover:bg-white/[0.04] hover:text-white">
               <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-white/20">

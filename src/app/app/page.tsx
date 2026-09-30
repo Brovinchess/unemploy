@@ -19,7 +19,7 @@ function daysSince(d: Date) {
 
 export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
-  const { user, profiles, current } = await appContext(sp.profile);
+  const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
 
   const jobs = await db.query.jobs.findMany({
@@ -76,7 +76,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   );
 
   return (
-    <AppShell tab="shortlist" user={user} profiles={profiles} current={current} balance={balance}>
+    <AppShell tab="shortlist" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
           <div>

@@ -7,6 +7,7 @@ import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { mindsConfig } from "@/lib/minds/config";
 import { DeleteAccount } from "./delete-account";
+import { RemoveHeadhunter } from "./remove-headhunter";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -19,11 +20,11 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default async function Settings({ searchParams }: PageProps<"/app/settings">) {
   const sp = await searchParams;
-  const { user, profiles, current } = await appContext(sp.profile);
+  const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
 
   return (
-    <AppShell tab="settings" user={user} profiles={profiles} current={current} balance={balance}>
+    <AppShell tab="settings" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <p className="text-sm text-white/45">{current.label} headhunter</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Settings</h1>
@@ -43,6 +44,9 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
                 Top up <ExternalLink className="size-4" aria-hidden />
               </a>
               <PauseToggle profileId={current.id} paused={current.status === "paused"} />
+            </div>
+            <div className="mt-6 border-t border-white/[0.06] pt-5">
+              <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
             </div>
           </Section>
 

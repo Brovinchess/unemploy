@@ -21,7 +21,7 @@ const DAY = 24 * 60 * 60 * 1000;
 
 export default async function Tracker({ searchParams }: PageProps<"/app/tracker">) {
   const sp = await searchParams;
-  const { user, profiles, current } = await appContext(sp.profile);
+  const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
   const labels = new Map(profiles.map((p) => [p.id, p.label]));
   const jobs = await db.query.jobs.findMany({
@@ -34,7 +34,7 @@ export default async function Tracker({ searchParams }: PageProps<"/app/tracker"
   const tracked = jobs.filter((j) => COLUMNS.some((c) => c.status === j.status));
 
   return (
-    <AppShell tab="tracker" user={user} profiles={profiles} current={current} balance={balance}>
+    <AppShell tab="tracker" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <p className="text-sm text-white/45">All headhunters</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Tracker</h1>

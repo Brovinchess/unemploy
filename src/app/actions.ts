@@ -222,6 +222,25 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
   revalidatePath(`/profiles/${profileId}/setup`);
 }
 
+// Setting up another headhunter: reuse the resume from one of the user's others.
+export async function copyResume(profileId: string, fromId: string) {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  const from = await ownedProfile(user, fromId);
+  if (profile.resumeData || !from.resumeData) return;
+  await db
+    .update(schema.profiles)
+    .set({
+      resumeFileName: from.resumeFileName,
+      resumeMime: from.resumeMime,
+      resumeData: from.resumeData,
+      resumeText: from.resumeText,
+      status: "needs_preferences",
+    })
+    .where(eq(schema.profiles.id, profile.id));
+  revalidatePath(`/profiles/${profileId}/setup`);
+}
+
 export async function loadSampleResume(profileId: string) {
   if (mindsMode !== "mock") return;
   const user = await requireUser();
@@ -293,6 +312,15 @@ export async function setPaused(profileId: string, paused: boolean) {
     .set({ status: paused ? "paused" : "hunting" })
     .where(eq(schema.profiles.id, profile.id));
   revalidatePath("/app", "layout");
+}
+
+// Turns the Mind off (Hello Minds has no delete) and removes the headhunter and its jobs.
+export async function removeProfile(profileId: string) {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  if (profile.mindId) await minds(user).setEnabled(profile.mindId, false).catch((e) => console.error(e));
+  await db.delete(schema.profiles).where(eq(schema.profiles.id, profile.id));
+  redirect("/start");
 }
 
 // ---------- Jobs ----------

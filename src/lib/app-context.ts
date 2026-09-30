@@ -17,7 +17,8 @@ export async function appContext(profileParam?: string | string[]) {
   if (!ready.length) redirect("/start");
   const wanted = typeof profileParam === "string" ? profileParam : undefined;
   const current = ready.find((p) => p.id === wanted) ?? ready[0];
-  return { user, profiles: ready, current };
+  const unfinished = all.filter((p) => !ready.includes(p));
+  return { user, profiles: ready, unfinished, current };
 }
 
 // Balance is read live from Hello Minds; null when it can't be reached.

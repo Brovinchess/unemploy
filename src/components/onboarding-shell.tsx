@@ -7,10 +7,12 @@ const STEPS = ["Resume", "Preferences", "Activate"];
 export function OnboardingShell({
   step,
   wide = false,
+  exitHref,
   children,
 }: {
   step?: number; // 0-based index into STEPS; omit for pre-setup screens
   wide?: boolean;
+  exitHref?: string; // set when the user already has a working headhunter to go back to
   children: React.ReactNode;
 }) {
   return (
@@ -34,11 +36,17 @@ export function OnboardingShell({
             ))}
           </ol>
         )}
-        <form action="/auth/logout" method="post">
-          <button className="rounded-full bg-white/[0.08] px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.14]">
-            Sign out
-          </button>
-        </form>
+        {exitHref ? (
+          <Link href={exitHref} className="rounded-full bg-white/[0.08] px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.14]">
+            Back to my jobs
+          </Link>
+        ) : (
+          <form action="/auth/logout" method="post">
+            <button className="rounded-full bg-white/[0.08] px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.14]">
+              Sign out
+            </button>
+          </form>
+        )}
       </header>
       {step !== undefined && (
         <div className="h-0.5 bg-white/[0.06]" role="progressbar" aria-label="Setup progress" aria-valuemin={1} aria-valuemax={STEPS.length} aria-valuenow={step + 1}>
