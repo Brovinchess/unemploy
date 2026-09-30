@@ -1,29 +1,27 @@
 import "server-only";
-import path from "node:path";
-import { createClient } from "@libsql/client";
-import { drizzle } from "drizzle-orm/libsql";
-import { migrate } from "drizzle-orm/libsql/migrator";
+import postgres from "postgres";
+import { drizzle } from "drizzle-orm/postgres-js";
 import * as schema from "./schema";
 
-// Local file in development; point DATABASE_URL at Turso (libsql://…) in production.
-// Without one on Vercel, fall back to /tmp: fine for a demo, but data does not survive
-// cold starts and is not shared between instances.
+// Supabase Postgres in production (on Vercel, use the pooler's transaction-mode URL).
+// Locally, `npm run db:local` starts a Postgres-compatible server; see README.
 function databaseUrl() {
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
-  if (process.env.VERCEL) {
-    console.warn("[db] DATABASE_URL not set; using a temporary database in /tmp");
-    return "file:/tmp/unemploy.db";
-  }
-  return "file:./data/unemploy.db";
+  // `next build` imports this module without running queries; postgres() connects lazily.
+  if (process.env.NEXT_PHASE === "phase-production-build") return "postgres://build@localhost/build";
+  throw new Error("DATABASE_URL is not set. See README → Database.");
 }
 
-const client = createClient({ url: databaseUrl(), authToken: process.env.DATABASE_AUTH_TOKEN });
+const url = databaseUrl();
+const local = /@(localhost|127\.0\.0\.1)[:/]/.test(url);
+
+const g = globalThis as unknown as { __unemploySql?: postgres.Sql };
+// Reuse one client across hot reloads in development.
+const client = (g.__unemploySql ??= postgres(url, {
+  prepare: false, // required by Supabase's transaction pooler
+  max: local ? 1 : 5,
+  ssl: local ? false : "require",
+}));
 
 export const db = drizzle(client, { schema });
 export { schema };
-
-// Apply pending migrations once per server instance, before any query runs
-// (not while `next build` collects pages: no queries run then).
-if (process.env.NEXT_PHASE !== "phase-production-build") {
-  await migrate(db, { migrationsFolder: path.join(process.cwd(), "drizzle") });
-}

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
@@ -148,11 +148,11 @@ export async function processPush(
   }
 
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const [{ count }] = await db
-    .select({ count: sql<number>`count(*)` })
+  const [{ n }] = await db
+    .select({ n: count() })
     .from(schema.jobs)
     .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, since)));
-  let remaining = Math.max(0, prefs.jobsPerDay - count);
+  let remaining = Math.max(0, prefs.jobsPerDay - n);
 
   const rejected: Rejection[] = [];
   let accepted = 0;

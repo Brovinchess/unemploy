@@ -6,14 +6,16 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:local": "mkdir -p data && pglite-server --db=./data/pglite --port=5433",
+    "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@libsql/client": "^0.18.0",
     "drizzle-orm": "^0.45.3",
     "lucide-react": "^1.49.0",
     "mammoth": "^1.13.0",
     "next": "16.3.7",
+    "postgres": "^3.4.9",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "server-only": "^0.0.1",
@@ -21,6 +23,8 @@
     "zod": "^4.6.5"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@electric-sql/pglite-socket": "^0.2.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

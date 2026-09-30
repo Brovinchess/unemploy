@@ -1,26 +1,46 @@
-import { sqliteTable, text, integer, real, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  real,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 import type { Preferences } from "@/lib/preferences";
 
-const now = () => new Date();
+// Row Level Security is enabled on every table with no policies: the app connects as the
+// database owner (which bypasses RLS), while Supabase's public Data API sees nothing.
 
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey(),
+const createdAt = () => timestamp("created_at", { withTimezone: true }).notNull().defaultNow();
+
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
   // Hello Minds OAuth `sub` (a user id, not the Builder humanId).
   hmUserId: text("hm_user_id").notNull().unique(),
   username: text("username"),
   timezone: text("timezone"),
   accessToken: text("access_token"),
   refreshToken: text("refresh_token"),
-  tokenExpiresAt: integer("token_expires_at", { mode: "timestamp_ms" }),
+  tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
   scope: text("scope"),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-});
+  createdAt: createdAt(),
+}).enableRLS();
 
-export const sessions = sqliteTable("sessions", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  expiresAt: integer("expires_at", { mode: "timestamp_ms" }).notNull(),
-});
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [index("sessions_user_id").on(t.userId)],
+).enableRLS();
 
 export type ProfileStatus =
   | "draft" // named, no Mind yet
@@ -30,25 +50,31 @@ export type ProfileStatus =
   | "hunting"
   | "paused";
 
-export const profiles = sqliteTable("profiles", {
-  id: text("id").primaryKey(),
-  userId: text("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  label: text("label").notNull(),
-  status: text("status").$type<ProfileStatus>().notNull().default("draft"),
-  mindId: text("mind_id"),
-  mindName: text("mind_name"),
-  conversationAlias: text("conversation_alias"),
-  // SHA-256 of the secret the Mind sends with every push.
-  ingestKeyHash: text("ingest_key_hash"),
-  resumeFileName: text("resume_file_name"),
-  resumeMime: text("resume_mime"),
-  resumeData: text("resume_data"), // base64
-  resumeText: text("resume_text"),
-  preferences: text("preferences", { mode: "json" }).$type<Preferences>(),
-  briefedAt: integer("briefed_at", { mode: "timestamp_ms" }),
-  lastDeliveryAt: integer("last_delivery_at", { mode: "timestamp_ms" }),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-});
+export const profiles = pgTable(
+  "profiles",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    status: text("status").$type<ProfileStatus>().notNull().default("draft"),
+    mindId: text("mind_id"),
+    mindName: text("mind_name"),
+    conversationAlias: text("conversation_alias"),
+    // SHA-256 of the secret the Mind sends with every push.
+    ingestKeyHash: text("ingest_key_hash").unique(),
+    resumeFileName: text("resume_file_name"),
+    resumeMime: text("resume_mime"),
+    resumeData: text("resume_data"), // base64
+    resumeText: text("resume_text"),
+    preferences: jsonb("preferences").$type<Preferences>(),
+    briefedAt: timestamp("briefed_at", { withTimezone: true }),
+    lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("profiles_user_id").on(t.userId), index("profiles_conversation_alias").on(t.conversationAlias)],
+).enableRLS();
 
 export type JobStatus =
   | "new"
@@ -62,11 +88,13 @@ export type JobStatus =
 
 export type WorkSetting = "onsite" | "hybrid" | "remote";
 
-export const jobs = sqliteTable(
+export const jobs = pgTable(
   "jobs",
   {
-    id: text("id").primaryKey(),
-    profileId: text("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
     url: text("url").notNull(),
     title: text("title").notNull(),
     company: text("company").notNull(),
@@ -79,39 +107,51 @@ export const jobs = sqliteTable(
     postedAt: text("posted_at"),
     matchScore: real("match_score").notNull(),
     whyFit: text("why_fit").notNull(),
-    gaps: text("gaps", { mode: "json" }).$type<string[]>().notNull(),
+    gaps: jsonb("gaps").$type<string[]>().notNull(),
     companyNotes: text("company_notes"),
     status: text("status").$type<JobStatus>().notNull().default("new"),
     skipReason: text("skip_reason"),
-    demo: integer("demo", { mode: "boolean" }).notNull().default(false),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-    statusChangedAt: integer("status_changed_at", { mode: "timestamp_ms" }),
+    demo: boolean("demo").notNull().default(false),
+    createdAt: createdAt(),
+    statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
   },
-  (t) => [uniqueIndex("jobs_profile_url").on(t.profileId, t.url), index("jobs_profile_created").on(t.profileId, t.createdAt)],
-);
+  (t) => [
+    uniqueIndex("jobs_profile_url").on(t.profileId, t.url),
+    index("jobs_profile_created").on(t.profileId, t.createdAt),
+    index("jobs_profile_status").on(t.profileId, t.status),
+  ],
+).enableRLS();
 
 export type PackAnswer = { question: string; answer: string };
 export type PackClaim = { claim: string; evidence: string };
 
-export const packs = sqliteTable("packs", {
-  jobId: text("job_id").primaryKey().references(() => jobs.id, { onDelete: "cascade" }),
+export const packs = pgTable("packs", {
+  jobId: uuid("job_id")
+    .primaryKey()
+    .references(() => jobs.id, { onDelete: "cascade" }),
   coverLetter: text("cover_letter").notNull(),
   aboutMe: text("about_me").notNull(),
-  answers: text("answers", { mode: "json" }).$type<PackAnswer[]>().notNull(),
-  claims: text("claims", { mode: "json" }).$type<PackClaim[]>().notNull(),
-  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-});
+  answers: jsonb("answers").$type<PackAnswer[]>().notNull(),
+  claims: jsonb("claims").$type<PackClaim[]>().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}).enableRLS();
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
-export const ingestLog = sqliteTable("ingest_log", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  profileId: text("profile_id").notNull().references(() => profiles.id, { onDelete: "cascade" }),
-  accepted: integer("accepted").notNull(),
-  rejected: integer("rejected").notNull(),
-  detail: text("detail", { mode: "json" }),
-  dryRun: integer("dry_run", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().$defaultFn(now),
-});
+export const ingestLog = pgTable(
+  "ingest_log",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    accepted: integer("accepted").notNull(),
+    rejected: integer("rejected").notNull(),
+    detail: jsonb("detail"),
+    dryRun: boolean("dry_run").notNull().default(false),
+    createdAt: createdAt(),
+  },
+  (t) => [index("ingest_log_profile_created").on(t.profileId, t.createdAt)],
+).enableRLS();
 
 export type User = typeof users.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;

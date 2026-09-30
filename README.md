@@ -8,12 +8,30 @@ Plan: https://claude.ai/code/artifact/ddb1d976-1ebc-44a7-b390-40dfbc2ff66c
 
 ```bash
 npm install
-cp .env.example .env.local
-npx drizzle-kit push
+cp .env.example .env.local   # then set DATABASE_URL (see Database)
 npm run dev
 ```
 
 With `HM_CLIENT_ID` empty the app runs in **demo mode**: sign-in, the Mind, top-ups and job delivery are simulated, so no cognition is spent. Demo-only shortcuts appear on the activate and resume steps.
+
+## Database
+
+Postgres (Supabase in production). Tables are defined in `src/db/schema.ts`; migrations live in `drizzle/`.
+
+| Table | Holds |
+| --- | --- |
+| `users` | One row per Hello Minds account: username, time zone, OAuth tokens |
+| `sessions` | Sign-in sessions (cookie id → user) |
+| `profiles` | One per headhunter: its Mind, resume, preferences, ingest key hash, status |
+| `jobs` | Jobs the Mind delivered, with match score, fit notes and the user's status |
+| `packs` | The application pack for each job: cover letter, answers, claims with resume evidence |
+| `ingest_log` | Every push a Mind made, accepted or rejected, with reasons |
+
+Row Level Security is on for every table with no policies, so Supabase's public Data API can't read them; the app connects directly as the database owner.
+
+- **Production:** set `DATABASE_URL` to Supabase's pooler connection string in **transaction mode** (port 6543), in Vercel → Settings → Environment Variables.
+- **Schema changes:** edit `src/db/schema.ts`, run `npx drizzle-kit generate`, then `npm run db:migrate` with `DATABASE_URL` pointing at Supabase (session mode, port 5432).
+- **Local testing without Supabase:** `npm run db:local` starts a Postgres-compatible server on port 5433 (data in `./data`). Set `DATABASE_URL=postgres://postgres:postgres@127.0.0.1:5433/postgres` and run `npm run db:migrate` once.
 
 ## Live mode
 
@@ -31,6 +49,6 @@ With `HM_CLIENT_ID` empty the app runs in **demo mode**: sign-in, the Mind, top-
 | Ingest endpoint: validates every job and pack | `src/app/api/ingest/route.ts`, `src/lib/ingest.ts` |
 | Setup: launch, activate, resume, preferences | `src/app/profiles/[id]/setup` |
 | Shortlist, tracker, settings | `src/app/app` |
-| Database schema (SQLite locally, Turso in production) | `src/db/schema.ts` |
+| Database schema | `src/db/schema.ts`, `drizzle/` |
 
 The ingest endpoint rejects, with a hint the Mind can act on: unwanted work settings, jobs outside the user's country, avoided companies, any claim whose evidence isn't quoted word for word from the resume, duplicates, dead links, and anything over the user's daily limit. Every reply also carries the user's recent skip reasons, so the Mind learns without an extra billed message.
