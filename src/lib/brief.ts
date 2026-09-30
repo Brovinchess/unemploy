@@ -42,7 +42,7 @@ Please reply with one line confirming you've got this, then send today's jobs.`;
 }
 
 export function buildContract(appUrl: string) {
-  return `UNEMPLOY INGEST CONTRACT
+  return `CAREER NINJA INGEST CONTRACT
 
 POST ${appUrl}/api/ingest            (add ?dry_run=1 to validate without saving)
 Header: x-unemploy-key: <the key from your brief>

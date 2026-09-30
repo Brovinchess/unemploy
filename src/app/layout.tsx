@@ -7,7 +7,7 @@ const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Unemploy — your own AI headhunter",
+  title: "Career Ninja — your own AI headhunter",
   description: "A personal AI headhunter that finds the jobs that fit you and writes your application for each one.",
 };
 

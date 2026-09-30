@@ -1,6 +1,6 @@
-# Unemploy
+# Career Ninja
 
-Your own AI headhunter. Each user launches a Hello Minds agent (a Mind) per resume. The Mind finds matching jobs every day and writes an application pack for each; Unemploy checks every pack against the resume and shows the user a shortlist to act on.
+Career Ninja (formerly Unemploy) is your own AI headhunter. Each user launches a Hello Minds agent (a Mind) per resume. The Mind finds matching jobs every day and writes an application pack for each; Unemploy checks every pack against the resume and shows the user a shortlist to act on.
 
 Plan: https://claude.ai/code/artifact/ddb1d976-1ebc-44a7-b390-40dfbc2ff66c
 

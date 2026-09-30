@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Logo } from "@/components/logo";
 
-export const metadata: Metadata = { title: "Privacy — Unemploy" };
+export const metadata: Metadata = { title: "Privacy — Career Ninja" };
 
 const SECTIONS = [
   {
@@ -27,7 +27,7 @@ const SECTIONS = [
     items: [
       "Pause a headhunter any time; it stops searching and spending cognition.",
       "Settings → Delete my data removes your account, resumes, shortlists and tracker, and turns off your headhunters. Hello Minds keeps the agents themselves, because agents can't be deleted there.",
-      "Cognition is bought and billed by Hello Minds, not by Unemploy.",
+      "Cognition is bought and billed by Hello Minds, not by Career Ninja.",
     ],
   },
 ];
@@ -42,9 +42,9 @@ export default function Privacy() {
       </header>
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-12 sm:px-6">
         <p className="eyebrow">Privacy</p>
-        <h1 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink">How Unemploy handles your data</h1>
+        <h1 className="font-display mt-3 text-3xl font-bold tracking-tight text-ink">How Career Ninja handles your data</h1>
         <p className="mt-4 text-lg leading-relaxed text-muted">
-          Unemploy exists to help you find a job, and it only uses your data for that.
+          Career Ninja exists to help you find a job, and it only uses your data for that.
         </p>
         <div className="mt-10 space-y-10">
           {SECTIONS.map((s) => (

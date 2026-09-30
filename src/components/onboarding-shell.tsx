@@ -14,7 +14,7 @@ export function OnboardingShell({
   return (
     <div className="flex min-h-svh flex-1 flex-col bg-night text-white">
       <header className="relative flex h-15 items-center justify-between px-[6%]">
-        <Link href="/start" aria-label="Unemploy">
+        <Link href="/start" aria-label="Career Ninja">
           <Wordmark />
         </Link>
         {step !== undefined && (

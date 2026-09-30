@@ -3,7 +3,7 @@ import Link from "next/link";
 export function Logo({ href = "/" }: { href?: string }) {
   return (
     <Link href={href} className="font-display text-lg font-semibold tracking-tight text-white">
-      unemploy<span className="text-coral">.</span>
+      careerninja<span className="text-coral">.</span>
     </Link>
   );
 }

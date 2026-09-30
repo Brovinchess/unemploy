@@ -19,7 +19,7 @@ export function LandingHeader({ action }: { action: { label: string; href: strin
   return (
     <header className="fixed inset-x-0 top-0 z-40 bg-night">
       <div className="relative flex h-15 items-center justify-between px-[6%]">
-        <Link href="/" aria-label="Unemploy home">
+        <Link href="/" aria-label="Career Ninja home">
           <Wordmark />
         </Link>
         <a

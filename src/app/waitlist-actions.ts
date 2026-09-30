@@ -159,7 +159,7 @@ export async function completeSignup(ticket: string, nameInput: string, birthdat
   const birth = new Date(`${birthdateInput}T00:00:00Z`);
   const age = ageOn(birth);
   if (Number.isNaN(age) || age > 120 || age < 0) return { ok: false, error: "Please check your date of birth." };
-  if (age < MIN_AGE) return { ok: false, error: `Unemploy is for people ${MIN_AGE} and over.` };
+  if (age < MIN_AGE) return { ok: false, error: `Career Ninja is for people ${MIN_AGE} and over.` };
 
   const t = await db.query.emailCodes.findFirst({ where: eq(schema.emailCodes.id, ticket) });
   if (!t?.verifiedAt || t.consumedAt || Date.now() - t.verifiedAt.getTime() > TICKET_TTL_MS) {

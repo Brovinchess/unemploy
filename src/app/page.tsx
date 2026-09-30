@@ -69,8 +69,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <section className="relative flex min-h-svh flex-col items-center justify-center px-5 pt-15 pb-28 text-center">
         <Mark className="size-20 sm:size-24" />
         <h1 className="font-display mt-6 text-[2.6rem] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[4rem]">
+          Career Ninja
           <span className="whitespace-nowrap">
-            Unemploy
             <span className="ml-2 inline-flex size-[0.95em] translate-y-[0.1em] items-center justify-center rounded-full bg-coral align-baseline sm:ml-3">
               <BriefcaseBusiness className="size-[0.48em] text-white" strokeWidth={2} aria-hidden />
             </span>
@@ -141,7 +141,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section className="bg-night px-[6%] py-28">
           <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[1fr_1.4fr]">
             <div>
-              <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">Learn more about Unemploy</h2>
+              <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">Learn more about Career Ninja</h2>
               <p className="mt-4 max-w-sm text-lg leading-relaxed text-white/55">What it does, how it protects you, and who it&rsquo;s built on.</p>
             </div>
             <ul>
@@ -175,7 +175,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             </a>
           </div>
           <footer className="flex flex-col items-center gap-4 py-8 text-sm text-white/45 sm:flex-row sm:justify-between">
-            <span>© 2026 Unemploy</span>
+            <span>© 2026 Career Ninja</span>
             <span className="flex gap-6">
               <Link href="/privacy" className="hover:text-white">
                 Privacy Policy

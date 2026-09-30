@@ -1,7 +1,7 @@
 import "server-only";
 
 // Verification emails go through Resend (https://resend.com). Needs RESEND_API_KEY and
-// EMAIL_FROM, e.g. "Unemploy <hello@your-domain.com>" on a domain verified in Resend.
+// EMAIL_FROM, e.g. "Career Ninja <hello@careerninja.app>" on a domain verified in Resend.
 // In development without them, codes are printed to the server log instead.
 
 export function emailConfigured() {
@@ -26,10 +26,10 @@ export async function sendVerificationCode(to: string, code: string) {
     body: JSON.stringify({
       from: process.env.EMAIL_FROM,
       to,
-      subject: `${code} is your Unemploy code`,
-      text: `Your Unemploy verification code is ${code}.\n\nIt expires in 10 minutes. If you didn't ask for it, you can ignore this email.`,
+      subject: `${code} is your Career Ninja code`,
+      text: `Your Career Ninja verification code is ${code}.\n\nIt expires in 10 minutes. If you didn't ask for it, you can ignore this email.`,
       html: `<div style="font-family:system-ui,sans-serif;max-width:420px;margin:0 auto;padding:32px 24px;color:#1f2d3a">
-  <p style="font-size:18px;font-weight:600;margin:0 0 24px">unemploy<span style="color:#c96567">.</span></p>
+  <p style="font-size:18px;font-weight:600;margin:0 0 24px">careerninja<span style="color:#c96567">.</span></p>
   <p style="margin:0 0 16px">Your verification code is</p>
   <p style="font-size:32px;letter-spacing:8px;font-weight:600;margin:0 0 24px">${code}</p>
   <p style="color:#5d6d7c;font-size:14px;margin:0">It expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
