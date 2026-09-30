@@ -1,10 +1,11 @@
 import "server-only";
+import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { MindsApi } from "./client";
 
 // A stand-in for Hello Minds so the full journey runs locally with no cognition spent.
-// State lives in memory and resets when the dev server restarts (except the database).
+// State lives in memory per server instance (the database is the real store).
 type MockState = { balances: Map<string, number>; conversations: Map<string, string>; names: Set<string> };
 const g = globalThis as unknown as { __unemployMock?: MockState };
 const state = (g.__unemployMock ??= { balances: new Map(), conversations: new Map(), names: new Set() });
@@ -36,10 +37,12 @@ export function mockTopUp(mindId: string, amount = 160) {
   state.balances.set(mindId, (state.balances.get(mindId) ?? 0) + amount);
 }
 
+// Runs after the response is sent, so it also works on serverless hosts.
 function scheduleHunt(alias: string) {
-  setTimeout(() => {
-    runMockHunt(alias).catch((e) => console.error("[mock mind] hunt failed", e));
-  }, 6000);
+  after(async () => {
+    await new Promise((r) => setTimeout(r, 6000));
+    await runMockHunt(alias).catch((e) => console.error("[mock mind] hunt failed", e));
+  });
 }
 
 const COMPANIES = [

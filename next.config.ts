@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
     serverActions: { bodySizeLimit: "6mb" },
   },
   serverExternalPackages: ["@libsql/client", "libsql"],
+  // Migrations are read from disk at startup, so ship them with every function.
+  outputFileTracingIncludes: { "/**": ["./drizzle/**"] },
 };
 
 export default nextConfig;
