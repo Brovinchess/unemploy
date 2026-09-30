@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import type { Job } from "@/db/schema";
 import { CopyBlock } from "./copy-block";
 import { JobActions } from "./job-actions";
-import { JobTags, MatchBadge } from "./job-card";
+import { JobTags, linkSource, MatchBadge, postedAgo } from "./job-card";
 import { CompanyMark } from "./logo";
 
 const STATUS_NOTE: Partial<Record<string, string>> = {
@@ -18,6 +18,8 @@ const STATUS_NOTE: Partial<Record<string, string>> = {
 
 export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string }) {
   const pack = await db.query.packs.findFirst({ where: eq(schema.packs.jobId, job.id) });
+  const posted = postedAgo(job.postedAt);
+  const source = linkSource(job.url);
 
   return (
     <article className="card overflow-hidden">
@@ -34,7 +36,10 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
           <JobTags job={job} />
         </div>
         <p className="mt-3 text-sm text-muted">
-          {[job.level, job.postedAt && `Posted ${job.postedAt}`].filter(Boolean).join(" · ")}
+          {[job.level, posted && `Posted ${posted.text}`, !job.salary && "Salary not listed", source && `Link via ${source}`]
+            .filter(Boolean)
+            .join(" · ")}
+          {posted && posted.days > 30 && <span className="ml-2 text-rose">Older posting, may already be filled</span>}
           {job.demo && <span className="ml-2 text-rose">Demo job, not a real posting</span>}
         </p>
         {STATUS_NOTE[job.status] ? (

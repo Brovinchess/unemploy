@@ -8,6 +8,7 @@ import { appContext, balanceFor } from "@/lib/app-context";
 import { mindsConfig } from "@/lib/minds/config";
 import { DeleteAccount } from "./delete-account";
 import { RemoveHeadhunter } from "./remove-headhunter";
+import { RenameHeadhunter } from "./rename-headhunter";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -35,9 +36,13 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
               <Ninja className="size-9" />
               {current.mindName}
             </p>
+            <div className="mt-3 flex items-center gap-2 text-sm">
+              <span className="text-white/45">Shown as</span>
+              <RenameHeadhunter profileId={current.id} label={current.label} />
+            </div>
             <p className="mt-1 text-muted">
               {balance == null ? "Balance unavailable right now." : `${Math.round(balance)} cognition left.`}{" "}
-              {current.status === "paused" ? "Paused: not searching or spending." : "Searching every morning."}
+              {current.status === "paused" ? "Paused: not searching or spending." : "Searching once a day."}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <a href={mindsConfig.topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent">

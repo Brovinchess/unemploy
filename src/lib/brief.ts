@@ -1,5 +1,5 @@
 import type { Preferences } from "./preferences";
-import { REMOTE_SCOPES, workSettingLabel } from "./preferences";
+import { avoidList, MAX_POSTING_AGE_DAYS, REMOTE_SCOPES, workSettingLabel } from "./preferences";
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -30,11 +30,16 @@ WHAT I WANT
 - Location: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.join(", ")}.
 - Minimum salary: ${prefs.minSalary || "not set"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
-- Avoid: ${prefs.avoidCompanies || "none"}.
+- Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
 
 RULES
 - Never invent anything about me. Every claim in a pack must quote my resume word for word in "evidence", or leave it out.
 - Say honestly where I fall short in "gaps".
+- Write whyFit, gaps and companyNotes to me, as "you" ("You led…"), never "he"/"she" or my name.
+- Link to the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workday…) when it exists, not a job board copy.
+- Only postings from the last ${MAX_POSTING_AGE_DAYS} days. Always send "postedAt" when the posting shows a date.
+- If a posting shows a salary clearly below my minimum, skip it. If no salary is shown, say so in "gaps".
+- If it's unclear whether I'm eligible from my country (remote jobs), check the posting and say what you found in "gaps".
 - The endpoint's reply tells you what was accepted and why anything was refused. Fix what it says and resend only those.
 - Full format and examples: GET ${appUrl}/api/ingest?brief=1
 
@@ -73,7 +78,7 @@ JOB fields
 REPLY
   {"accepted":n,"rejected":[{"url","code","hint"}],"remainingToday":n,"skippedRecently":[{"title","company","reason"}]}
   codes: bad_job, work_setting_not_wanted, wrong_country, company_avoided,
-         claim_not_in_resume, duplicate, found_by_other_headhunter, daily_limit, job_link_dead, bad_url, paused
+         claim_not_in_resume, stale_posting, duplicate, found_by_other_headhunter, daily_limit, job_link_dead, bad_url, paused
   Fix what each hint says. Do not resend accepted jobs.
   skippedRecently lists jobs the user skipped and why. Avoid similar jobs.
 

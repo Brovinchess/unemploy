@@ -3,6 +3,7 @@ import { and, count, eq, gte, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
+import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
 
 const claimSchema = z.object({
   claim: z.string().trim().min(3).max(400),
@@ -80,12 +81,22 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
     };
   }
 
-  const avoid = prefs.avoidCompanies
-    .split(/[,\n]/)
-    .map((c) => norm(c))
-    .filter(Boolean);
-  if (avoid.some((a) => norm(job.company).includes(a))) {
+  // Match whole words so "Meta" doesn't block "Metabase".
+  const company = ` ${norm(job.company).replace(/[^a-z0-9]+/g, " ")} `;
+  const avoid = avoidList(prefs.avoidCompanies).map((c) => ` ${norm(c).replace(/[^a-z0-9]+/g, " ").trim()} `);
+  if (avoid.some((a) => a.trim() && company.includes(a))) {
     return { url: job.url, code: "company_avoided", hint: `The user asked to avoid ${job.company}.` };
+  }
+
+  if (job.postedAt) {
+    const posted = Date.parse(job.postedAt);
+    if (!Number.isNaN(posted) && Date.now() - posted > MAX_POSTING_AGE_DAYS * 86_400_000) {
+      return {
+        url: job.url,
+        code: "stale_posting",
+        hint: `Posted ${job.postedAt}, over ${MAX_POSTING_AGE_DAYS} days ago; it is probably filled. Send postings from the last ${MAX_POSTING_AGE_DAYS} days.`,
+      };
+    }
   }
 
   const unsupported = job.pack.claims.filter((c) => !resume.includes(norm(c.evidence)));

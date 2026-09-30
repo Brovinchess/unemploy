@@ -30,6 +30,7 @@ const WINDOW_MS = 3 * 86_400_000;
 
 const REJECTION_LABELS: Record<string, string> = {
   duplicate: "already sent",
+  stale_posting: "posting too old",
   found_by_other_headhunter: "found by your other headhunter",
   job_link_dead: "dead link",
   daily_limit: "over your daily limit",

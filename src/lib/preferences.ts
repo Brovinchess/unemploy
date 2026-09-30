@@ -22,6 +22,18 @@ export const COGNITION_USD = 2.83 / 160;
 const BASE_COGNITION_PER_DAY = 15;
 const COGNITION_PER_JOB = 8;
 
+// People answer "no" or "none" to "any companies to avoid?". Those aren't company names.
+const NOTHING = new Set(["no", "none", "nope", "n/a", "na", "nil", "nothing", "-", "no one", "nobody"]);
+export function avoidList(raw: string | undefined): string[] {
+  return (raw ?? "")
+    .split(/[,\n;]/)
+    .map((c) => c.trim())
+    .filter((c) => c.length > 1 && !NOTHING.has(c.toLowerCase()));
+}
+
+// Postings older than this are likely filled or "ghost" listings.
+export const MAX_POSTING_AGE_DAYS = 45;
+
 export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 
 export function estimateDailyCost(jobsPerDay: number) {
@@ -61,7 +73,7 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Job type", value: p.jobTypes.join(", ") },
     { label: "Level", value: p.levels.join(", ") },
     { label: "Minimum salary", value: p.minSalary || "Not set" },
-    { label: "Avoid", value: p.avoidCompanies || "None" },
+    { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },
     { label: "Visa sponsorship", value: p.needsVisa ? "Needed" : "Not needed" },
     { label: "Jobs per day", value: String(p.jobsPerDay) },
   ];

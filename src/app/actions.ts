@@ -314,6 +314,16 @@ export async function setPaused(profileId: string, paused: boolean) {
   revalidatePath("/app", "layout");
 }
 
+// Renames the headhunter in the app. The Mind's own name on Hello Minds is permanent.
+export async function renameProfile(profileId: string, label: string): Promise<FormState> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  const clean = label.trim();
+  if (clean.length < 2 || clean.length > 40) return { error: "Use 2 to 40 characters." };
+  await db.update(schema.profiles).set({ label: clean }).where(eq(schema.profiles.id, profile.id));
+  revalidatePath("/app", "layout");
+}
+
 // Turns the Mind off (Hello Minds has no delete) and removes the headhunter and its jobs.
 export async function removeProfile(profileId: string) {
   const user = await requireUser();

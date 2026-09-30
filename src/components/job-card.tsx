@@ -7,6 +7,26 @@ export function jobPlace(job: Pick<Job, "city" | "country" | "workSetting">) {
   return [job.city, job.country].filter(Boolean).join(", ");
 }
 
+// "3 days ago" / "2 months ago" from an ISO date; null if it can't be read.
+export function postedAgo(postedAt: string | null, now = Date.now()) {
+  const t = postedAt ? Date.parse(postedAt) : NaN;
+  if (Number.isNaN(t)) return null;
+  const days = Math.max(0, Math.floor((now - t) / 86_400_000));
+  const text =
+    days === 0 ? "today" : days === 1 ? "yesterday" : days < 30 ? `${days} days ago` : days < 60 ? "a month ago" : `${Math.floor(days / 30)} months ago`;
+  return { days, text };
+}
+
+// The site a job link points to, e.g. "greenhouse.io".
+export function linkSource(url: string) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./, "");
+    return host.split(".").slice(-2).join(".");
+  } catch {
+    return null;
+  }
+}
+
 export function MatchBadge({ score }: { score: number }) {
   return (
     <span className="font-display inline-flex items-baseline gap-1 rounded-full bg-coral-soft px-2.5 py-1 text-sm font-bold text-rose">
