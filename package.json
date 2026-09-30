@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "db:local": "mkdir -p data && pglite-server --db=./data/pglite --port=5433",
+    "db:local": "mkdir -p data && pglite-server --db=./data/pglite --port=5433 --max-connections=10",
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {

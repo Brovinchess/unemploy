@@ -157,3 +157,21 @@ export type User = typeof users.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 export type Pack = typeof packs.$inferSelect;
+
+// Pre-launch waitlist. referral_code is shared as ?ref=…; referred_by is the code a signup came in with.
+export const waitlist = pgTable(
+  "waitlist",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull().unique(),
+    referralCode: text("referral_code").notNull().unique(),
+    referredBy: text("referred_by"),
+    roleArea: text("role_area"),
+    country: text("country"),
+    source: text("source"), // utm_source, if any
+    createdAt: createdAt(),
+  },
+  (t) => [index("waitlist_created").on(t.createdAt), index("waitlist_referred_by").on(t.referredBy)],
+).enableRLS();
+
+export type WaitlistEntry = typeof waitlist.$inferSelect;

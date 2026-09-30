@@ -1,12 +1,20 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db, schema } from "@/db";
+import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
 import { hasEncryptionKey } from "@/lib/crypto";
 import { createPkce, loginUrl } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
 
 export async function GET(request: Request) {
+  // Before launch, sign-in is closed except with the early-access code (for the team and testers).
+  if (launchMode === "waitlist") {
+    const code = process.env.EARLY_ACCESS_CODE;
+    const given = new URL(request.url).searchParams.get("access");
+    if (!code || !given || given !== code) return NextResponse.redirect(new URL("/", request.url));
+  }
+
   if (mindsMode === "mock") {
     // Demo mode: every visitor gets their own throwaway account.
     const [user] = await db

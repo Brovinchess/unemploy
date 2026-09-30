@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-export function Logo({ href = "/" }: { href?: string }) {
+export function Logo({ href = "/", light = false }: { href?: string; light?: boolean }) {
   return (
-    <Link href={href} className="font-display text-xl font-extrabold tracking-tight text-ink">
+    <Link href={href} className={`font-display text-xl font-extrabold tracking-tight ${light ? "text-white" : "text-ink"}`}>
       unemploy<span className="text-coral">.</span>
     </Link>
   );
