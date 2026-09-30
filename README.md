@@ -1,36 +1,36 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Unemploy
 
-## Getting Started
+Your own AI headhunter. Each user launches a Hello Minds agent (a Mind) per resume. The Mind finds matching jobs every day and writes an application pack for each; Unemploy checks every pack against the resume and shows the user a shortlist to act on.
 
-First, run the development server:
+Plan: https://claude.ai/code/artifact/ddb1d976-1ebc-44a7-b390-40dfbc2ff66c
+
+## Run it
 
 ```bash
+npm install
+cp .env.example .env.local
+npx drizzle-kit push
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+With `HM_CLIENT_ID` empty the app runs in **demo mode**: sign-in, the Mind, top-ups and job delivery are simulated, so no cognition is spent. Demo-only shortcuts appear on the activate and resume steps.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Live mode
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Create an OAuth client in the Hello Minds Build console with redirect URI `$APP_URL/auth/callback`.
+2. Set `HM_CLIENT_ID` and `APP_URL` in `.env.local`.
+3. `APP_URL` must be reachable from the internet: Minds POST their jobs to `$APP_URL/api/ingest`. For local testing, use a tunnel.
 
-## Learn More
+## How it fits together
 
-To learn more about Next.js, take a look at the following resources:
+| Piece | Where |
+| --- | --- |
+| Hello Minds OAuth (PKCE) and token refresh | `src/lib/minds/oauth.ts`, `src/lib/minds/client.ts` |
+| Simulated Mind for demo mode | `src/lib/minds/mock.ts` |
+| Brief sent to each Mind, and the ingest contract | `src/lib/brief.ts` (contract served at `GET /api/ingest?brief=1`) |
+| Ingest endpoint: validates every job and pack | `src/app/api/ingest/route.ts`, `src/lib/ingest.ts` |
+| Setup: launch, activate, resume, preferences | `src/app/profiles/[id]/setup` |
+| Shortlist, tracker, settings | `src/app/app` |
+| Database schema (SQLite locally, Turso in production) | `src/db/schema.ts` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The ingest endpoint rejects, with a hint the Mind can act on: unwanted work settings, jobs outside the user's country, avoided companies, any claim whose evidence isn't quoted word for word from the resume, duplicates, dead links, and anything over the user's daily limit. Every reply also carries the user's recent skip reasons, so the Mind learns without an extra billed message.
