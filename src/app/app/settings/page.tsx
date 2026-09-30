@@ -1,5 +1,5 @@
 import { ExternalLink } from "lucide-react";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
@@ -10,7 +10,7 @@ import { DeleteAccount } from "./delete-account";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <section className="card grid gap-6 p-6 md:grid-cols-[200px_1fr] md:p-8">
+    <section className="grid gap-6 rounded-3xl bg-surface p-6 md:grid-cols-[220px_1fr] md:p-8">
       <h2 className="font-display font-medium text-ink">{title}</h2>
       <div>{children}</div>
     </section>
@@ -23,12 +23,12 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
   const balance = await balanceFor(user, current);
 
   return (
-    <>
-      <AppHeader tab="settings" profiles={profiles} current={current} balance={balance} />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6">
-        <h1 className="font-display text-2xl font-medium tracking-tight text-ink">{current.label} settings</h1>
+    <AppShell tab="settings" user={user} profiles={profiles} current={current} balance={balance}>
+      <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <p className="text-sm text-white/45">{current.label} headhunter</p>
+        <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Settings</h1>
 
-        <div className="mt-6 space-y-4">
+        <div className="mt-8 space-y-4">
           <Section title="Headhunter">
             <p className="flex items-center gap-3 font-mono text-[0.9375rem] font-semibold text-ink">
               <Ninja className="size-9" />
@@ -73,6 +73,6 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
           </Section>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

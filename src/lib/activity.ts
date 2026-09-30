@@ -17,6 +17,15 @@ export type ActivityItem = {
   detail?: string;
 };
 
+export type ActivityStats = {
+  replied: boolean; // the Mind has said something since the brief
+  webSearches: number;
+  filesRead: number;
+  cognitionUsed: number;
+  deliveries: number;
+  jobsAdded: number;
+};
+
 const WINDOW_MS = 3 * 86_400_000;
 
 const REJECTION_LABELS: Record<string, string> = {
@@ -58,7 +67,10 @@ function describeOwnMessage(text: string, first: boolean) {
   return "Career Ninja sent a note";
 }
 
-export async function buildActivity(user: User, profile: Profile): Promise<{ items: ActivityItem[]; partial: boolean }> {
+export async function buildActivity(
+  user: User,
+  profile: Profile,
+): Promise<{ items: ActivityItem[]; stats: ActivityStats; partial: boolean }> {
   const since = new Date(Math.max(profile.briefedAt?.getTime() ?? 0, Date.now() - WINDOW_MS) - 60_000);
   // The ledger is bucketed by hour, so ask from the start of the hour the window opens in.
   const usageSince = new Date(since);
@@ -122,6 +134,17 @@ export async function buildActivity(user: User, profile: Profile): Promise<{ ite
     });
   }
 
+  const sum = (tool: string) => usage.filter((u) => u.tool === tool).reduce((a, u) => a + u.calls, 0);
+  const real = deliveries.filter((d) => !d.dryRun);
+  const stats: ActivityStats = {
+    replied: chat.some((m) => m.fromMind && m.at >= since),
+    webSearches: sum("SEARCH_Web"),
+    filesRead: sum("FILE_Analyze"),
+    cognitionUsed: Math.round(usage.reduce((a, u) => a + u.cognition, 0)),
+    deliveries: real.length,
+    jobsAdded: real.reduce((a, d) => a + d.accepted, 0),
+  };
+
   items.sort((a, b) => b.at.localeCompare(a.at));
-  return { items: items.slice(0, 25), partial };
+  return { items: items.slice(0, 25), stats, partial };
 }

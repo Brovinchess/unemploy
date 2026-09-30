@@ -2,9 +2,9 @@ import Link from "next/link";
 import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { JobStatus } from "@/db/schema";
-import { AppHeader } from "@/components/app-header";
+import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
-import { appContext } from "@/lib/app-context";
+import { appContext, balanceFor } from "@/lib/app-context";
 import { MoveJob } from "./move-job";
 import { CompanyMark } from "@/components/logo";
 
@@ -19,8 +19,10 @@ const COLUMNS: { status: JobStatus; label: string }[] = [
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export default async function Tracker() {
-  const { profiles } = await appContext();
+export default async function Tracker({ searchParams }: PageProps<"/app/tracker">) {
+  const sp = await searchParams;
+  const { user, profiles, current } = await appContext(sp.profile);
+  const balance = await balanceFor(user, current);
   const labels = new Map(profiles.map((p) => [p.id, p.label]));
   const jobs = await db.query.jobs.findMany({
     where: inArray(
@@ -32,14 +34,14 @@ export default async function Tracker() {
   const tracked = jobs.filter((j) => COLUMNS.some((c) => c.status === j.status));
 
   return (
-    <>
-      <AppHeader tab="tracker" profiles={profiles} />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-[6%] py-8 sm:px-6">
-        <h1 className="font-display text-2xl font-medium tracking-tight text-white">Tracker</h1>
-        <p className="mt-2 text-muted">Every job you saved or applied for, across all your headhunters.</p>
+    <AppShell tab="tracker" user={user} profiles={profiles} current={current} balance={balance}>
+      <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        <p className="text-sm text-white/45">All headhunters</p>
+        <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Tracker</h1>
+        <p className="mt-2 text-white/55">Every job you saved or applied for, from saved to offer.</p>
 
         {tracked.length === 0 ? (
-          <div className="card mt-8 px-6 py-12 text-center">
+          <div className="mt-8 rounded-3xl bg-surface px-6 py-16 text-center">
             <Ninja className="mx-auto size-16" />
             <h2 className="font-display mt-4 text-xl font-medium text-white">Nothing here yet</h2>
             <p className="mt-3 text-muted">Jobs you save or apply for from your shortlist show up here.</p>
@@ -54,7 +56,7 @@ export default async function Tracker() {
                   <h2 className="font-display flex items-center gap-2 text-sm font-medium text-ink">
                     {col.label} <span className="tag text-xs">{items.length}</span>
                   </h2>
-                  <ul className="card mt-3 divide-y divide-line overflow-hidden">
+                  <ul className="mt-3 divide-y divide-white/[0.06] overflow-hidden rounded-2xl bg-surface">
                     {items.map((j) => {
                       const stale =
                         j.status === "applied" && j.statusChangedAt && Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
@@ -64,7 +66,7 @@ export default async function Tracker() {
                           <div className="min-w-0 flex-1">
                             <Link
                               href={`/app?profile=${j.profileId}&job=${j.id}`}
-                              className="font-display font-bold text-ink hover:underline hover:decoration-mist hover:underline-offset-4"
+                              className="font-display font-medium text-white hover:underline hover:decoration-mist hover:underline-offset-4"
                             >
                               {j.title}
                             </Link>
@@ -88,6 +90,6 @@ export default async function Tracker() {
           </div>
         )}
       </main>
-    </>
+    </AppShell>
   );
 }
