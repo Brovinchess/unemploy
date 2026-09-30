@@ -70,8 +70,9 @@ export function JobCard({ job, href, selected = false }: { job: Job; href: strin
         <div className="mt-2.5">
           <JobTags job={job} />
         </div>
-        {(job.status === "saved" || job.demo) && (
+        {(job.status === "saved" || job.demo || job.verifiedAt) && (
           <div className="mt-2.5 flex gap-1.5">
+            {job.verifiedAt && job.locationText && <span className="tag bg-coral-soft text-rose">✓ Verified</span>}
             {job.status === "saved" && <span className="tag bg-plum-soft text-white/85">Saved</span>}
             {job.demo && <span className="tag bg-coral-soft text-rose">Demo</span>}
           </div>

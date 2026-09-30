@@ -128,6 +128,12 @@ async function runMockHunt(alias: string) {
       whyFit: `Your experience lines up with what ${company.name} asks for. In particular: "${e1}"`,
       gaps: i % 2 ? ["The posting prefers someone who has managed a team; your resume doesn't show that yet."] : [],
       companyNotes: company.notes,
+      locationText: setting === "remote" ? "Remote — we hire worldwide" : `${prefs.city || prefs.country}, ${prefs.country}`,
+      mustHaves: [
+        { requirement: `Experience as a ${role}`, met: true },
+        { requirement: "Managed a team", met: i % 2 === 0 },
+      ],
+      verifiedOpenAt: new Date().toISOString().slice(0, 10),
       pack: {
         coverLetter:
           `Dear ${company.name} hiring team,\n\n` +

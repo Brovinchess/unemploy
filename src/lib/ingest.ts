@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
+import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 
 const claimSchema = z.object({
   claim: z.string().trim().min(3).max(400),
@@ -25,6 +26,13 @@ const jobSchema = z.object({
   whyFit: z.string().trim().min(10).max(1200),
   gaps: z.array(z.string().trim().max(300)).max(10).default([]),
   companyNotes: z.string().trim().max(1500).optional(),
+  // Evidence the Mind must bring from the posting itself.
+  locationText: z.string().trim().min(3).max(400),
+  mustHaves: z
+    .array(z.object({ requirement: z.string().trim().min(3).max(300), met: z.boolean() }))
+    .min(1)
+    .max(12),
+  verifiedOpenAt: z.string().trim().min(8).max(40),
   pack: z.object({
     coverLetter: z.string().trim().min(80).max(6000),
     aboutMe: z.string().trim().min(20).max(1500),
@@ -47,6 +55,8 @@ export type PushResult = {
   rejected: Rejection[];
   remainingToday: number;
   dryRun: boolean;
+  // Changes the app made to accepted jobs (e.g. a match score capped), so the Mind learns.
+  adjusted?: { url: string; note: string }[];
   // The user's recent skips, so the Mind learns without a separate (billed) message.
   skippedRecently?: { title: string; company: string; reason: string | null }[];
 };
@@ -60,9 +70,42 @@ const norm = (s: string) =>
 
 const sameCountry = (a?: string, b?: string) => !!a && !!b && norm(a) === norm(b);
 
+const MAX_UNVERIFIED_DAYS = 3;
+const MAX_PER_COMPANY_PER_DAY = 2;
+const MAX_SCORE_WITH_GAPS = 55;
+
 function checkJob(job: JobPush, profile: Profile): Rejection | null {
   const prefs = profile.preferences!;
   const resume = norm(profile.resumeText ?? "");
+
+  if (isAggregator(job.url)) {
+    return {
+      url: job.url,
+      code: "not_employer_link",
+      hint: `${hostOf(job.url)} copies postings and keeps them after they close. Find this job on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workday…) and send that link, or skip it.`,
+    };
+  }
+
+  const seen = Date.parse(job.verifiedOpenAt);
+  if (Number.isNaN(seen) || Date.now() - seen > MAX_UNVERIFIED_DAYS * 86_400_000 || seen - Date.now() > 86_400_000) {
+    return {
+      url: job.url,
+      code: "not_verified",
+      hint: `Open the posting today, confirm it still accepts applications, and send "verifiedOpenAt" as today's date.`,
+    };
+  }
+
+  const eligibility = eligibilityProblem(job.locationText, prefs.country, prefs.city);
+  if (eligibility) return { url: job.url, code: "not_eligible", hint: eligibility };
+
+  const unmet = job.mustHaves.filter((m) => !m.met).length;
+  if (unmet * 2 > job.mustHaves.length) {
+    return {
+      url: job.url,
+      code: "poor_fit",
+      hint: `The user misses ${unmet} of ${job.mustHaves.length} must-haves. Send jobs where they meet most of them.`,
+    };
+  }
 
   if (!prefs.workSettings.includes(job.workSetting)) {
     return {
@@ -115,7 +158,7 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
 }
 
 // Job links come from the Mind, so never let the check reach private or internal addresses.
-function isPublicHttpUrl(raw: string) {
+export function isPublicHttpUrl(raw: string) {
   const u = new URL(raw);
   if (u.protocol !== "https:" && u.protocol !== "http:") return false;
   const h = u.hostname.toLowerCase();
@@ -131,17 +174,6 @@ function isPublicHttpUrl(raw: string) {
   return true;
 }
 
-async function linkIsDead(url: string): Promise<boolean> {
-  try {
-    // No redirect following: a redirect means the page exists somewhere, and following it
-    // could lead to an internal address.
-    const res = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(6000) });
-    return res.status === 404 || res.status === 410;
-  } catch {
-    // Network errors and bot walls are not proof the posting is gone.
-    return false;
-  }
-}
 
 export async function processPush(
   profile: Profile,
@@ -185,6 +217,8 @@ export async function processPush(
   let remaining = Math.max(0, prefs.jobsPerDay - n);
 
   const rejected: Rejection[] = [];
+  const adjusted: { url: string; note: string }[] = [];
+  const sentToday = new Map<string, number>(); // company -> accepted in this push
   let accepted = 0;
 
   for (const raw of parsed.data.jobs) {
@@ -246,10 +280,35 @@ export async function processPush(
       continue;
     }
 
-    if (!opts.demo && (await linkIsDead(job.url))) {
-      rejected.push({ url: job.url, code: "job_link_dead", hint: "The job link returns 404/410. Only send live postings." });
+    const sameCompany = await db
+      .select({ n: count() })
+      .from(schema.jobs)
+      .where(and(eq(schema.jobs.profileId, profile.id), eq(schema.jobs.company, job.company), gte(schema.jobs.createdAt, since)));
+    if (sameCompany[0].n + (sentToday.get(job.company.toLowerCase()) ?? 0) >= MAX_PER_COMPANY_PER_DAY) {
+      rejected.push({
+        url: job.url,
+        code: "company_limit",
+        hint: `Already ${MAX_PER_COMPANY_PER_DAY} jobs from ${job.company} today. Pick the single best-fitting role there and look at other companies.`,
+      });
       continue;
     }
+
+    if (!opts.demo && (await checkPosting(job.url, isPublicHttpUrl)) === "closed") {
+      rejected.push({
+        url: job.url,
+        code: "job_closed",
+        hint: "The posting is closed (404, redirected away, or says it no longer accepts applications). Only send open postings.",
+      });
+      continue;
+    }
+
+    // A missed must-have caps the score: a strong-sounding match that fails a hard
+    // requirement wastes the user's time.
+    if (job.mustHaves.some((m) => !m.met) && job.matchScore > MAX_SCORE_WITH_GAPS) {
+      adjusted.push({ url: job.url, note: `matchScore capped at ${MAX_SCORE_WITH_GAPS} because a must-have is not met.` });
+      job.matchScore = MAX_SCORE_WITH_GAPS;
+    }
+    sentToday.set(job.company.toLowerCase(), (sentToday.get(job.company.toLowerCase()) ?? 0) + 1);
 
     remaining--;
     accepted++;
@@ -273,6 +332,10 @@ export async function processPush(
       whyFit: job.whyFit,
       gaps: job.gaps,
       companyNotes: job.companyNotes,
+      locationText: job.locationText,
+      mustHaves: job.mustHaves,
+      verifiedAt: new Date(Date.parse(job.verifiedOpenAt)),
+      lastCheckedAt: new Date(),
       demo: !!opts.demo,
     });
     await db.insert(schema.packs).values({ jobId: id, ...job.pack });
@@ -301,5 +364,5 @@ export async function processPush(
     )
     .limit(20);
 
-  return { accepted, rejected, remainingToday: remaining, dryRun, skippedRecently };
+  return { accepted, rejected, remainingToday: remaining, dryRun, adjusted, skippedRecently };
 }

@@ -1,12 +1,16 @@
 import { NextResponse } from "next/server";
-import { and, eq, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { minds, LoginExpiredError } from "@/lib/minds/client";
 import { mindsMode } from "@/lib/minds/config";
+import { isPublicHttpUrl } from "@/lib/ingest";
+import { checkPosting } from "@/lib/quality";
 
 // Runs daily (vercel.json). Nudges headhunters that have missed their daily delivery,
 // following the Hello Minds field guide: one nudge a day, stop after three, and write
 // every nudge in the owner's voice with a unique tail so it isn't taken as a repeat.
+export const maxDuration = 300;
+
 const HOUR = 60 * 60 * 1000;
 const NUDGE_AFTER = 30 * HOUR;
 const GIVE_UP_AFTER = NUDGE_AFTER + 3 * 24 * HOUR;
@@ -19,8 +23,9 @@ export async function GET(request: Request) {
   }
 
   const expired = await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date())).returning({ id: schema.sessions.id });
+  const closed = await recheckOpenJobs();
 
-  if (mindsMode !== "live") return NextResponse.json({ expiredSessions: expired.length, nudged: 0, mode: mindsMode });
+  if (mindsMode !== "live") return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, nudged: 0, mode: mindsMode });
 
   const hunting = await db.query.profiles.findMany({
     where: and(eq(schema.profiles.status, "hunting"), isNotNull(schema.profiles.mindId), isNotNull(schema.profiles.briefedAt)),
@@ -50,6 +55,37 @@ export async function GET(request: Request) {
     }
   }
 
-  console.log(`[watchdog] nudged ${nudged}, skipped ${skipped.length}, expired sessions ${expired.length}`);
-  return NextResponse.json({ expiredSessions: expired.length, nudged, skipped: skipped.length });
+  console.log(`[watchdog] nudged ${nudged}, skipped ${skipped.length}, closed jobs ${closed}, expired sessions ${expired.length}`);
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, nudged, skipped: skipped.length });
+}
+
+// Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the
+// ones whose posting has closed, so shortlists don't fill up with dead jobs.
+const RECHECK_LIMIT = 300;
+async function recheckOpenJobs() {
+  const jobs = await db.query.jobs.findMany({
+    where: and(
+      inArray(schema.jobs.status, ["new", "saved"]),
+      eq(schema.jobs.demo, false),
+      gte(schema.jobs.createdAt, new Date(Date.now() - 30 * 24 * HOUR)),
+    ),
+    columns: { id: true, url: true },
+    limit: RECHECK_LIMIT,
+  });
+  let closed = 0;
+  for (let i = 0; i < jobs.length; i += 8) {
+    await Promise.all(
+      jobs.slice(i, i + 8).map(async (j) => {
+        const state = await checkPosting(j.url, isPublicHttpUrl);
+        const now = new Date();
+        if (state === "closed") {
+          closed++;
+          await db.update(schema.jobs).set({ status: "expired", statusChangedAt: now, lastCheckedAt: now }).where(eq(schema.jobs.id, j.id));
+        } else if (state === "open") {
+          await db.update(schema.jobs).set({ lastCheckedAt: now }).where(eq(schema.jobs.id, j.id));
+        }
+      }),
+    );
+  }
+  return closed;
 }

@@ -86,7 +86,11 @@ export type JobStatus =
   | "interview"
   | "offer"
   | "rejected"
-  | "skipped";
+  | "skipped"
+  | "expired"; // the posting closed before the user acted on it (daily recheck)
+
+// A requirement from the posting and whether the resume shows it.
+export type MustHave = { requirement: string; met: boolean };
 
 export type WorkSetting = "onsite" | "hybrid" | "remote";
 
@@ -111,6 +115,12 @@ export const jobs = pgTable(
     whyFit: text("why_fit").notNull(),
     gaps: jsonb("gaps").$type<string[]>().notNull(),
     companyNotes: text("company_notes"),
+    // Quality evidence from the Mind: the posting's own location/eligibility line, its
+    // must-have requirements checked against the resume, and when it last saw it open.
+    locationText: text("location_text"),
+    mustHaves: jsonb("must_haves").$type<MustHave[]>(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     status: text("status").$type<JobStatus>().notNull().default("new"),
     skipReason: text("skip_reason"),
     demo: boolean("demo").notNull().default(false),

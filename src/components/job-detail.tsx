@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { ExternalLink } from "lucide-react";
+import { Check, CircleHelp, ExternalLink, X } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Job } from "@/db/schema";
 import { CopyBlock } from "./copy-block";
@@ -14,6 +14,7 @@ const STATUS_NOTE: Partial<Record<string, string>> = {
   offer: "You got an offer for this job.",
   rejected: "This application was unsuccessful.",
   skipped: "You skipped this job.",
+  expired: "This posting has closed. Your headhunter's daily check found it no longer accepts applications.",
 };
 
 export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string }) {
@@ -50,6 +51,41 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
       </div>
 
       <div className="space-y-8 p-6">
+        {job.verifiedAt && job.locationText && (
+          <section className="rounded-2xl bg-night-2 p-5">
+            <h2 className="font-display flex items-center gap-2 font-medium text-white">
+              <span className="flex size-5 items-center justify-center rounded-full bg-coral">
+                <Check className="size-3 text-white" strokeWidth={3} aria-hidden />
+              </span>
+              Checked for you
+            </h2>
+            <ul className="mt-4 space-y-3 text-sm">
+              <CheckRow ok>
+                Open for applications, checked {ago(job.lastCheckedAt ?? job.verifiedAt)} on the employer&rsquo;s own page
+              </CheckRow>
+              <CheckRow ok>
+                Who can apply: <span className="text-white/60">&ldquo;{job.locationText}&rdquo;</span>
+              </CheckRow>
+              <CheckRow ok={job.salary ? true : undefined}>
+                {job.salary ? `Pay: ${job.salary}` : "Pay isn't listed on the posting"}
+              </CheckRow>
+            </ul>
+            {job.mustHaves && job.mustHaves.length > 0 && (
+              <>
+                <p className="mt-5 text-xs font-medium uppercase tracking-wider text-white/40">What they require</p>
+                <ul className="mt-3 space-y-2 text-sm">
+                  {job.mustHaves.map((m) => (
+                    <CheckRow key={m.requirement} ok={m.met} bad={!m.met}>
+                      {m.requirement}
+                      {!m.met && <span className="text-rose"> · you don&rsquo;t show this yet</span>}
+                    </CheckRow>
+                  ))}
+                </ul>
+              </>
+            )}
+          </section>
+        )}
+
         <section>
           <h2 className="font-display font-medium text-ink">Why it fits</h2>
           <p className="mt-2 leading-relaxed">{job.whyFit}</p>
@@ -115,5 +151,20 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
         </a>
       </div>
     </article>
+  );
+}
+
+function ago(d: Date) {
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
+}
+
+function CheckRow({ ok, bad, children }: { ok?: boolean; bad?: boolean; children: React.ReactNode }) {
+  const Icon = bad ? X : ok ? Check : CircleHelp;
+  return (
+    <li className="flex gap-3">
+      <Icon className={`mt-0.5 size-4 shrink-0 ${bad ? "text-rose" : ok ? "text-coral" : "text-white/40"}`} strokeWidth={2.5} aria-hidden />
+      <span className="text-white/80">{children}</span>
+    </li>
   );
 }

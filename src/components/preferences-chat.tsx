@@ -47,7 +47,7 @@ const QUESTIONS: Question[] = [
   { key: "minSalary", ask: () => "What's the lowest salary you'd accept? Include the currency. You can skip this." },
   { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas." },
   { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?" },
-  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each day? More jobs use more cognition." },
+  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each day? Fewer means I can check each one more carefully, and it uses less cognition." },
 ];
 
 const DEFAULTS: Draft = { city: "", minSalary: "", avoidCompanies: "", remoteScope: "country" };
@@ -266,7 +266,7 @@ function AnswerInput({
             onClick={() => onAnswer({ jobsPerDay: n })}
           >
             <span className="font-display text-xl font-bold text-ink">{n}</span>
-            <span className="text-sm text-muted">jobs a day</span>
+            <span className="text-sm text-muted">jobs a day{n === 5 && <span className="ml-1 text-coral">· recommended</span>}</span>
             <span className="mt-2 text-xs text-muted">
               ~{c.cognition} cognition · ${c.usd.toFixed(2)}
             </span>
