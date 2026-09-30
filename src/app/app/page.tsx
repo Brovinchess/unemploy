@@ -10,6 +10,11 @@ import { JobDetail } from "@/components/job-detail";
 import { PauseToggle } from "@/components/pause-toggle";
 import { appContext, balanceFor } from "@/lib/app-context";
 
+// Server render happens once per request, so reading the clock here is fine.
+function daysSince(d: Date) {
+  return Math.floor((Date.now() - d.getTime()) / 86_400_000);
+}
+
 export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
   const { user, profiles, current } = await appContext(sp.profile);
@@ -40,6 +45,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const base = `/app?profile=${current.id}`;
   const paused = current.status === "paused";
   const searching = !current.lastDeliveryAt && !paused;
+  const lastSeen = current.lastDeliveryAt ?? current.briefedAt;
+  const quietDays = lastSeen ? daysSince(lastSeen) : 0;
 
   return (
     <>
@@ -57,6 +64,13 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           <div className="mb-6 rounded-2xl bg-coral-soft px-5 py-4 text-rose">
             <strong>{current.mindName}</strong> has run out of cognition and will stop searching soon. Top it up on
             Hello Minds to keep your shortlist coming.
+          </div>
+        )}
+
+        {quietDays >= 4 && !paused && (
+          <div className="mb-6 rounded-2xl bg-coral-soft px-5 py-4 text-rose">
+            <strong>{current.mindName}</strong> hasn&rsquo;t sent any jobs for {quietDays} days. Check its credit, or
+            update its preferences in Settings to give it a fresh brief.
           </div>
         )}
 

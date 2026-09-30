@@ -35,9 +35,15 @@ Row Level Security is on for every table with no policies, so Supabase's public 
 
 ## Live mode
 
-1. Create an OAuth client in the Hello Minds Build console with redirect URI `$APP_URL/auth/callback`.
-2. Set `HM_CLIENT_ID` and `APP_URL` in `.env.local`.
-3. `APP_URL` must be reachable from the internet: Minds POST their jobs to `$APP_URL/api/ingest`. For local testing, use a tunnel.
+1. OAuth client "Unemploy" in the Hello Minds Build console (client id `9fe17e1b-c9dd-478c-9591-7aa6605e4311`), redirect URIs `https://unemploy-zeta.vercel.app/auth/callback` and `http://localhost:3000/auth/callback`.
+2. Environment: `HM_CLIENT_ID`, `APP_URL`, `TOKEN_ENCRYPTION_KEY`, `CRON_SECRET` (see `.env.example`).
+3. `APP_URL` must be reachable from the internet: Minds POST their jobs to `$APP_URL/api/ingest`.
+
+In production:
+
+- OAuth tokens are encrypted at rest (AES-256-GCM) and refreshed under a row lock, so concurrent server instances never double-spend a rotating refresh token.
+- A daily cron (`vercel.json`) nudges headhunters that have been quiet for 30+ hours, at most once a day for three days, and clears expired sessions.
+- The ingest endpoint only checks public http(s) job links, never follows redirects, and caps request size.
 
 ## How it fits together
 

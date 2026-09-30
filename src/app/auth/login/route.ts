@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { db, schema } from "@/db";
 import { mindsMode } from "@/lib/minds/config";
+import { hasEncryptionKey } from "@/lib/crypto";
 import { createPkce, loginUrl } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
 
@@ -14,6 +15,11 @@ export async function GET(request: Request) {
       .returning();
     await createSession(user.id);
     return NextResponse.redirect(new URL("/start", request.url));
+  }
+
+  if (!hasEncryptionKey()) {
+    console.error("[auth] TOKEN_ENCRYPTION_KEY is missing; refusing to start sign-in");
+    return NextResponse.redirect(new URL("/?login_error=config", request.url));
   }
 
   const { verifier, challenge, state } = createPkce();

@@ -9,6 +9,7 @@ const LOGIN_ERRORS: Record<string, string> = {
   expired: "Sign-in took too long. Please try again.",
   state: "Something went wrong with sign-in. Please try again.",
   exchange: "Hello Minds couldn't complete sign-in. Please try again.",
+  config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
 const PREVIEW = [
@@ -154,7 +155,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <footer className="border-t border-line">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-8 text-sm text-muted sm:px-6">
           <Logo />
-          <span>Powered by Hello Minds</span>
+          <span className="flex gap-5">
+            <Link href="/privacy" className="hover:text-ink">
+              Privacy
+            </Link>
+            <span>Powered by Hello Minds</span>
+          </span>
         </div>
       </footer>
     </div>

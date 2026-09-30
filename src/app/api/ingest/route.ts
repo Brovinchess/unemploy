@@ -32,6 +32,10 @@ export async function POST(request: Request) {
     );
   }
 
+  if (Number(request.headers.get("content-length") ?? 0) > 1_000_000) {
+    return NextResponse.json({ code: "too_large", hint: "Send at most 1 MB per push. Split jobs across pushes." }, { status: 413 });
+  }
+
   let body: unknown;
   try {
     body = await request.json();

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
+import { encrypt } from "@/lib/crypto";
 import { exchangeCode, tokenSubject } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
 
@@ -30,8 +31,8 @@ export async function GET(request: Request) {
 
   const hmUserId = tokenSubject(tokens.accessToken);
   const values = {
-    accessToken: tokens.accessToken,
-    refreshToken: tokens.refreshToken,
+    accessToken: encrypt(tokens.accessToken),
+    refreshToken: encrypt(tokens.refreshToken),
     tokenExpiresAt: new Date(Date.now() + tokens.expiresIn * 1000),
     scope: tokens.scope,
   };

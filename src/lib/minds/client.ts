@@ -2,6 +2,7 @@ import "server-only";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { User } from "@/db/schema";
+import { decrypt, encrypt } from "@/lib/crypto";
 import { BUILDER_API, mindsMode } from "./config";
 import { OAuthError, refreshTokens } from "./oauth";
 import { mockMinds } from "./mock";
@@ -34,31 +35,25 @@ export class LoginExpiredError extends Error {
   }
 }
 
-// Refresh tokens rotate on every use, so two concurrent refreshes would leave one
-// holder with a dead token. Serialize per user (single server process).
-const refreshing = new Map<string, Promise<string>>();
-
+// Tokens are stored encrypted (see lib/crypto). Refresh tokens rotate on every use, so two
+// concurrent refreshes would leave one holder with a dead token: refresh inside a
+// transaction that locks the user's row, which serializes it across server instances.
 async function accessTokenFor(user: User): Promise<string> {
-  const fresh = user.tokenExpiresAt && user.tokenExpiresAt.getTime() - Date.now() > 60_000;
-  if (user.accessToken && fresh) return user.accessToken;
+  const fresh = (u: User) => !!u.accessToken && !!u.tokenExpiresAt && u.tokenExpiresAt.getTime() - Date.now() > 60_000;
+  if (fresh(user)) return decrypt(user.accessToken!);
 
-  const pending = refreshing.get(user.id);
-  if (pending) return pending;
-
-  const run = (async () => {
-    // Re-read: another request may already have refreshed.
-    const current = await db.query.users.findFirst({ where: eq(schema.users.id, user.id) });
+  return db.transaction(async (tx) => {
+    const [current] = await tx.select().from(schema.users).where(eq(schema.users.id, user.id)).for("update");
     if (!current?.refreshToken) throw new LoginExpiredError();
-    if (current.accessToken && current.tokenExpiresAt && current.tokenExpiresAt.getTime() - Date.now() > 60_000) {
-      return current.accessToken;
-    }
+    // Another request may have refreshed while we waited for the lock.
+    if (fresh(current)) return decrypt(current.accessToken!);
     try {
-      const t = await refreshTokens(current.refreshToken);
-      await db
+      const t = await refreshTokens(decrypt(current.refreshToken));
+      await tx
         .update(schema.users)
         .set({
-          accessToken: t.accessToken,
-          refreshToken: t.refreshToken,
+          accessToken: encrypt(t.accessToken),
+          refreshToken: encrypt(t.refreshToken),
           tokenExpiresAt: new Date(Date.now() + t.expiresIn * 1000),
           scope: t.scope ?? current.scope,
         })
@@ -68,14 +63,7 @@ async function accessTokenFor(user: User): Promise<string> {
       if (e instanceof OAuthError && e.isDeadLogin) throw new LoginExpiredError();
       throw e;
     }
-  })();
-
-  refreshing.set(user.id, run);
-  try {
-    return await run;
-  } finally {
-    refreshing.delete(user.id);
-  }
+  });
 }
 
 function liveMinds(user: User): MindsApi {

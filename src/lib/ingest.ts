@@ -103,9 +103,28 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
   return null;
 }
 
+// Job links come from the Mind, so never let the check reach private or internal addresses.
+function isPublicHttpUrl(raw: string) {
+  const u = new URL(raw);
+  if (u.protocol !== "https:" && u.protocol !== "http:") return false;
+  const h = u.hostname.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) return false;
+  if (/^\[.*\]$/.test(h)) return false; // IPv6 literals
+  const ip = h.match(/^(\d+)\.(\d+)\.(\d+)\.(\d+)$/);
+  if (ip) {
+    const [a, b] = [Number(ip[1]), Number(ip[2])];
+    if (a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 async function linkIsDead(url: string): Promise<boolean> {
   try {
-    const res = await fetch(url, { method: "GET", redirect: "follow", signal: AbortSignal.timeout(6000) });
+    // No redirect following: a redirect means the page exists somewhere, and following it
+    // could lead to an internal address.
+    const res = await fetch(url, { method: "GET", redirect: "manual", signal: AbortSignal.timeout(6000) });
     return res.status === 404 || res.status === 410;
   } catch {
     // Network errors and bot walls are not proof the posting is gone.
@@ -169,6 +188,11 @@ export async function processPush(
       continue;
     }
     const job = r.data;
+
+    if (!isPublicHttpUrl(job.url)) {
+      rejected.push({ url: job.url, code: "bad_url", hint: "Job links must be public http(s) addresses." });
+      continue;
+    }
 
     const problem = checkJob(job, profile);
     if (problem) {
