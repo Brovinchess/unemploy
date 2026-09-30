@@ -11,7 +11,6 @@ import { JobCard } from "@/components/job-card";
 import { JobDetail } from "@/components/job-detail";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
-import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 import { appContext, balanceFor } from "@/lib/app-context";
 
@@ -57,8 +56,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       profileId={current.id}
       searching={searching}
       startedAt={current.searchStartedAt?.toISOString() ?? null}
-      jobs={perSearch}
-      cognition={estimateSearchCost(perSearch).cognition}
+      defaultJobs={perSearch}
+      balance={balance}
       disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
       big={big}
     />

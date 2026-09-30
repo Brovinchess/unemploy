@@ -4,11 +4,12 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil } from "lucide-react";
 import { savePreferences } from "@/app/actions";
 import { Ninja } from "@/components/brand";
+import { JobsSlider } from "@/components/jobs-slider";
 import { FormError } from "@/components/onboarding-shell";
 import {
   estimateSearchCost,
   JOB_TYPES,
-  JOBS_PER_DAY_OPTIONS,
+  RECOMMENDED_JOBS_PER_SEARCH,
   LEVELS,
   REMOTE_SCOPES,
   summarizePreferences,
@@ -254,25 +255,17 @@ function AnswerInput({
     );
   }
   // jobsPerDay
+  return <SliderAnswer initial={draft.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH} onSubmit={(n) => onAnswer({ jobsPerDay: n })} />;
+}
+
+function SliderAnswer({ initial, onSubmit }: { initial: number; onSubmit: (n: number) => void }) {
+  const [n, setN] = useState(initial);
   return (
-    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-      {JOBS_PER_DAY_OPTIONS.map((n) => {
-        const c = estimateSearchCost(n);
-        return (
-          <button
-            key={n}
-            className="card flex flex-col items-start rounded-xl px-4 py-3 text-left hover:border-mist aria-pressed:border-ink aria-pressed:bg-mist-soft"
-            aria-pressed={draft.jobsPerDay === n}
-            onClick={() => onAnswer({ jobsPerDay: n })}
-          >
-            <span className="font-display text-xl font-bold text-ink">{n}</span>
-            <span className="text-sm text-muted">jobs per search{n === 5 && <span className="ml-1 text-coral">· recommended</span>}</span>
-            <span className="mt-2 text-xs text-muted">
-              ~{c.cognition} cognition · ${c.usd.toFixed(2)}
-            </span>
-          </button>
-        );
-      })}
+    <div className="rounded-2xl bg-white/[0.04] p-5">
+      <JobsSlider value={n} onChange={setN} />
+      <button className="btn btn-primary mt-5" onClick={() => onSubmit(n)}>
+        Next
+      </button>
     </div>
   );
 }

@@ -36,6 +36,11 @@ export const MAX_POSTING_AGE_DAYS = 45;
 
 export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 
+// The range users can pick for one search (slider).
+export const MIN_JOBS_PER_SEARCH = 1;
+export const MAX_JOBS_PER_SEARCH = 20;
+export const RECOMMENDED_JOBS_PER_SEARCH = 5;
+
 export function estimateSearchCost(jobsPerDay: number) {
   const cognition = BASE_COGNITION_PER_DAY + COGNITION_PER_JOB * jobsPerDay;
   return { cognition, usd: cognition * COGNITION_USD };

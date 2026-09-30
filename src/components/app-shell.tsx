@@ -7,6 +7,7 @@ import { mindsConfig } from "@/lib/minds/config";
 import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
+import { TitleBadge } from "./title-badge";
 
 type Tab = "shortlist" | "tracker" | "settings";
 
@@ -50,6 +51,7 @@ export async function AppShell({
 
   return (
     <div className="flex min-h-svh flex-1 bg-night text-white">
+      <TitleBadge count={[...fresh.values()].reduce((a, n) => a + n, 0)} />
       <aside className="sticky top-0 hidden h-svh w-[264px] shrink-0 flex-col border-r border-white/[0.06] bg-[#10161c] px-4 py-5 lg:flex">
         <Link href={`/app${q}`} className="flex items-center gap-2.5 px-2" aria-label="Career Ninja">
           <Ninja className="size-8" />

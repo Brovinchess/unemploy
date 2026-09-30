@@ -13,7 +13,7 @@ import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
-import { preferencesSchema, type Preferences } from "@/lib/preferences";
+import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
 import { isSearching, searchRequestText, switchOff } from "@/lib/search";
@@ -331,9 +331,11 @@ export async function setPaused(profileId: string, paused: boolean) {
 
 // ---------- Searches (only when the user asks) ----------
 
-export async function requestSearch(profileId: string): Promise<FormState> {
+export async function requestSearch(profileId: string, jobs: number, focus = ""): Promise<FormState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
+  const wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
+  const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
   if (profile.status === "paused") return { error: "This headhunter is paused. Resume it first." };
   if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
   if (isSearching(profile)) return;
@@ -344,13 +346,24 @@ export async function requestSearch(profileId: string): Promise<FormState> {
   try {
     const balance = await api.getBalance(profile.mindId);
     if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
+    if (estimateSearchCost(wanted).cognition > balance) {
+      return { error: `That search needs about ${estimateSearchCost(wanted).cognition} cognition and ${Math.round(balance)} is left. Pick fewer jobs or top up.` };
+    }
     const [{ n }] = await db
       .select({ n: count() })
       .from(schema.ingestLog)
       .where(eq(schema.ingestLog.profileId, profile.id));
-    await db.update(schema.profiles).set({ searchStartedAt: new Date(), searchEndedAt: null }).where(eq(schema.profiles.id, profile.id));
+    // The chosen number becomes this search's quota (checked at ingest) and the next default.
+    await db
+      .update(schema.profiles)
+      .set({
+        searchStartedAt: new Date(),
+        searchEndedAt: null,
+        ...(profile.preferences ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
+      })
+      .where(eq(schema.profiles.id, profile.id));
     await api.setEnabled(profile.mindId, true);
-    await api.sendMessage(profile.conversationAlias, searchRequestText(user.username!, profile.preferences?.jobsPerDay ?? 5, n + 1));
+    await api.sendMessage(profile.conversationAlias, searchRequestText(user.username!, wanted, n + 1, note || undefined));
   } catch (e) {
     await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     return { error: friendly(e) };

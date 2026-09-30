@@ -11,7 +11,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { JOBS_PER_DAY_OPTIONS, estimateSearchCost } from "@/lib/preferences";
+import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -26,8 +26,8 @@ const PHRASES = ["finds jobs you'd win", "writes your applications", "searches w
 
 // Everything below is true of the product today; numbers come from the same code the app uses.
 const FIVE_JOBS = estimateSearchCost(5);
-const MIN_JOBS = JOBS_PER_DAY_OPTIONS[0];
-const MAX_JOBS = JOBS_PER_DAY_OPTIONS[JOBS_PER_DAY_OPTIONS.length - 1];
+const MIN_JOBS = MIN_JOBS_PER_SEARCH;
+const MAX_JOBS = MAX_JOBS_PER_SEARCH;
 
 // Show the live waitlist size once it's big enough to help rather than hurt.
 const SHOW_WAITLIST_FROM = 50;

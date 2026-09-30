@@ -15,10 +15,11 @@ export function isSearching(p: SearchFields, now = Date.now()) {
   return !!p.searchStartedAt && !p.searchEndedAt && now - p.searchStartedAt.getTime() < SEARCH_TIMEOUT_MS;
 }
 
-export function searchRequestText(username: string, jobs: number, n: number) {
+export function searchRequestText(username: string, jobs: number, n: number, focus?: string) {
   return (
     `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
     `and POST them. Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
+    (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `Then stop and wait for my next request. (${new Date().toISOString()})`
   );
 }
