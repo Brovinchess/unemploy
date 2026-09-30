@@ -174,3 +174,138 @@ export function ProfilesArt() {
     </Stage>
   );
 }
+
+// ---------- Muse-style panels: real product UI, dark, floating on the band, no frame ----------
+
+function Panel({ className = "", title, children }: { className?: string; title?: string; children: React.ReactNode }) {
+  return (
+    <div className={`rounded-[22px] border border-white/[0.07] bg-[#222d38] p-5 text-left shadow-[0_40px_90px_-30px_rgba(0,0,0,0.75)] ${className}`}>
+      {title && <p className="font-display mb-4 text-[15px] font-medium text-white">{title}</p>}
+      {children}
+    </div>
+  );
+}
+
+function Initials({ name }: { name: string }) {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/[0.08] text-xs font-semibold text-white/80">
+      {name.split(" ").map((w) => w[0]).slice(0, 2).join("")}
+    </span>
+  );
+}
+
+export function ShortlistPanels() {
+  const jobs = [
+    { t: "Senior Product Designer", c: "Northwind Labs", m: "Hybrid · Kuala Lumpur", s: 94 },
+    { t: "Product Designer, Payments", c: "Fernhill Bank", m: "On-site · Full-time", s: 89 },
+    { t: "UX Designer", c: "Kitefly", m: "Remote · Malaysia", s: 83 },
+  ];
+  return (
+    <div className="relative mx-auto w-full max-w-[520px]">
+      <Panel title="Today's shortlist" className="w-[88%]">
+        <ul className="space-y-1">
+          {jobs.map((j, i) => (
+            <li key={j.t} className={`flex items-center gap-3 rounded-xl p-2.5 ${i === 0 ? "bg-white/[0.05]" : ""}`}>
+              <Initials name={j.c} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[13px] font-medium text-white">{j.t}</p>
+                <p className="truncate text-[11px] text-white/45">
+                  {j.c} · {j.m}
+                </p>
+              </div>
+              <span className="font-display text-[15px] font-medium text-coral">{j.s}%</span>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+      <Panel className="absolute -bottom-10 right-0 w-[56%]">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-coral">Why it fits</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-white/75">
+          You led a redesign used by 1.2M customers, exactly the scale Northwind asks for.
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+export function PackPanels() {
+  return (
+    <div className="relative mx-auto w-full max-w-[520px] pb-16">
+      <Panel title="Cover letter" className="w-[84%]">
+        <p className="text-[12.5px] leading-[1.7] text-white/70">
+          Dear Northwind team, I&rsquo;m applying for the Senior Product Designer role.{" "}
+          <span className="rounded bg-coral/20 px-1 text-white">I led the redesign of an app used by 1.2 million customers</span>, and cut
+          checkout drop-off by 18%&hellip;
+        </p>
+        <div className="mt-4 flex gap-2">
+          <span className="rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] text-white/80">Copy</span>
+          <span className="rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] text-white/80">Edit</span>
+        </div>
+      </Panel>
+      <Panel className="absolute bottom-0 right-0 w-[60%]">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-coral">From your resume</p>
+        <p className="mt-2 text-[12px] leading-relaxed text-white/75">
+          &ldquo;Led the redesign of the PayLane mobile app used by 1.2 million customers.&rdquo;
+        </p>
+      </Panel>
+    </div>
+  );
+}
+
+export function ApprovePanels() {
+  return (
+    <div className="relative mx-auto w-full max-w-[420px]">
+      <Panel>
+        <div className="flex items-center gap-3">
+          <Initials name="Northwind Labs" />
+          <div>
+            <p className="text-[13px] font-medium text-white">Senior Product Designer</p>
+            <p className="text-[11px] text-white/45">Northwind Labs · 94% match</p>
+          </div>
+        </div>
+        <div className="mt-4 space-y-2 rounded-xl bg-white/[0.04] p-3 text-[11.5px] text-white/60">
+          <p className="flex justify-between">
+            <span>Cover letter</span>
+            <span className="text-white/85">Ready</span>
+          </p>
+          <p className="flex justify-between">
+            <span>Answers</span>
+            <span className="text-white/85">2 of 2</span>
+          </p>
+        </div>
+        <div className="mt-4 space-y-2">
+          <div className="rounded-full bg-coral py-2.5 text-center text-[13px] font-medium text-white">Apply</div>
+          <div className="rounded-full bg-white/[0.08] py-2.5 text-center text-[13px] text-white/80">Skip</div>
+        </div>
+      </Panel>
+    </div>
+  );
+}
+
+export function ProfilesPanels() {
+  const rows = [
+    { l: "Design", m: "sarah-design", n: 5 },
+    { l: "Product", m: "sarah-product", n: 3 },
+    { l: "UX Research", m: "sarah-ux-research", n: 4 },
+  ];
+  return (
+    <div className="relative mx-auto w-full max-w-[460px]">
+      <Panel title="Your headhunters">
+        <ul className="space-y-1">
+          {rows.map((r) => (
+            <li key={r.l} className="flex items-center gap-3 rounded-xl p-2.5">
+              <span className="font-display flex size-9 items-center justify-center rounded-full bg-coral text-[13px] font-medium text-white">
+                {r.l[0]}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-medium text-white">{r.l}</p>
+                <p className="font-mono text-[11px] text-white/45">{r.m}</p>
+              </div>
+              <span className="text-[11px] text-white/60">{r.n} new today</span>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+    </div>
+  );
+}
