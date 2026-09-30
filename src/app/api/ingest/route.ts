@@ -8,7 +8,7 @@ import { mindsConfig } from "@/lib/minds/config";
 
 export async function GET(request: Request) {
   if (new URL(request.url).searchParams.get("brief") === "1") {
-    return new NextResponse(buildContract(mindsConfig.appUrl), {
+    return new NextResponse(buildContract(mindsConfig.ingestUrl), {
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   }

@@ -25,6 +25,9 @@ export const mindsMode: "live" | "mock" =
 export const mindsConfig = {
   clientId: process.env.HM_CLIENT_ID ?? "",
   appUrl: (process.env.APP_URL ?? "http://localhost:3000").replace(/\/$/, ""),
+  // Where the Mind sends its jobs. Minds run on Hello Minds' servers and can't reach
+  // localhost, so local development points this at a public tunnel. Defaults to APP_URL.
+  ingestUrl: (process.env.INGEST_URL || process.env.APP_URL || "http://localhost:3000").replace(/\/$/, ""),
   archetype: process.env.HM_ARCHETYPE ?? "research",
   topUpUrl: process.env.HM_TOPUP_URL ?? "https://hellominds.ai",
 };

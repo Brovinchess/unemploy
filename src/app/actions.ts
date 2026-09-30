@@ -213,7 +213,7 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
         profileLabel: profile.label,
         prefs,
         timezone: user.timezone ?? "UTC",
-        appUrl: mindsConfig.appUrl,
+        appUrl: mindsConfig.ingestUrl,
         ingestKey: "(the same key as before)",
       });
       await api.sendMessage(
@@ -247,7 +247,7 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
         profileLabel: profile.label,
         prefs,
         timezone: user.timezone ?? "UTC",
-        appUrl: mindsConfig.appUrl,
+        appUrl: mindsConfig.ingestUrl,
         ingestKey,
       }),
       [resumeAttachment(profile)],

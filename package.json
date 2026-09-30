@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "db:local": "mkdir -p data && pglite-server --db=./data/pglite --port=5433 --max-connections=10",
-    "db:migrate": "drizzle-kit migrate"
+    "db:migrate": "drizzle-kit migrate",
+    "tunnel": "cloudflared tunnel --no-autoupdate --url http://localhost:3000"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.3",
