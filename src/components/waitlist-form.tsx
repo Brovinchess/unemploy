@@ -8,12 +8,14 @@ const ROLE_AREAS = ["Engineering", "Design", "Product", "Marketing", "Sales", "F
 
 export function WaitlistForm({ referral, source, appUrl }: { referral?: string; source?: string; appUrl: string }) {
   const [state, action, pending] = useActionState(joinWaitlist, undefined);
+  const [email, setEmail] = useState("");
+  const looksValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
 
   if (state?.ok) return <Joined state={state} appUrl={appUrl} />;
 
   return (
-    <form action={action} className="mx-auto w-full max-w-md">
-      <label htmlFor="waitlist-email" className="block text-center text-sm text-white/70">
+    <form action={action} className="mx-auto w-full max-w-[26rem]">
+      <label htmlFor="waitlist-email" className="block text-center text-base text-white/50">
         Join the waitlist
       </label>
       <input
@@ -23,21 +25,28 @@ export function WaitlistForm({ referral, source, appUrl }: { referral?: string; 
         required
         autoComplete="email"
         placeholder="Your email"
-        className="mt-3 h-13 w-full rounded-2xl border border-white/10 bg-white/10 px-5 text-base text-white outline-none placeholder:text-white/45 focus:border-white/40 focus:bg-white/15"
+        value={email}
+        onChange={(e) => setEmail(e.target.value)}
+        className="mt-4 h-14 w-full rounded-2xl bg-white/[0.09] px-5 text-base text-white outline-none ring-1 ring-transparent placeholder:text-white/40 focus:bg-white/[0.12] focus:ring-white/25"
       />
       {/* Honeypot: hidden from people, tempting to bots. */}
       <input name="company_website" tabIndex={-1} autoComplete="off" className="hidden" aria-hidden />
       <input type="hidden" name="ref" value={referral ?? ""} />
       <input type="hidden" name="source" value={source ?? ""} />
-      <button className="btn btn-accent mt-3 h-12 w-full rounded-2xl" disabled={pending}>
-        {pending ? "Joining…" : "Join the waitlist"} {!pending && <ArrowRight className="size-4" aria-hidden />}
+      <button
+        className={`mt-4 flex h-12 w-full items-center justify-center gap-2 rounded-2xl text-base font-medium transition-colors ${
+          looksValid ? "bg-coral text-white hover:bg-rose" : "bg-coral/25 text-white/45"
+        }`}
+        disabled={pending || !looksValid}
+      >
+        {pending ? "Joining…" : "Continue"} {!pending && looksValid && <ArrowRight className="size-4" aria-hidden />}
       </button>
       {state && !state.ok && (
         <p role="alert" className="mt-3 text-center text-sm text-coral-soft">
           {state.error}
         </p>
       )}
-      <p className="mt-3 text-center text-xs text-white/50">One email when your spot opens. No spam.</p>
+      <p className="mt-4 text-center text-xs text-white/40">One email when your spot opens. No spam.</p>
     </form>
   );
 }
@@ -56,7 +65,7 @@ function Joined({ state, appUrl }: { state: Extract<NonNullable<Awaited<ReturnTy
       <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-coral text-white">
         <Check className="size-5" aria-hidden />
       </span>
-      <p className="font-display mt-4 text-2xl font-bold text-white">
+      <p className="font-display mt-4 text-2xl font-medium text-white">
         {state.alreadyJoined ? "You're already on the list" : "You're on the list"}
       </p>
       <p className="mt-1 text-white/70">

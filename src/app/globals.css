@@ -17,6 +17,11 @@
   --mist-soft: #eef2f6;
   --coral-soft: #fbeeee;
   --plum-soft: #f3eef1;
+
+  /* Landing page: deep navy-black derived from the palette's navy */
+  --night: #141b22;
+  --night-2: #1b2530;
+  --night-3: #243240;
 }
 
 @theme inline {
@@ -33,6 +38,9 @@
   --color-mist-soft: var(--mist-soft);
   --color-coral-soft: var(--coral-soft);
   --color-plum-soft: var(--plum-soft);
+  --color-night: var(--night);
+  --color-night-2: var(--night-2);
+  --color-night-3: var(--night-3);
 
   --font-display: var(--font-jakarta);
   --font-sans: var(--font-inter);
@@ -48,7 +56,19 @@ body {
   background: var(--coral-soft);
 }
 
+@keyframes float {
+  0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
+  50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+}
+
 @layer components {
+  .float {
+    animation: float 7s ease-in-out infinite;
+    transform: rotate(var(--r, 0deg));
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .float { animation: none; }
+  }
   /* Small coloured line above a heading */
   .eyebrow {
     font-family: var(--font-jakarta), sans-serif;

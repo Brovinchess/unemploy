@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowDown, ArrowRight, Bookmark, BriefcaseBusiness, ExternalLink, X } from "lucide-react";
-import { CompanyMark, Logo } from "@/components/logo";
+import { ArrowDown, ArrowRight, BriefcaseBusiness } from "lucide-react";
+import { ControlArt, PackArt, ProfilesArt, ShortlistArt, WideArt } from "@/components/landing-art";
 import { RotatingPhrase } from "@/components/rotating-phrase";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { launchMode } from "@/lib/launch";
@@ -16,12 +16,29 @@ const LOGIN_ERRORS: Record<string, string> = {
   config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
-const PHRASES = [
-  "finds jobs you'd win",
-  "writes your applications",
-  "works while you sleep",
-  "never makes things up",
-  "learns what you want",
+const PHRASES = ["finds jobs you'd win", "writes your applications", "works while you sleep", "never makes things up"];
+
+const SECTIONS = [
+  {
+    title: "Finds the few jobs worth your time",
+    body: "Tell it where you want to work and what you're after. Every morning it brings you the best matches, ranked by how well you fit, with an honest note on why.",
+    art: <ShortlistArt />,
+  },
+  {
+    title: "Writes every application from your real experience",
+    body: "Each job comes with a cover letter and answers to its questions. Every claim is traced back to a line in your resume, so nothing is ever made up.",
+    art: <PackArt />,
+  },
+  {
+    title: "Stay in control of what gets sent",
+    body: "Nothing goes out without you. Apply, save or skip with one tap. Every skip teaches your headhunter what you don't want, and you can pause it any time.",
+    art: <ControlArt />,
+  },
+  {
+    title: "One headhunter for every kind of job you want",
+    body: "Looking for design and product roles? Give each its own headhunter, resume and shortlist. In any country, on-site, hybrid or remote.",
+    art: <ProfilesArt />,
+  },
 ];
 
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
@@ -36,242 +53,113 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   const cta = open ? (
     <div className="mx-auto flex w-full max-w-md flex-col items-center gap-3">
-      <Link href="/auth/login" className="btn btn-accent h-12 w-full rounded-2xl">
+      <Link href="/auth/login" className="btn btn-accent h-13 w-full rounded-2xl text-base">
         Get your headhunter <ArrowRight className="size-4" aria-hidden />
       </Link>
-      <span className="text-sm text-white/60">Sign in with your Hello Minds account</span>
+      <span className="text-sm text-white/50">Sign in with your Hello Minds account</span>
     </div>
   ) : (
     <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} />
   );
 
   return (
-    <div className="flex flex-1 flex-col bg-surface">
-      {/* First screen */}
-      <section className="relative flex min-h-svh flex-col bg-ink text-white">
-        <header className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-4 sm:px-6">
-          <Logo light />
-          {open && (
-            <Link href="/auth/login" className="btn btn-sm rounded-full bg-white px-4 text-ink hover:bg-white/90">
+    <div id="top" className="flex flex-1 flex-col bg-night text-white">
+      <header className="sticky top-0 z-30 bg-night/80 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center justify-between px-5 sm:px-8">
+          <Link href="/" className="font-display text-lg font-semibold tracking-tight text-white">
+            unemploy<span className="text-coral">.</span>
+          </Link>
+          {open ? (
+            <Link href="/auth/login" className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-rose">
               Log in
             </Link>
+          ) : (
+            <a href="#top" className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-white hover:bg-rose">
+              Join the waitlist
+            </a>
           )}
-        </header>
-
-        <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 pb-24 pt-8 text-center">
-          <h1 className="font-display text-[2.5rem] font-bold leading-[1.1] tracking-tight sm:text-6xl">
-            <span className="whitespace-nowrap">
-              Unemploy
-              <span className="ml-2 mr-0.5 inline-flex size-[0.9em] translate-y-[0.08em] items-center justify-center rounded-full bg-coral align-baseline sm:ml-3">
-                <BriefcaseBusiness className="size-[0.5em] text-white" aria-hidden />
-              </span>
-              ,
-            </span>{" "}
-            your AI headhunter that
-            <br />
-            <span className="text-coral">
-              <RotatingPhrase phrases={PHRASES} />
-            </span>
-          </h1>
-
-          <div className="mt-12 w-full">{cta}</div>
-          {error && <p className="mt-6 rounded-xl bg-coral-soft px-4 py-3 text-sm text-rose">{error}</p>}
-          {deleted && <p className="mt-6 text-sm text-white/70">Your account and data have been deleted.</p>}
         </div>
+      </header>
+
+      {/* First screen */}
+      <section className="relative flex min-h-[calc(100svh-4rem)] flex-col items-center justify-center px-5 pb-28 text-center">
+        <h1 className="font-display text-[2.6rem] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[4rem]">
+          <span className="whitespace-nowrap">
+            Unemploy
+            <span className="ml-2 inline-flex size-[0.95em] translate-y-[0.1em] items-center justify-center rounded-full bg-coral align-baseline shadow-[0_0_40px_4px_rgba(201,101,103,0.35)] sm:ml-3">
+              <BriefcaseBusiness className="size-[0.48em] text-white" strokeWidth={2} aria-hidden />
+            </span>
+            , AI that
+          </span>
+          <br />
+          <span className="text-coral">
+            <RotatingPhrase phrases={PHRASES} />
+          </span>
+        </h1>
+
+        <div className="mt-14 w-full">{cta}</div>
+        {error && <p className="mt-6 rounded-xl bg-coral/15 px-4 py-3 text-sm text-coral">{error}</p>}
+        {deleted && <p className="mt-6 text-sm text-white/60">Your account and data have been deleted.</p>}
 
         <a
           href="#learn-more"
-          className="absolute bottom-8 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/10 px-4 py-2 text-sm text-white/90 hover:bg-white/15"
+          className="absolute bottom-8 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 hover:bg-white/[0.14]"
         >
           Learn more <ArrowDown className="size-4" aria-hidden />
         </a>
       </section>
 
-      <main id="learn-more" className="flex-1">
-        <Feature
-          eyebrow="Your daily shortlist"
-          title="A headhunter that searches every day, so you don't have to."
-          body="Tell it where you want to work and what you're after. Every morning it brings you the few jobs worth your time, ranked by how well you fit, with an honest note on why."
-          visual={<ShortlistVisual />}
-        />
-        <Feature
-          flip
-          eyebrow="Applications, written for you"
-          title="Every job comes with a ready-to-send application."
-          body="A cover letter and answers to the job's questions, written from your real experience. Every claim is traced back to a line in your resume, so nothing is made up."
-          visual={<PackVisual />}
-        />
-        <Feature
-          eyebrow="You stay in control"
-          title="Nothing is sent without you."
-          body="Apply, save or skip with one tap. Skips teach your headhunter what you don't want, and you can pause it any time."
-          visual={<ControlVisual />}
-        />
-        <Feature
-          flip
-          eyebrow="Built for real job hunts"
-          title="One headhunter for each kind of job you want."
-          body="Looking for design and product roles? Give each its own headhunter, its own resume and its own shortlist, in any country, on-site, hybrid or remote."
-          visual={<ProfilesVisual />}
-        />
+      <main id="learn-more">
+        {/* Centered statement with one wide picture, like Muse's first section */}
+        <section className="mx-auto max-w-7xl px-5 pt-24 pb-16 sm:px-8 sm:pt-32">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">
+              Your own headhunter, working in the background
+            </h2>
+            <p className="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-white/55">
+              Upload your resume and answer a few questions. Your headhunter searches every day, picks the jobs you&rsquo;d
+              actually win, and writes your application for each one.
+            </p>
+          </div>
+          <div className="mx-auto mt-14 max-w-5xl" aria-hidden>
+            <WideArt />
+          </div>
+        </section>
 
-        <section className="bg-ink px-4 py-24 text-center text-white">
-          <h2 className="font-display mx-auto max-w-2xl text-3xl font-bold tracking-tight sm:text-5xl">
+        {/* Alternating statements with a large square picture */}
+        {SECTIONS.map((s, i) => (
+          <section key={s.title} className="mx-auto max-w-7xl px-5 py-16 sm:px-8 sm:py-24">
+            <div className="grid items-center gap-10 md:grid-cols-2 md:gap-20">
+              <div className={i % 2 ? "md:order-2" : ""} aria-hidden>
+                {s.art}
+              </div>
+              <div className={i % 2 ? "md:order-1" : ""}>
+                <h3 className="font-display max-w-md text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">{s.title}</h3>
+                <p className="mt-5 max-w-md text-lg leading-relaxed text-white/55">{s.body}</p>
+              </div>
+            </div>
+          </section>
+        ))}
+
+        <section className="px-5 py-28 text-center sm:py-36">
+          <h2 className="font-display mx-auto max-w-2xl text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">
             Ready to stop applying blindly?
           </h2>
           <div className="mt-10">{cta}</div>
         </section>
       </main>
 
-      <footer className="border-t border-line">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-8 text-sm text-muted sm:px-6">
-          <Logo />
-          <span className="flex gap-5">
-            <Link href="/privacy" className="hover:text-ink">
+      <footer className="border-t border-white/[0.06]">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-5 py-8 text-sm text-white/45 sm:px-8">
+          <span>© Unemploy</span>
+          <span className="flex gap-6">
+            <Link href="/privacy" className="hover:text-white">
               Privacy
             </Link>
             <span>Powered by Hello Minds</span>
           </span>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function Feature({
-  eyebrow,
-  title,
-  body,
-  visual,
-  flip = false,
-}: {
-  eyebrow: string;
-  title: string;
-  body: string;
-  visual: React.ReactNode;
-  flip?: boolean;
-}) {
-  return (
-    <section className={flip ? "bg-canvas" : "bg-surface"}>
-      <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 py-20 sm:px-6 md:grid-cols-2 md:py-28">
-        <div className={flip ? "md:order-2" : ""}>
-          <p className="eyebrow">{eyebrow}</p>
-          <h2 className="font-display mt-4 text-3xl font-bold leading-tight tracking-tight text-ink sm:text-4xl">{title}</h2>
-          <p className="mt-5 max-w-md text-lg leading-relaxed text-muted">{body}</p>
-        </div>
-        <div className={flip ? "md:order-1" : ""} aria-hidden>
-          {visual}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-const shadow = "shadow-[0_24px_60px_-30px_rgba(49,68,85,0.35)]";
-
-function ShortlistVisual() {
-  const jobs = [
-    { title: "Senior Product Designer", company: "Northwind Labs", tags: ["Hybrid", "Kuala Lumpur"], score: 94 },
-    { title: "Product Designer, Payments", company: "Fernhill Bank", tags: ["On-site", "Full-time"], score: 89 },
-    { title: "UX Designer", company: "Kitefly", tags: ["Remote", "Malaysia"], score: 83 },
-  ];
-  return (
-    <div className={`card p-4 sm:p-5 ${shadow}`}>
-      <div className="flex items-center justify-between px-1 pb-4">
-        <p className="font-display font-bold text-ink">Today&rsquo;s shortlist</p>
-        <span className="tag">3 new</span>
-      </div>
-      <ul className="space-y-2">
-        {jobs.map((j, i) => (
-          <li key={j.title} className={`flex items-center gap-3 rounded-xl border p-3 ${i === 0 ? "border-navy/20 bg-mist-soft/60" : "border-line"}`}>
-            <CompanyMark name={j.company} />
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-ink">{j.title}</p>
-              <p className="truncate text-sm text-muted">{j.company}</p>
-              <div className="mt-1.5 flex gap-1.5">
-                {j.tags.map((t) => (
-                  <span key={t} className="tag text-xs">
-                    {t}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <span className="font-display text-lg font-bold text-coral">{j.score}%</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-function PackVisual() {
-  return (
-    <div className={`card p-5 ${shadow}`}>
-      <p className="text-sm font-semibold text-ink">Cover letter</p>
-      <p className="mt-2 leading-relaxed text-navy">
-        Dear Northwind team, I&rsquo;m applying for the Senior Product Designer role.{" "}
-        <mark className="rounded bg-coral-soft px-1 text-rose">I led the redesign of an app used by 1.2 million customers</mark>, and…
-      </p>
-      <div className="mt-5 rounded-xl bg-canvas p-4 text-sm">
-        <p className="font-semibold text-ink">From your resume</p>
-        <p className="mt-1 text-muted">&ldquo;Led the redesign of the PayLane mobile app used by 1.2 million customers.&rdquo;</p>
-      </div>
-    </div>
-  );
-}
-
-function ControlVisual() {
-  return (
-    <div className={`card p-5 ${shadow}`}>
-      <div className="flex items-start gap-4">
-        <CompanyMark name="Northwind Labs" size="lg" />
-        <div className="min-w-0 flex-1">
-          <p className="text-muted">Northwind Labs</p>
-          <p className="font-display text-xl font-bold text-ink">Senior Product Designer</p>
-        </div>
-      </div>
-      <div className="mt-5 flex flex-wrap gap-2">
-        <span className="btn btn-accent">
-          Apply on their site <ExternalLink className="size-4" />
-        </span>
-        <span className="btn btn-ghost">
-          <Bookmark className="size-4" /> Save
-        </span>
-        <span className="btn btn-ghost">
-          <X className="size-4" /> Skip
-        </span>
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {["Too junior", "Wrong location", "Salary too low"].map((r) => (
-          <span key={r} className="chip min-h-8 text-sm">
-            {r}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function ProfilesVisual() {
-  const profiles = [
-    { label: "Design", mind: "sarah-design", jobs: 5 },
-    { label: "Product", mind: "sarah-product", jobs: 3 },
-    { label: "UX Research", mind: "sarah-ux-research", jobs: 4 },
-  ];
-  return (
-    <div className="space-y-3">
-      {profiles.map((p, i) => (
-        <div key={p.label} className={`card flex items-center gap-4 p-4 ${i === 0 ? shadow : ""}`}>
-          <span className="font-display flex size-11 items-center justify-center rounded-full bg-coral text-sm font-bold text-white">
-            {p.label[0]}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-display font-bold text-ink">{p.label}</p>
-            <p className="font-mono text-sm text-muted">{p.mind}</p>
-          </div>
-          <span className="tag">{p.jobs} new today</span>
-        </div>
-      ))}
     </div>
   );
 }
