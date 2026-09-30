@@ -1,5 +1,6 @@
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -169,9 +170,31 @@ export const waitlist = pgTable(
     roleArea: text("role_area"),
     country: text("country"),
     source: text("source"), // utm_source, if any
+    name: text("name"),
+    birthdate: date("birthdate"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }), // email confirmed with a code
     createdAt: createdAt(),
   },
   (t) => [index("waitlist_created").on(t.createdAt), index("waitlist_referred_by").on(t.referredBy)],
+).enableRLS();
+
+// One-time email codes. Only a hash of the code is stored; a verified row is the "ticket"
+// that lets the same person finish signing up (name, birthdate) within a short window.
+export const emailCodes = pgTable(
+  "email_codes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    email: text("email").notNull(),
+    codeHash: text("code_hash").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    referredBy: text("referred_by"),
+    source: text("source"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("email_codes_email_created").on(t.email, t.createdAt)],
 ).enableRLS();
 
 export type WaitlistEntry = typeof waitlist.$inferSelect;

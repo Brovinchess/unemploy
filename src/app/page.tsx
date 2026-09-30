@@ -6,6 +6,7 @@ import { ApprovePanels, PackPanels, ProfilesPanels, ShortlistPanels, WideArt } f
 import { LandingHeader } from "@/components/landing-header";
 import { RotatingPhrase } from "@/components/rotating-phrase";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
 import { getCurrentUser } from "@/lib/session";
@@ -90,7 +91,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <span className="text-sm text-white/50">Sign in with your Hello Minds account</span>
             </div>
           ) : (
-            <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} />
+            <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
           )}
         </div>
         {error && <p className="mt-6 rounded-xl bg-coral/15 px-4 py-3 text-sm text-coral">{error}</p>}

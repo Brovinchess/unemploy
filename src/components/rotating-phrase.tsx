@@ -14,7 +14,7 @@ export function RotatingPhrase({ phrases, intervalMs = 2400 }: { phrases: string
   }, [phrases.length, intervalMs]);
 
   return (
-    <span className="relative inline-grid overflow-hidden pb-[0.12em] align-bottom">
+    <span className="relative inline-grid overflow-hidden pb-[0.12em] align-bottom [clip-path:inset(0)]">
       <span className="sr-only">{phrases.join(", ")}</span>
       {phrases.map((p, n) => (
         <span
@@ -24,8 +24,8 @@ export function RotatingPhrase({ phrases, intervalMs = 2400 }: { phrases: string
             n === i
               ? "translate-y-0 opacity-100"
               : n === (i - 1 + phrases.length) % phrases.length
-                ? "-translate-y-full opacity-0"
-                : "translate-y-full opacity-0 duration-0"
+                ? "-translate-y-[125%] opacity-0"
+                : "translate-y-[125%] opacity-0 duration-0"
           }`}
         >
           {p}

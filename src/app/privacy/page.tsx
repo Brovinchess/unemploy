@@ -7,6 +7,7 @@ const SECTIONS = [
   {
     title: "What we store",
     items: [
+      "If you join the waitlist: your email, name and date of birth (to confirm you're 18 or over), and which job area and country you're interested in, if you tell us.",
       "Your Hello Minds account id and the username you choose.",
       "Sign-in tokens from Hello Minds, encrypted, so the app can act for your headhunters.",
       "Each resume you upload, the text read from it, and the job preferences you set.",

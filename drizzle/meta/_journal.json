@@ -15,6 +15,13 @@
       "when": 1790751566121,
       "tag": "0001_waitlist",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790756575476,
+      "tag": "0002_email_verification",
+      "breakpoints": true
     }
   ]
 }
