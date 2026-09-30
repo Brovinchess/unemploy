@@ -1,4 +1,5 @@
-import { BriefcaseBusiness, Check, X } from "lucide-react";
+import { Check, X } from "lucide-react";
+import { Ninja } from "./brand";
 
 // Illustrations for the landing page: floating objects on a dark field, in the palette,
 // in the spirit of Muse's 3D scenes. Placeholder bars stand in for text so they read as
@@ -70,7 +71,7 @@ export function WideArt() {
         <Bars widths={["100%", "90%", "95%", "70%", "85%", "60%"]} />
       </Sheet>
       <div className="absolute left-[33%] right-[59%] top-1/2 h-px bg-gradient-to-r from-white/0 to-white/25" />
-      <Orb className="left-[43%] top-[37.5%]" size="w-[14%] aspect-square" label={<BriefcaseBusiness className="size-[42%]" strokeWidth={1.75} />} />
+      <Orb className="left-[43%] top-[37.5%]" size="w-[14%] aspect-square" label={<Ninja className="w-[74%]" />} />
       <div className="absolute left-[59%] right-[35%] top-1/2 h-px bg-gradient-to-r from-white/25 to-white/0" />
       {[
         { top: "16%", n: 94, r: 3, d: 0 },
