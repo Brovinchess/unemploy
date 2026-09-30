@@ -118,7 +118,7 @@ export function PreferencesChat({
   const onSummary = step >= QUESTIONS.length && !editing;
 
   return (
-    <div className="max-w-xl">
+    <div className="w-full">
       {!onSummary && (
         <div className="space-y-5" aria-live="polite">
           {answered.map((q) => (
@@ -170,7 +170,7 @@ export function PreferencesChat({
             {estimateDailyCost(draft.jobsPerDay ?? 5).usd.toFixed(2)}).
           </p>
           <FormError message={error} />
-          <button className="btn btn-accent mt-8" disabled={pending} onClick={submit}>
+          <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
             {pending
               ? mode === "setup"
                 ? "Briefing your headhunter…"
@@ -191,10 +191,10 @@ function Bubble({ from, children }: { from: "mind" | "user"; children: React.Rea
       <span className="font-display flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-xs font-bold text-white" aria-hidden>
         AI
       </span>
-      <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-md bg-canvas px-4 py-3 leading-relaxed text-ink">{children}</p>
+      <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-md bg-white/[0.07] px-4 py-3 leading-relaxed text-ink">{children}</p>
     </div>
   ) : (
-    <p className="ml-auto w-fit max-w-[80%] rounded-2xl rounded-br-md bg-ink px-4 py-3 text-white">{children}</p>
+    <p className="ml-auto w-fit max-w-[80%] rounded-2xl rounded-br-md bg-coral px-4 py-3 text-white">{children}</p>
   );
 }
 

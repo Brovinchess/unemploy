@@ -10,9 +10,9 @@ export function LaunchStep({ profileId }: { profileId: string }) {
   const [error, setError] = useState<string>();
 
   return (
-    <div>
+    <div className="w-full">
       <button
-        className="btn btn-accent"
+        className="btn btn-accent h-12 w-full"
         disabled={pending}
         onClick={() =>
           start(async () => {
@@ -45,7 +45,7 @@ export function ActivateStep({ profileId, topUpUrl, mock }: { profileId: string;
     });
 
   return (
-    <div className="max-w-xl">
+    <div className="w-full">
       <div className="card p-6">
         <ol className="space-y-4 text-navy">
           <li className="flex items-center gap-4">
@@ -63,18 +63,18 @@ export function ActivateStep({ profileId, topUpUrl, mock }: { profileId: string;
         </p>
       </div>
 
-      <div className="mt-8 flex flex-wrap gap-3">
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <a
           href={topUpUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="btn btn-accent"
+          className="btn btn-accent h-12"
           onClick={() => setOpenedTopUp(true)}
         >
           Top up on Hello Minds <ExternalLink className="size-4" aria-hidden />
         </a>
         <button
-          className={`btn ${openedTopUp ? "btn-primary" : "btn-ghost"}`}
+          className={`btn h-12 ${openedTopUp ? "btn-primary" : "btn-ghost"}`}
           disabled={pending}
           onClick={() => check(() => checkActivation(profileId))}
         >
@@ -83,7 +83,7 @@ export function ActivateStep({ profileId, topUpUrl, mock }: { profileId: string;
       </div>
 
       {mock && (
-        <p className="mt-6 text-sm text-muted">
+        <p className="mt-6 text-center text-sm text-muted">
           Demo mode:{" "}
           <button
             className="underline decoration-mist underline-offset-4 hover:text-navy"

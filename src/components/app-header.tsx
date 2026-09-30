@@ -28,8 +28,8 @@ export function AppHeader({
   const low = balance != null && (balance <= 0 || (daysLeft != null && daysLeft <= 3));
 
   return (
-    <header className="sticky top-0 z-20 border-b border-line bg-surface/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center gap-6 px-4 sm:px-6">
+    <header className="sticky top-0 z-20 border-b border-line bg-night/90 backdrop-blur">
+      <div className="flex h-15 items-center gap-6 px-[6%]">
         <Logo href="/app" />
         <nav className="flex h-full items-stretch gap-1" aria-label="Main">
           {TABS.map((t) => (
@@ -58,7 +58,7 @@ export function AppHeader({
       </div>
 
       {current && tab !== "tracker" && (
-        <div className="mx-auto flex max-w-6xl items-center gap-2 overflow-x-auto px-4 pb-3 sm:px-6" role="tablist" aria-label="Headhunters">
+        <div className="flex items-center gap-2 overflow-x-auto px-[6%] pb-3" role="tablist" aria-label="Headhunters">
           {profiles.map((p) => (
             <Link
               key={p.id}

@@ -51,7 +51,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   return (
     <>
       <AppHeader tab="shortlist" profiles={profiles} current={current} balance={balance} />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6">
+      <main className="w-full flex-1 px-[6%] py-8">
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-mist-soft px-5 py-4">
             <p>

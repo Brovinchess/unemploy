@@ -123,7 +123,7 @@ function Joined({ state, appUrl }: { state: Extract<NonNullable<Awaited<ReturnTy
           <code className="min-w-0 flex-1 truncate rounded-lg bg-white/10 px-3 py-2 text-sm text-white">{link}</code>
           <button
             type="button"
-            className="btn btn-sm shrink-0 bg-white text-ink hover:bg-white/90"
+            className="btn btn-sm shrink-0 bg-white text-night hover:bg-white/90"
             onClick={async () => {
               await navigator.clipboard.writeText(link);
               setCopied(true);

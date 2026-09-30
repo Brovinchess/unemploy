@@ -19,10 +19,10 @@ export function ResumeStep({
   const [fileName, setFileName] = useState<string>();
 
   return (
-    <form action={action} className="max-w-xl">
+    <form action={action} className="w-full">
       <label
         htmlFor="resume"
-        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-line bg-canvas px-6 py-12 text-center transition-colors hover:border-mist"
+        className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-white/15 bg-white/[0.04] px-6 py-12 text-center transition-colors hover:border-mist"
       >
         {fileName ? (
           <>
@@ -51,11 +51,11 @@ export function ResumeStep({
         Your resume is stored privately and only shared with your own headhunter.
       </p>
       <FormError message={state?.error} />
-      <button className="btn btn-primary mt-8" disabled={pending || !fileName}>
+      <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || !fileName}>
         {pending ? "Reading your resume…" : submitLabel}
       </button>
       {demo && (
-        <p className="mt-6 text-sm text-muted">
+        <p className="mt-6 text-center text-sm text-muted">
           Demo mode:{" "}
           <button
             type="button"

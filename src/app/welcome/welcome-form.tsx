@@ -9,7 +9,7 @@ export function WelcomeForm() {
   const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
   return (
-    <form action={action} className="max-w-md">
+    <form action={action} className="w-full">
       <label htmlFor="username" className="text-sm font-semibold text-ink">
         Username
       </label>
@@ -28,7 +28,7 @@ export function WelcomeForm() {
       <p className="mt-2 text-sm text-muted">Letters, numbers and dashes. You can&rsquo;t change it later.</p>
       <input type="hidden" name="timezone" value={timezone} suppressHydrationWarning />
       <FormError message={state?.error} />
-      <button className="btn btn-primary mt-8" disabled={pending}>
+      <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending}>
         {pending ? "Saving…" : "Continue"}
       </button>
     </form>

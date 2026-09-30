@@ -35,7 +35,7 @@ export function JobCard({ job, href, selected = false }: { job: Job; href: strin
       scroll={false}
       aria-current={selected ? "true" : undefined}
       className={`group flex gap-4 rounded-2xl border p-4 transition-colors ${
-        selected ? "border-line bg-surface lg:border-navy/30 lg:bg-mist-soft/70" : "border-line bg-surface hover:border-mist"
+        selected ? "border-line bg-surface lg:border-coral/40 lg:bg-white/[0.06]" : "border-line bg-surface hover:border-mist"
       }`}
     >
       <CompanyMark name={job.company} />
@@ -52,7 +52,7 @@ export function JobCard({ job, href, selected = false }: { job: Job; href: strin
         </div>
         {(job.status === "saved" || job.demo) && (
           <div className="mt-2.5 flex gap-1.5">
-            {job.status === "saved" && <span className="tag bg-plum-soft text-plum">Saved</span>}
+            {job.status === "saved" && <span className="tag bg-plum-soft text-white/85">Saved</span>}
             {job.demo && <span className="tag bg-coral-soft text-rose">Demo</span>}
           </div>
         )}

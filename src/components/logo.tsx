@@ -1,8 +1,8 @@
 import Link from "next/link";
 
-export function Logo({ href = "/", light = false }: { href?: string; light?: boolean }) {
+export function Logo({ href = "/" }: { href?: string }) {
   return (
-    <Link href={href} className={`font-display text-xl font-extrabold tracking-tight ${light ? "text-white" : "text-ink"}`}>
+    <Link href={href} className="font-display text-lg font-semibold tracking-tight text-white">
       unemploy<span className="text-coral">.</span>
     </Link>
   );
@@ -16,7 +16,7 @@ export function CompanyMark({ name, size = "md" }: { name: string; size?: "sm" |
     .slice(0, 2)
     .map((w) => w[0]?.toUpperCase())
     .join("");
-  const tints = ["bg-mist-soft text-navy", "bg-coral-soft text-rose", "bg-plum-soft text-muted"];
+  const tints = ["bg-mist-soft text-navy", "bg-coral-soft text-rose", "bg-plum-soft text-white/85"];
   const tint = tints[[...name].reduce((a, c) => a + c.charCodeAt(0), 0) % tints.length];
   const dims = { sm: "size-9 text-xs rounded-lg", md: "size-11 text-sm rounded-xl", lg: "size-14 text-base rounded-2xl" }[size];
   return (

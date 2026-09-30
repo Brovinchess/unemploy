@@ -12,7 +12,7 @@ export function NewProfileForm({ username }: { username: string }) {
   const preview = `${username}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "…"}`;
 
   return (
-    <form action={action} className="max-w-md">
+    <form action={action} className="w-full">
       <label htmlFor="label" className="text-sm font-semibold text-ink">
         Job area
       </label>
@@ -37,7 +37,7 @@ export function NewProfileForm({ username }: { username: string }) {
         Your headhunter will be called <span className="rounded-md bg-mist-soft px-1.5 py-0.5 font-mono text-[0.8125rem] text-ink">{preview}</span>
       </p>
       <FormError message={state?.error} />
-      <button className="btn btn-primary mt-8" disabled={pending || label.trim().length < 2}>
+      <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || label.trim().length < 2}>
         {pending ? "Creating…" : "Continue"}
       </button>
     </form>
