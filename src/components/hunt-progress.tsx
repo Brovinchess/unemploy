@@ -21,8 +21,8 @@ export function HuntProgress({
   const s = data?.stats;
 
   const steps = [
-    { label: "Brief and resume sent", detail: "Your preferences and resume reached your headhunter.", done: true },
-    { label: "Read your resume", detail: "It works out what you're great at.", done: !!s && (s.filesRead > 0 || s.replied) },
+    { label: "Search request sent", detail: "Your headhunter woke up with your resume and preferences.", done: true },
+    { label: "Got to work", detail: "It re-reads your brief and plans the search.", done: !!s && (s.filesRead > 0 || s.replied || s.webSearches > 0) },
     {
       label: "Searching job sites",
       detail: s?.webSearches ? `${s.webSearches} searches so far` : "Looking for open roles that match.",
@@ -30,7 +30,7 @@ export function HuntProgress({
       started: !!s && s.webSearches > 0,
     },
     { label: "Writing your applications", detail: "A cover letter and answers for each job.", done: !!s && s.deliveries > 0 },
-    { label: "First jobs on your shortlist", detail: `Up to ${jobsPerDay} a day.`, done: !!s && s.jobsAdded > 0 },
+    { label: "Jobs on your shortlist", detail: `Up to ${jobsPerDay} checked jobs.`, done: !!s && s.jobsAdded > 0 },
   ];
   const current = steps.findIndex((st) => !st.done);
 
@@ -44,10 +44,10 @@ export function HuntProgress({
               {live && <LiveDot />} {live ? "Searching now" : "Paused"}
             </p>
             <h2 className="font-display mt-2 text-3xl font-medium tracking-tight text-white">
-              <span className="font-mono text-[0.85em]">{mindName}</span> is finding your first jobs
+              <span className="font-mono text-[0.85em]">{mindName}</span> is finding your jobs
             </h2>
             <p className="mt-2 max-w-lg leading-relaxed text-white/55">
-              The first batch usually takes under an hour. You can close this page; they&rsquo;ll be waiting when you come back.
+              A search usually takes under an hour. You can close this page; your jobs will be waiting when you come back.
             </p>
           </div>
         </div>
@@ -80,7 +80,7 @@ export function HuntProgress({
           {[
             { n: s?.webSearches ?? "–", l: "web searches" },
             { n: s?.cognitionUsed ?? "–", l: "cognition used" },
-            { n: jobsPerDay, l: "jobs a day target" },
+            { n: jobsPerDay, l: "jobs asked for" },
           ].map((x) => (
             <div key={x.l} className="rounded-2xl bg-night-2 px-4 py-4">
               <dt className="sr-only">{x.l}</dt>

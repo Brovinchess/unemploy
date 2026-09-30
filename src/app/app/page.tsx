@@ -10,11 +10,14 @@ import { HuntProgress } from "@/components/hunt-progress";
 import { JobCard } from "@/components/job-card";
 import { JobDetail } from "@/components/job-detail";
 import { PauseToggle } from "@/components/pause-toggle";
+import { SearchButton } from "@/components/search-button";
+import { estimateSearchCost } from "@/lib/preferences";
+import { isSearching } from "@/lib/search";
 import { appContext, balanceFor } from "@/lib/app-context";
 
-// Server render happens once per request, so reading the clock here is fine.
-function daysSince(d: Date) {
-  return Math.floor((Date.now() - d.getTime()) / 86_400_000);
+function ago(d: Date) {
+  const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
+  return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
 }
 
 export default async function Shortlist({ searchParams }: PageProps<"/app">) {
@@ -47,8 +50,19 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const base = `/app?profile=${current.id}`;
   const paused = current.status === "paused";
   const everDelivered = !!current.lastDeliveryAt;
-  const lastSeen = current.lastDeliveryAt ?? current.briefedAt;
-  const quietDays = lastSeen ? daysSince(lastSeen) : 0;
+  const searching = isSearching(current);
+  const perSearch = current.preferences?.jobsPerDay ?? 5;
+  const searchButton = (big = false) => (
+    <SearchButton
+      profileId={current.id}
+      searching={searching}
+      startedAt={current.searchStartedAt?.toISOString() ?? null}
+      jobs={perSearch}
+      cognition={estimateSearchCost(perSearch).cognition}
+      disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
+      big={big}
+    />
+  );
 
   const alerts = (
     <>
@@ -62,14 +76,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       )}
       {balance != null && balance <= 0 && !paused && (
         <div className="mb-6 rounded-2xl bg-coral-soft px-5 py-4 text-rose">
-          <span className="font-mono">{current.mindName}</span> has run out of cognition and will stop searching soon. Top it up
-          on Hello Minds to keep your shortlist coming.
-        </div>
-      )}
-      {quietDays >= 4 && !paused && everDelivered && (
-        <div className="mb-6 rounded-2xl bg-coral-soft px-5 py-4 text-rose">
-          <span className="font-mono">{current.mindName}</span> hasn&rsquo;t sent any jobs for {quietDays} days. Check its
-          cognition, or update its preferences in Settings to give it a fresh brief.
+          <span className="font-mono">{current.mindName}</span> is out of cognition. Top it up on Hello Minds before your next
+          search.
         </div>
       )}
     </>
@@ -83,37 +91,56 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             <p className="text-sm text-white/45">{current.label} headhunter</p>
             <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Shortlist</h1>
           </div>
-          {jobs.length > 0 && (
-            <p className="text-sm text-white/50">
-              {fresh.length} new{saved.length > 0 && ` · ${saved.length} saved`}
-            </p>
-          )}
+          <div className="flex items-start gap-6">
+            {jobs.length > 0 && (
+              <p className="mt-3 hidden text-sm text-white/50 sm:block">
+                {fresh.length} new{saved.length > 0 && ` · ${saved.length} saved`}
+                {current.lastDeliveryAt && ` · last search ${ago(current.lastDeliveryAt)}`}
+              </p>
+            )}
+            {(jobs.length > 0 || everDelivered) && searchButton()}
+          </div>
         </div>
 
         {alerts}
 
-        {jobs.length === 0 && !everDelivered && (
+        {jobs.length === 0 && !searching && !everDelivered && (
+          <section className="flex flex-col items-center rounded-3xl bg-surface px-8 py-16 text-center">
+            <Ninja className="float size-24" />
+            <h2 className="font-display mt-6 text-3xl font-medium tracking-tight text-white">
+              <span className="font-mono text-[0.85em]">{current.mindName}</span> is ready
+            </h2>
+            <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
+              It has your resume and preferences, and it only searches when you ask. Each search finds up to {perSearch} jobs,
+              checks every one, and writes your application for each.
+            </p>
+            <div className="mt-8">{searchButton(true)}</div>
+          </section>
+        )}
+
+        {jobs.length === 0 && searching && (
           <HuntProgress
             profileId={current.id}
             mindName={current.mindName ?? "Your headhunter"}
             jobsPerDay={current.preferences?.jobsPerDay ?? 5}
-            live={!paused}
+            live
           />
         )}
 
-        {jobs.length === 0 && everDelivered && (
+        {jobs.length === 0 && !searching && everDelivered && (
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
             <section className="flex flex-col items-center justify-center rounded-3xl bg-surface px-8 py-16 text-center">
               <Ninja className="size-20" />
               <h2 className="font-display mt-6 text-2xl font-medium text-white">You&rsquo;re all caught up</h2>
               <p className="mt-2 max-w-sm leading-relaxed text-white/55">
-                Your next jobs arrive after your headhunter&rsquo;s next search. Meanwhile, follow up on your applications.
+                Ask for a new search whenever you&rsquo;re ready, or follow up on your applications in the tracker.
               </p>
-              <Link href={`/app/tracker?profile=${current.id}`} className="btn btn-ghost mt-6">
+              <div className="mt-6">{searchButton(true)}</div>
+              <Link href={`/app/tracker?profile=${current.id}`} className="mt-4 text-sm text-white/50 hover:text-white">
                 Open the tracker
               </Link>
             </section>
-            <ActivityFeed profileId={current.id} live={!paused} />
+            <ActivityFeed profileId={current.id} live={searching} />
           </div>
         )}
 
@@ -121,7 +148,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           <div className="grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)]">
             {/* List: hidden on small screens while a job is open */}
             <section className={`space-y-6 ${explicit ? "hidden xl:block" : ""}`} aria-label="Shortlist">
-              <ActivityFeed profileId={current.id} live={!paused} />
+              <ActivityFeed profileId={current.id} live={searching} />
 
               {fresh.length > 0 && (
                 <div>

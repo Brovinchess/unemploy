@@ -11,7 +11,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { JOBS_PER_DAY_OPTIONS, estimateDailyCost } from "@/lib/preferences";
+import { JOBS_PER_DAY_OPTIONS, estimateSearchCost } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -22,10 +22,10 @@ const LOGIN_ERRORS: Record<string, string> = {
   config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
-const PHRASES = ["finds jobs you'd win", "writes your applications", "works while you sleep", "never makes things up"];
+const PHRASES = ["finds jobs you'd win", "writes your applications", "searches when you ask", "never makes things up"];
 
 // Everything below is true of the product today; numbers come from the same code the app uses.
-const FIVE_A_DAY = estimateDailyCost(5);
+const FIVE_JOBS = estimateSearchCost(5);
 const MIN_JOBS = JOBS_PER_DAY_OPTIONS[0];
 const MAX_JOBS = JOBS_PER_DAY_OPTIONS[JOBS_PER_DAY_OPTIONS.length - 1];
 
@@ -33,16 +33,16 @@ const MAX_JOBS = JOBS_PER_DAY_OPTIONS[JOBS_PER_DAY_OPTIONS.length - 1];
 const SHOW_WAITLIST_FROM = 50;
 
 const FACTS = [
-  { n: `${MIN_JOBS}–${MAX_JOBS}`, label: "jobs a day, you choose" },
+  { n: `${MIN_JOBS}–${MAX_JOBS}`, label: "checked jobs per search, you choose" },
   { n: "6", label: "filters: setting, type, level, salary, visa, companies to avoid" },
   { n: "0", label: "claims without a line in your resume behind them" },
-  { n: `~$${FIVE_A_DAY.usd.toFixed(2)}`, label: "a day at 5 jobs a day, paid in Hello Minds cognition" },
+  { n: `~$${FIVE_JOBS.usd.toFixed(2)}`, label: "for a search of 5 jobs, paid in Hello Minds cognition. Nothing between searches" },
 ];
 
 const STEPS = [
   { title: "Sign in with Hello Minds", body: "One click creates your own headhunter. It belongs to you, not to us." },
   { title: "Upload your resume", body: "Then answer 9 quick questions: roles, country, work setting, level, salary and more." },
-  { title: "Get your shortlist", body: "Every day it brings the best matches, each with a cover letter and answers ready to paste." },
+  { title: "Search when you want", body: "Click Find jobs and it brings the best matches, each checked open and written up, ready to paste." },
 ];
 
 const FAQ = [
@@ -52,7 +52,7 @@ const FAQ = [
   },
   {
     q: "What does it cost?",
-    a: `Career Ninja itself is free. Your headhunter runs on Hello Minds and uses cognition, which you top up on hellominds.ai. At 5 jobs a day that's about ${FIVE_A_DAY.cognition} cognition, roughly $${FIVE_A_DAY.usd.toFixed(2)} a day. You can pause any time and it stops spending.`,
+    a: `Career Ninja itself is free. Your headhunter runs on Hello Minds and uses cognition, which you top up on hellominds.ai. It only searches when you ask: a search for 5 jobs uses about ${FIVE_JOBS.cognition} cognition, roughly $${FIVE_JOBS.usd.toFixed(2)}. Between searches it's switched off and spends nothing.`,
   },
   {
     q: "Which jobs and countries does it cover?",
@@ -75,7 +75,7 @@ const FAQ = [
 const FEATURES = [
   {
     title: "Finds the few jobs worth your time",
-    body: "Tell it what you want once. Every day it brings you a short list of real, open jobs ranked by how well you fit, each with a plain note on why it fits and what might hold you back.",
+    body: "Tell it what you want once. Whenever you ask, it brings you a short list of real, open jobs ranked by how well you fit, each with a plain note on why it fits and what might hold you back.",
     art: <ShortlistPanels />,
   },
   {
@@ -85,12 +85,12 @@ const FEATURES = [
   },
   {
     title: "Stay in control of what gets sent",
-    body: "Nothing goes out without you. Apply or skip in one tap, and tell it why you skipped so tomorrow's list is better. Track every application from saved to offer, and pause whenever you like.",
+    body: "Nothing goes out without you. Apply or skip in one tap, and tell it why you skipped so the next list is better. Track every application from saved to offer, and pause whenever you like.",
     art: <ApprovePanels />,
   },
   {
     title: "One headhunter for every kind of job you want",
-    body: "Open to design and product roles? Give each its own headhunter with its own resume, filters and daily shortlist, so neither search waters down the other.",
+    body: "Open to design and product roles? Give each its own headhunter with its own resume, filters and shortlist, so neither search waters down the other.",
     art: <ProfilesPanels />,
   },
 ];
@@ -170,7 +170,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               Your own headhunter, working in the background
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
-              Upload your resume and answer a few questions. It searches every day, picks the jobs you&rsquo;d actually win, and
+              Upload your resume and answer a few questions. When you ask, it searches, picks the jobs you&rsquo;d actually win, and
               writes your application for each one.
             </p>
           </div>

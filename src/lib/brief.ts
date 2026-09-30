@@ -11,7 +11,7 @@ export function buildBrief(args: {
   appUrl: string;
   ingestKey: string;
 }) {
-  const { ownerName, profileLabel, prefs, timezone, appUrl, ingestKey } = args;
+  const { ownerName, profileLabel, prefs, appUrl, ingestKey } = args;
   const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
   const remote = prefs.workSettings.includes("remote")
     ? `Remote jobs: ${REMOTE_SCOPES.find((r) => r.value === prefs.remoteScope)?.label.toLowerCase()}.`
@@ -19,11 +19,13 @@ export function buildBrief(args: {
 
   return `${ownerName} here. You are my headhunter for "${profileLabel}" jobs. My resume is attached.
 
-YOUR JOB, once a day around 08:00 (${timezone}):
-1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
-2. For each, write an application pack in English: cover letter, a short "about me", answers to likely form questions.
-3. POST them to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}". Test first with ?dry_run=1.
-Then stop until tomorrow.
+HOW WE WORK
+- You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.
+- For each request:
+  1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
+  2. For each, write an application pack in English: cover letter, a short "about me", answers to likely form questions.
+  3. POST them to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}". Test first with ?dry_run=1.
+  4. Mark your last push with "final": true. If you found nothing good, POST {"jobs":[],"final":true}. Then stop.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -50,7 +52,7 @@ WRITING RULES
 The endpoint's reply says what it accepted, refused and adjusted, and why. Fix what it says and resend only those.
 Full format: GET ${appUrl}/api/ingest?brief=1
 
-Please reply with one line confirming you've got this, then send today's jobs.`;
+Please reply with one line confirming you've got this. Don't search now; wait for my first SEARCH REQUEST.`;
 }
 
 export function buildContract(appUrl: string) {
@@ -58,7 +60,8 @@ export function buildContract(appUrl: string) {
 
 POST ${appUrl}/api/ingest            (add ?dry_run=1 to validate without saving)
 Header: x-unemploy-key: <the key from your brief>
-Body: {"jobs":[JOB, ...]}  (1–50 jobs)
+Body: {"jobs":[JOB, ...], "final": true|false}  (0–50 jobs; "final": true on the last push of a search)
+Only send during a search the user requested (a "SEARCH REQUEST" message). Other pushes are refused.
 
 JOB fields
   url           required  the employer's own posting (careers page or ATS), never a job board copy
@@ -87,12 +90,13 @@ JOB fields
                           one entry per fact about the user used in the pack
 
 REPLY
-  {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remainingToday":n,"skippedRecently":[{"title","company","reason"}]}
+  {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}]}
   codes: bad_job, not_employer_link, not_verified, not_eligible, poor_fit, work_setting_not_wanted,
          wrong_country, company_avoided, claim_not_in_resume, stale_posting, duplicate,
-         found_by_other_headhunter, company_limit, daily_limit, job_closed, bad_url, paused
+         found_by_other_headhunter, company_limit, search_limit, job_closed, bad_url, paused,
+         no_search_requested
   Fix what each hint says. Do not resend accepted jobs.
   skippedRecently lists jobs the user skipped and why. Avoid similar jobs.
 
-When remainingToday is 0, you are done for the day.`;
+When remaining is 0, the search is complete: stop and wait for the next request.`;
 }

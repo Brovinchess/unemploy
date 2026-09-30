@@ -48,7 +48,8 @@ export const mockMinds: MindsApi = {
   },
   async sendMessage(alias, text) {
     say(alias, false, text);
-    if (text.includes("/api/ingest")) scheduleHunt(alias);
+    if (text.includes("/api/ingest")) say(alias, true, "Got your brief and read your resume. I'll search when you ask.");
+    if (text.startsWith("SEARCH REQUEST")) scheduleHunt(alias);
   },
   async beacon() {},
   async setEnabled() {},
@@ -71,7 +72,7 @@ function scheduleHunt(alias: string) {
     await wait(3000);
     spend(alias, "FILE_Analyze", 1, 11);
     spend(alias, "LLM_Turn", 1, 14);
-    say(alias, true, "Got your brief and read your resume. Starting the search now.");
+    say(alias, true, "On it. Searching now.");
     await wait(4000);
     spend(alias, "SEARCH_Web", 9, 8);
     spend(alias, "LLM_Turn", 2, 22);
@@ -156,5 +157,6 @@ async function runMockHunt(alias: string) {
   const { processPush } = await import("../ingest");
   const result = await processPush(profile, { jobs }, { demo: true });
   console.log(`[mock mind] ${alias}: accepted ${result.accepted}, rejected ${result.rejected.length}`);
-  say(alias, true, `Sent ${jobs.length} jobs. The push returned 200 with ${result.accepted} accepted. I'll look again tomorrow morning.`);
+  await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+  say(alias, true, `Sent ${jobs.length} jobs. The push returned 200 with ${result.accepted} accepted. Waiting for your next request.`);
 }

@@ -46,5 +46,5 @@ export async function POST(request: Request) {
   const dryRun = new URL(request.url).searchParams.get("dry_run") === "1";
   const result = await processPush(profile, body, { dryRun });
   console.log(`[ingest] ${profile.mindName}: accepted ${result.accepted}, rejected ${result.rejected.length}${dryRun ? " (dry run)" : ""}`);
-  return NextResponse.json(result, { status: result.accepted || dryRun ? 200 : 422 });
+  return NextResponse.json(result, { status: result.accepted || dryRun || result.searchEnded ? 200 : 422 });
 }

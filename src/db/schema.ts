@@ -73,6 +73,10 @@ export const profiles = pgTable(
     preferences: jsonb("preferences").$type<Preferences>(),
     briefedAt: timestamp("briefed_at", { withTimezone: true }),
     lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
+    // Searches run only when the user asks. A search is active while started and not ended;
+    // the Mind is switched off between searches.
+    searchStartedAt: timestamp("search_started_at", { withTimezone: true }),
+    searchEndedAt: timestamp("search_ended_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("profiles_user_id").on(t.userId), index("profiles_conversation_alias").on(t.conversationAlias)],

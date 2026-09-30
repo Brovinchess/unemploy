@@ -42,7 +42,7 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
             </div>
             <p className="mt-1 text-muted">
               {balance == null ? "Balance unavailable right now." : `${Math.round(balance)} cognition left.`}{" "}
-              {current.status === "paused" ? "Paused: not searching or spending." : "Searching once a day."}
+              {current.status === "paused" ? "Paused: not searching or spending." : "Searches only when you click Find new jobs."}
             </p>
             <div className="mt-5 flex flex-wrap gap-3">
               <a href={mindsConfig.topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent">

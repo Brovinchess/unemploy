@@ -4,7 +4,8 @@ import { ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Settings } from "
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
-import { estimateDailyCost } from "@/lib/preferences";
+import { estimateSearchCost } from "@/lib/preferences";
+import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 
 type Tab = "shortlist" | "tracker" | "settings";
@@ -42,10 +43,10 @@ export async function AppShell({
     { id: "settings" as const, label: "Settings", href: `/app/settings${q}`, icon: Settings },
   ];
 
-  const perDay = current.preferences ? estimateDailyCost(current.preferences.jobsPerDay).cognition : null;
-  const daysLeft = balance != null && perDay ? Math.max(0, Math.floor(balance / perDay)) : null;
-  const low = balance != null && (balance <= 0 || (daysLeft != null && daysLeft <= 3));
-  const fill = daysLeft == null ? 0 : Math.min(100, (daysLeft / 14) * 100);
+  const perSearch = current.preferences ? estimateSearchCost(current.preferences.jobsPerDay).cognition : null;
+  const searchesLeft = balance != null && perSearch ? Math.max(0, Math.floor(balance / perSearch)) : null;
+  const low = balance != null && (balance <= 0 || (searchesLeft != null && searchesLeft < 1));
+  const fill = searchesLeft == null ? 0 : Math.min(100, (searchesLeft / 10) * 100);
 
   return (
     <div className="flex min-h-svh flex-1 bg-night text-white">
@@ -86,9 +87,9 @@ export async function AppShell({
                     <Ninja className="size-7" />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#10161c] ${
-                        p.status === "paused" ? "bg-white/30" : "bg-coral"
+                        isSearching(p) ? "animate-pulse bg-coral" : p.status === "paused" ? "bg-white/20" : "bg-mist"
                       }`}
-                      title={p.status === "paused" ? "Paused" : "Searching"}
+                      title={isSearching(p) ? "Searching" : p.status === "paused" ? "Paused" : "Ready"}
                     />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -131,7 +132,7 @@ export async function AppShell({
               <div className={`h-full rounded-full ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
             </div>
             <p className="mt-2 text-xs text-white/45">
-              {balance == null ? "Balance unavailable" : daysLeft == null ? "" : `About ${daysLeft} ${daysLeft === 1 ? "day" : "days"} of searching left`}
+              {balance == null ? "Balance unavailable" : searchesLeft == null ? "" : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"}`}
             </p>
             <a
               href={mindsConfig.topUpUrl}

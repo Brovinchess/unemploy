@@ -16,7 +16,7 @@ export const JOB_TYPES = ["Full-time", "Part-time", "Contract", "Temporary", "In
 
 export const LEVELS = ["Internship", "Entry", "Associate", "Mid-Senior", "Director", "Executive"] as const;
 
-// Rough cost model shown to users before they pick a daily volume. One base wake plus
+// Rough cost model for one search, shown before users pick how many jobs a search brings. One base wake plus
 // per-job research and writing. Tune from real ledger data once Minds are running.
 export const COGNITION_USD = 2.83 / 160;
 const BASE_COGNITION_PER_DAY = 15;
@@ -36,7 +36,7 @@ export const MAX_POSTING_AGE_DAYS = 45;
 
 export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 
-export function estimateDailyCost(jobsPerDay: number) {
+export function estimateSearchCost(jobsPerDay: number) {
   const cognition = BASE_COGNITION_PER_DAY + COGNITION_PER_JOB * jobsPerDay;
   return { cognition, usd: cognition * COGNITION_USD };
 }
@@ -75,6 +75,6 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Minimum salary", value: p.minSalary || "Not set" },
     { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },
     { label: "Visa sponsorship", value: p.needsVisa ? "Needed" : "Not needed" },
-    { label: "Jobs per day", value: String(p.jobsPerDay) },
+    { label: "Jobs per search", value: String(p.jobsPerDay) },
   ];
 }

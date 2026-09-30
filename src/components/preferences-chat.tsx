@@ -6,7 +6,7 @@ import { savePreferences } from "@/app/actions";
 import { Ninja } from "@/components/brand";
 import { FormError } from "@/components/onboarding-shell";
 import {
-  estimateDailyCost,
+  estimateSearchCost,
   JOB_TYPES,
   JOBS_PER_DAY_OPTIONS,
   LEVELS,
@@ -47,7 +47,7 @@ const QUESTIONS: Question[] = [
   { key: "minSalary", ask: () => "What's the lowest salary you'd accept? Include the currency. You can skip this." },
   { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas." },
   { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?" },
-  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each day? Fewer means I can check each one more carefully, and it uses less cognition." },
+  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition." },
 ];
 
 const DEFAULTS: Draft = { city: "", minSalary: "", avoidCompanies: "", remoteScope: "country" };
@@ -65,7 +65,7 @@ function answerText(key: keyof Preferences, d: Draft): string {
     case "needsVisa":
       return v ? "Yes, I need sponsorship" : "No";
     case "jobsPerDay":
-      return `${v} a day`;
+      return `${v} per search`;
     default:
       return (v as string) || "Skip";
   }
@@ -169,8 +169,8 @@ export function PreferencesChat({
             })}
           </div>
           <p className="mt-4 text-sm text-muted">
-            Estimated cost: about {estimateDailyCost(draft.jobsPerDay ?? 5).cognition} cognition a day (~$
-            {estimateDailyCost(draft.jobsPerDay ?? 5).usd.toFixed(2)}).
+            Estimated cost: about {estimateSearchCost(draft.jobsPerDay ?? 5).cognition} cognition per search (~$
+            {estimateSearchCost(draft.jobsPerDay ?? 5).usd.toFixed(2)}).
           </p>
           <FormError message={error} />
           <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
@@ -257,7 +257,7 @@ function AnswerInput({
   return (
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
       {JOBS_PER_DAY_OPTIONS.map((n) => {
-        const c = estimateDailyCost(n);
+        const c = estimateSearchCost(n);
         return (
           <button
             key={n}
@@ -266,7 +266,7 @@ function AnswerInput({
             onClick={() => onAnswer({ jobsPerDay: n })}
           >
             <span className="font-display text-xl font-bold text-ink">{n}</span>
-            <span className="text-sm text-muted">jobs a day{n === 5 && <span className="ml-1 text-coral">· recommended</span>}</span>
+            <span className="text-sm text-muted">jobs per search{n === 5 && <span className="ml-1 text-coral">· recommended</span>}</span>
             <span className="mt-2 text-xs text-muted">
               ~{c.cognition} cognition · ${c.usd.toFixed(2)}
             </span>

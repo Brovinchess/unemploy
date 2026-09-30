@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { after } from "next/server";
+import { count, eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
@@ -15,6 +16,7 @@ import { ownedJob, ownedProfile } from "@/lib/owned";
 import { preferencesSchema, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
+import { isSearching, searchRequestText, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 
 export type FormState = { error?: string } | undefined;
@@ -113,6 +115,16 @@ export async function checkActivation(profileId: string, quiet = false): Promise
   }
 }
 
+// After a brief (which asks the Mind not to search), give it a couple of minutes to read and
+// reply, then switch it off unless a search has started meanwhile.
+function switchOffLater(profileId: string) {
+  after(async () => {
+    await new Promise((r) => setTimeout(r, 120_000));
+    const p = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
+    if (p && !isSearching(p)) await switchOff(p);
+  });
+}
+
 // Sends the first brief (with the resume) in a fresh conversation and marks the profile hunting.
 async function startHunting(user: User, profile: Profile): Promise<FormState> {
   if (!profile.mindId || !profile.resumeData || !profile.preferences) return { error: "Finish the earlier steps first." };
@@ -145,6 +157,7 @@ async function startHunting(user: User, profile: Profile): Promise<FormState> {
     .update(schema.profiles)
     .set({ status: "hunting", briefedAt: new Date() })
     .where(eq(schema.profiles.id, profile.id));
+  switchOffLater(profile.id);
 }
 
 export async function simulateTopUp(profileId: string) {
@@ -286,6 +299,7 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
         .update(schema.profiles)
         .set({ preferences: prefs, briefedAt: new Date() })
         .where(eq(schema.profiles.id, profile.id));
+      if (!isSearching(profile)) switchOffLater(profile.id);
       revalidatePath("/app", "layout");
       return;
     }
@@ -306,11 +320,49 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
 export async function setPaused(profileId: string, paused: boolean) {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  if (profile.mindId) await minds(user).setEnabled(profile.mindId, !paused);
+  // Resuming doesn't switch the Mind on: it only wakes for a search the user asks for.
+  if (paused && profile.mindId) await minds(user).setEnabled(profile.mindId, false);
   await db
     .update(schema.profiles)
-    .set({ status: paused ? "paused" : "hunting" })
+    .set({ status: paused ? "paused" : "hunting", ...(paused && isSearching(profile) ? { searchEndedAt: new Date() } : {}) })
     .where(eq(schema.profiles.id, profile.id));
+  revalidatePath("/app", "layout");
+}
+
+// ---------- Searches (only when the user asks) ----------
+
+export async function requestSearch(profileId: string): Promise<FormState> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  if (profile.status === "paused") return { error: "This headhunter is paused. Resume it first." };
+  if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
+  if (isSearching(profile)) return;
+  if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
+    return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel)." };
+  }
+  const api = minds(user);
+  try {
+    const balance = await api.getBalance(profile.mindId);
+    if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
+    const [{ n }] = await db
+      .select({ n: count() })
+      .from(schema.ingestLog)
+      .where(eq(schema.ingestLog.profileId, profile.id));
+    await db.update(schema.profiles).set({ searchStartedAt: new Date(), searchEndedAt: null }).where(eq(schema.profiles.id, profile.id));
+    await api.setEnabled(profile.mindId, true);
+    await api.sendMessage(profile.conversationAlias, searchRequestText(user.username!, profile.preferences?.jobsPerDay ?? 5, n + 1));
+  } catch (e) {
+    await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    return { error: friendly(e) };
+  }
+  revalidatePath("/app", "layout");
+}
+
+export async function stopSearch(profileId: string) {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+  await switchOff(profile);
   revalidatePath("/app", "layout");
 }
 

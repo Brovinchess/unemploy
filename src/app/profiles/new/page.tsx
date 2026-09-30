@@ -20,7 +20,7 @@ export default async function NewProfile() {
       <StepHeading eyebrow={first ? "Your first headhunter" : "Add a headhunter"} title="What kind of jobs is this one for?">
         {first
           ? "Each headhunter focuses on one kind of job, with its own resume. You can add more later."
-          : "It gets its own resume, its own daily shortlist and its own cognition, so each search stays focused."}
+          : "It gets its own resume, its own shortlist and its own cognition, so each search stays focused."}
       </StepHeading>
       <NewProfileForm username={user.username} />
     </OnboardingShell>

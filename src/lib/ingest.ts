@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
+import { endSearch, isSearching } from "./search";
 
 const claimSchema = z.object({
   claim: z.string().trim().min(3).max(400),
@@ -44,7 +45,9 @@ const jobSchema = z.object({
   }),
 });
 
-export const pushSchema = z.object({ jobs: z.array(z.unknown()).min(1).max(50) });
+export const pushSchema = z
+  .object({ jobs: z.array(z.unknown()).max(50), final: z.boolean().optional() })
+  .refine((b) => b.jobs.length > 0 || b.final, { message: "Send at least one job, or an empty list with final: true." });
 
 export type JobPush = z.infer<typeof jobSchema>;
 
@@ -53,7 +56,9 @@ export type Rejection = { url?: string; code: string; hint: string };
 export type PushResult = {
   accepted: number;
   rejected: Rejection[];
-  remainingToday: number;
+  remaining: number; // jobs still wanted in the current search
+  remainingToday?: number; // older name for "remaining", kept for Minds briefed before
+  searchEnded?: boolean;
   dryRun: boolean;
   // Changes the app made to accepted jobs (e.g. a match score capped), so the Mind learns.
   adjusted?: { url: string; note: string }[];
@@ -186,7 +191,7 @@ export async function processPush(
     return {
       accepted: 0,
       rejected: [{ code: "profile_incomplete", hint: "This profile has no resume or preferences yet. Wait for setup." }],
-      remainingToday: 0,
+      remaining: 0,
       dryRun,
     };
   }
@@ -194,7 +199,22 @@ export async function processPush(
     return {
       accepted: 0,
       rejected: [{ code: "paused", hint: "The user paused this headhunter. Stop searching until they resume it." }],
-      remainingToday: 0,
+      remaining: 0,
+      dryRun,
+    };
+  }
+
+  // Searches happen only when the user asks. Test pushes are always allowed.
+  if (!dryRun && !opts.demo && !isSearching(profile)) {
+    return {
+      accepted: 0,
+      rejected: [
+        {
+          code: "no_search_requested",
+          hint: "The user hasn't asked for a search. Only search after a SEARCH REQUEST message; stop now and wait.",
+        },
+      ],
+      remaining: 0,
       dryRun,
     };
   }
@@ -203,17 +223,24 @@ export async function processPush(
   if (!parsed.success) {
     return {
       accepted: 0,
-      rejected: [{ code: "bad_body", hint: 'Body must be {"jobs":[ ... ]} with 1–50 jobs. See GET /api/ingest?brief=1.' }],
-      remainingToday: 0,
+      rejected: [
+        {
+          code: "bad_body",
+          hint: 'Body must be {"jobs":[ ... ], "final": true|false} with up to 50 jobs. See GET /api/ingest?brief=1.',
+        },
+      ],
+      remaining: 0,
       dryRun,
     };
   }
 
+  // The quota is per search; the per-company limit looks at the last day.
   const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const searchStart = profile.searchStartedAt ?? since;
   const [{ n }] = await db
     .select({ n: count() })
     .from(schema.jobs)
-    .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, since)));
+    .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, searchStart)));
   let remaining = Math.max(0, prefs.jobsPerDay - n);
 
   const rejected: Rejection[] = [];
@@ -274,8 +301,8 @@ export async function processPush(
     if (remaining <= 0) {
       rejected.push({
         url: job.url,
-        code: "daily_limit",
-        hint: `The user asked for ${prefs.jobsPerDay} jobs a day and today's are in. Send only your best; stop until tomorrow.`,
+        code: "search_limit",
+        hint: `The user asked for ${prefs.jobsPerDay} jobs per search and this search's are in. Stop and wait for the next request.`,
       });
       continue;
     }
@@ -364,5 +391,12 @@ export async function processPush(
     )
     .limit(20);
 
-  return { accepted, rejected, remainingToday: remaining, dryRun, adjusted, skippedRecently };
+  // The search is over when the Mind says so or the quota is filled; switch the Mind off.
+  let searchEnded = false;
+  if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
+    await endSearch(profile);
+    searchEnded = true;
+  }
+
+  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, dryRun, adjusted, skippedRecently };
 }

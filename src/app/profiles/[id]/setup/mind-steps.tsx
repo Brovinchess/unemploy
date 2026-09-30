@@ -56,8 +56,8 @@ export function ActivateStep({
 
   const costLine = (
     <p className="text-sm text-white/55">
-      At {jobsPerDay} jobs a day it uses about <span className="text-white">{cost.cognition} cognition a day</span>{" "}
-      (~${cost.usd.toFixed(2)}). Pause any time and it stops spending.
+      It only searches when you ask. A search for {jobsPerDay} jobs uses about{" "}
+      <span className="text-white">{cost.cognition} cognition</span> (~${cost.usd.toFixed(2)}). Between searches it&rsquo;s switched off and spends nothing.
     </p>
   );
 

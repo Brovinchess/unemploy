@@ -39,7 +39,9 @@ const REJECTION_LABELS: Record<string, string> = {
   not_eligible: "can't apply from your country",
   poor_fit: "misses most must-haves",
   company_limit: "too many from one company",
-  daily_limit: "over your daily limit",
+  daily_limit: "over your limit",
+  search_limit: "over your jobs-per-search limit",
+  no_search_requested: "sent without a search request",
   claim_not_in_resume: "claim not in your resume",
   wrong_country: "wrong country",
   work_setting_not_wanted: "work setting you didn't pick",
@@ -69,6 +71,7 @@ function describeWork(uses: ToolUse[]): string {
 }
 
 function describeOwnMessage(text: string, first: boolean) {
+  if (text.startsWith("SEARCH REQUEST")) return "You asked for a new search";
   if (text.startsWith("This replaces my earlier brief")) return "Your updated preferences were sent";
   if (text.includes("updated my resume")) return "Your new resume was sent";
   if (first || text.includes("/api/ingest")) return "Your brief and resume were sent";
@@ -133,6 +136,10 @@ export async function buildActivity(
       reasons.set(label, (reasons.get(label) ?? 0) + 1);
     }
     const why = [...reasons].map(([label, n]) => `${n} ${label}`).join(", ");
+    if (d.accepted + d.rejected === 0) {
+      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: "Finished searching", detail: "No new jobs good enough this time" });
+      continue;
+    }
     items.push({
       id: `d${d.id}`,
       at: d.createdAt.toISOString(),
@@ -142,13 +149,17 @@ export async function buildActivity(
     });
   }
 
-  const sum = (tool: string) => usage.filter((u) => u.tool === tool).reduce((a, u) => a + u.calls, 0);
-  const real = deliveries.filter((d) => !d.dryRun);
+  // Progress numbers describe the current (or latest) search.
+  const statsSince = profile.searchStartedAt && profile.searchStartedAt > since ? profile.searchStartedAt : since;
+  const statsHour = new Date(statsSince);
+  statsHour.setUTCMinutes(0, 0, 0);
+  const sum = (tool: string) => usage.filter((u) => u.tool === tool && u.at >= statsHour).reduce((a, u) => a + u.calls, 0);
+  const real = deliveries.filter((d) => !d.dryRun && d.createdAt >= statsSince);
   const stats: ActivityStats = {
-    replied: chat.some((m) => m.fromMind && m.at >= since),
+    replied: chat.some((m) => m.fromMind && m.at >= statsSince),
     webSearches: sum("SEARCH_Web"),
     filesRead: sum("FILE_Analyze"),
-    cognitionUsed: Math.round(usage.reduce((a, u) => a + u.cognition, 0)),
+    cognitionUsed: Math.round(usage.filter((u) => u.at >= statsHour).reduce((a, u) => a + u.cognition, 0)),
     deliveries: real.length,
     jobsAdded: real.reduce((a, d) => a + d.accepted, 0),
   };

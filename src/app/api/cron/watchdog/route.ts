@@ -1,19 +1,15 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, inArray, isNotNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { minds, LoginExpiredError } from "@/lib/minds/client";
-import { mindsMode } from "@/lib/minds/config";
 import { isPublicHttpUrl } from "@/lib/ingest";
 import { checkPosting } from "@/lib/quality";
+import { endSearch, isSearching } from "@/lib/search";
 
-// Runs daily (vercel.json). Nudges headhunters that have missed their daily delivery,
-// following the Hello Minds field guide: one nudge a day, stop after three, and write
-// every nudge in the owner's voice with a unique tail so it isn't taken as a repeat.
+// Runs daily (vercel.json): clears expired sessions, closes searches that never finished,
+// and rechecks shortlisted postings. It never wakes a Mind; searches start only from the user.
 export const maxDuration = 300;
 
 const HOUR = 60 * 60 * 1000;
-const NUDGE_AFTER = 30 * HOUR;
-const GIVE_UP_AFTER = NUDGE_AFTER + 3 * 24 * HOUR;
 
 export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET;
@@ -25,38 +21,20 @@ export async function GET(request: Request) {
   const expired = await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date())).returning({ id: schema.sessions.id });
   const closed = await recheckOpenJobs();
 
-  if (mindsMode !== "live") return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, nudged: 0, mode: mindsMode });
-
-  const hunting = await db.query.profiles.findMany({
-    where: and(eq(schema.profiles.status, "hunting"), isNotNull(schema.profiles.mindId), isNotNull(schema.profiles.briefedAt)),
+  // Searches only run when the user asks, so nothing is nudged. A search that never sent
+  // its final batch is closed here, and its Mind switched off.
+  const open = await db.query.profiles.findMany({
+    where: and(isNotNull(schema.profiles.searchStartedAt), isNull(schema.profiles.searchEndedAt)),
   });
-
-  let nudged = 0;
-  const skipped: string[] = [];
-  for (const p of hunting) {
-    const lastSeen = (p.lastDeliveryAt ?? p.briefedAt!).getTime();
-    const quiet = Date.now() - lastSeen;
-    if (quiet < NUDGE_AFTER || quiet >= GIVE_UP_AFTER) continue;
-
-    const user = await db.query.users.findFirst({ where: eq(schema.users.id, p.userId) });
-    if (!user) continue;
-    const day = Math.floor(quiet / (24 * HOUR));
-    try {
-      await minds(user).beacon(
-        p.mindId!,
-        `${user.username} here. I haven't had any "${p.label}" jobs from you for about ${day} day${day === 1 ? "" : "s"}. ` +
-          `Could you run today's search and send what you find to the endpoint in your brief? ` +
-          `If something is blocking you, reply with one line saying what. (${new Date().toISOString()})`,
-      );
-      nudged++;
-    } catch (e) {
-      skipped.push(p.id);
-      if (!(e instanceof LoginExpiredError)) console.error("[watchdog] beacon failed", p.id, e);
-    }
+  let stale = 0;
+  for (const p of open) {
+    if (isSearching(p)) continue;
+    await endSearch(p).catch((e) => console.error("[watchdog] end search failed", p.id, e));
+    stale++;
   }
 
-  console.log(`[watchdog] nudged ${nudged}, skipped ${skipped.length}, closed jobs ${closed}, expired sessions ${expired.length}`);
-  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, nudged, skipped: skipped.length });
+  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, expired sessions ${expired.length}`);
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale });
 }
 
 // Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the

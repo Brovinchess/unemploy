@@ -14,7 +14,7 @@ const STATUS_NOTE: Partial<Record<string, string>> = {
   offer: "You got an offer for this job.",
   rejected: "This application was unsuccessful.",
   skipped: "You skipped this job.",
-  expired: "This posting has closed. Your headhunter's daily check found it no longer accepts applications.",
+  expired: "This posting has closed. Career Ninja's daily check found it no longer accepts applications.",
 };
 
 export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string }) {
