@@ -42,7 +42,7 @@ export function JobCard({ job, href, selected = false }: { job: Job; href: strin
       <div className="min-w-0 flex-1">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h3 className="font-display truncate font-bold text-ink">{job.title}</h3>
+            <h3 className="font-display truncate font-medium text-ink">{job.title}</h3>
             <p className="truncate text-sm text-muted">{job.company}</p>
           </div>
           <MatchBadge score={job.matchScore} />

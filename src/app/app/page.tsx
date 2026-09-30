@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Job } from "@/db/schema";
 import { AppHeader } from "@/components/app-header";
+import { Ninja } from "@/components/brand";
 import { AutoRefresh } from "@/components/auto-refresh";
 import { JobCard } from "@/components/job-card";
 import { JobDetail } from "@/components/job-detail";
@@ -47,11 +48,28 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const searching = !current.lastDeliveryAt && !paused;
   const lastSeen = current.lastDeliveryAt ?? current.briefedAt;
   const quietDays = lastSeen ? daysSince(lastSeen) : 0;
+  const welcome = sp.welcome === "1";
 
   return (
     <>
       <AppHeader tab="shortlist" profiles={profiles} current={current} balance={balance} />
       <main className="w-full flex-1 px-[6%] py-8">
+        {welcome && (
+          <div className="mb-6 flex items-center gap-4 rounded-3xl bg-night-2 px-5 py-4">
+            <Ninja className="size-12 shrink-0" />
+            <div className="flex-1">
+              <p className="font-display text-lg font-medium text-white">{current.mindName} is on the hunt</p>
+              <p className="text-sm text-white/55">
+                It&rsquo;s reading your resume now. New jobs land here, and each one comes with an application ready to
+                paste.
+              </p>
+            </div>
+            <Link href={base} className="text-sm text-white/55 hover:text-white">
+              Got it
+            </Link>
+          </div>
+        )}
+
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-mist-soft px-5 py-4">
             <p>
@@ -79,8 +97,10 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           <section className={explicit ? "hidden lg:block" : ""} aria-label="Shortlist">
             <div className="flex items-end justify-between gap-4">
               <div>
-                <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Today&rsquo;s shortlist</h1>
-                <p className="mt-1 text-sm text-muted">Found by {current.mindName}</p>
+                <h1 className="font-display text-2xl font-medium tracking-tight text-white">Your shortlist</h1>
+                <p className="mt-1 text-sm text-white/50">
+                  Found by <span className="font-mono text-white/70">{current.mindName}</span>
+                </p>
               </div>
               {fresh.length > 0 && <span className="tag">{fresh.length} new</span>}
             </div>
@@ -88,12 +108,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             {jobs.length === 0 && searching && (
               <div className="card mt-5 px-6 py-12 text-center">
                 <AutoRefresh />
-                <span className="relative mx-auto flex size-3">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-coral opacity-60" />
-                  <span className="relative inline-flex size-3 rounded-full bg-coral" />
-                </span>
-                <h2 className="font-display mt-5 text-lg font-bold text-ink">Your headhunter is searching</h2>
-                <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-muted">
+                <Ninja className="float mx-auto size-20" />
+                <h2 className="font-display mt-5 text-lg font-medium text-white">Searching for your first jobs</h2>
+                <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/55">
                   It&rsquo;s reading your resume and looking for jobs that fit. The first ones usually arrive within 10
                   to 30 minutes. This page updates by itself.
                 </p>
@@ -102,8 +119,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
 
             {jobs.length === 0 && !searching && (
               <div className="card mt-5 px-6 py-12 text-center">
-                <h2 className="font-display text-lg font-bold text-ink">You&rsquo;re all caught up</h2>
-                <p className="mx-auto mt-2 max-w-sm text-sm text-muted">
+                <Ninja className="mx-auto size-16" />
+                <h2 className="font-display mt-4 text-lg font-medium text-white">You&rsquo;re all caught up</h2>
+                <p className="mx-auto mt-2 max-w-sm text-sm text-white/55">
                   Your next shortlist arrives tomorrow morning. Check the tracker to follow up on applications.
                 </p>
               </div>
@@ -119,7 +137,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
 
             {saved.length > 0 && (
               <div className="mt-8">
-                <h2 className="font-display text-sm font-bold text-muted">Saved for later</h2>
+                <h2 className="font-display text-sm font-medium text-muted">Saved for later</h2>
                 <div className="mt-3 space-y-2.5">
                   {saved.map((j) => (
                     <JobCard key={j.id} job={j} href={`${base}&job=${j.id}`} selected={j.id === selected?.id} />

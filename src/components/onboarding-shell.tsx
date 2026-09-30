@@ -1,14 +1,16 @@
 import Link from "next/link";
-import { Mark, Wordmark } from "./brand";
+import { Ninja, Wordmark } from "./brand";
 
-const STEPS = ["Launch", "Activate", "Resume", "Preferences"];
+const STEPS = ["Resume", "Preferences", "Activate"];
 
 // Same frame as the landing page: wordmark left, one quiet action right, content centred.
 export function OnboardingShell({
   step,
+  wide = false,
   children,
 }: {
   step?: number; // 0-based index into STEPS; omit for pre-setup screens
+  wide?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -18,9 +20,19 @@ export function OnboardingShell({
           <Wordmark />
         </Link>
         {step !== undefined && (
-          <p className="absolute left-1/2 hidden -translate-x-1/2 text-sm text-white/50 sm:block">
-            Step {step + 1} of {STEPS.length}
-          </p>
+          <ol className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-2 text-sm sm:flex" aria-label="Setup steps">
+            {STEPS.map((s, i) => (
+              <li key={s} className="flex items-center gap-2">
+                {i > 0 && <span className="h-px w-6 bg-white/15" aria-hidden />}
+                <span
+                  className={i === step ? "text-white" : i < step ? "text-coral" : "text-white/40"}
+                  aria-current={i === step ? "step" : undefined}
+                >
+                  {s}
+                </span>
+              </li>
+            ))}
+          </ol>
         )}
         <form action="/auth/logout" method="post">
           <button className="rounded-full bg-white/[0.08] px-4 py-2 text-sm text-white/85 transition-colors hover:bg-white/[0.14]">
@@ -33,7 +45,7 @@ export function OnboardingShell({
           <div className="h-full bg-coral transition-all" style={{ width: `${((step + 1) / STEPS.length) * 100}%` }} />
         </div>
       )}
-      <main className="mx-auto flex w-full max-w-[34rem] flex-1 flex-col justify-center px-5 py-16">{children}</main>
+      <main className={`mx-auto flex w-full ${wide ? "max-w-[40rem]" : "max-w-[34rem]"} flex-1 flex-col justify-center px-5 py-16`}>{children}</main>
     </div>
   );
 }
@@ -41,7 +53,7 @@ export function OnboardingShell({
 export function StepHeading({ eyebrow, title, children }: { eyebrow: string; title: string; children?: React.ReactNode }) {
   return (
     <div className="mb-10 text-center">
-      <Mark className="mx-auto size-12" />
+      <Ninja className="mx-auto size-16" />
       <p className="mt-6 text-sm font-medium text-coral">{eyebrow}</p>
       <h1 className="font-display mt-2 text-3xl font-medium leading-tight tracking-[-0.01em] text-white sm:text-[2.5rem]">{title}</h1>
       {children && <div className="mx-auto mt-4 max-w-md text-lg leading-relaxed text-white/55">{children}</div>}

@@ -38,8 +38,14 @@ export async function saveUsername(_: FormState, formData: FormData): Promise<Fo
   const parsed = usernameSchema.safeParse(formData.get("username"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const timezone = String(formData.get("timezone") || "UTC").slice(0, 64);
+  const label = String(formData.get("label") ?? "").trim();
+  if (label.length < 2 || label.length > 40) return { error: "Tell us what kind of jobs you want, like “Design” or “Marketing”." };
+  const taken = await db.query.users.findFirst({ where: eq(schema.users.username, parsed.data), columns: { id: true } });
+  if (taken && taken.id !== user.id) return { error: "That username is taken. Try another one." };
   await db.update(schema.users).set({ username: parsed.data, timezone }).where(eq(schema.users.id, user.id));
-  redirect("/profiles/new");
+  const id = crypto.randomUUID();
+  await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
+  redirect(`/profiles/${id}/setup`);
 }
 
 // ---------- Profiles ----------
@@ -49,7 +55,7 @@ export async function createProfile(_: FormState, formData: FormData): Promise<F
   const label = String(formData.get("label") ?? "").trim();
   if (label.length < 2 || label.length > 40) return { error: "Give it a short name, like “Design” or “Marketing”." };
   const id = crypto.randomUUID();
-  await db.insert(schema.profiles).values({ id, userId: user.id, label });
+  await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
   redirect(`/profiles/${id}/setup`);
 }
 
@@ -87,21 +93,58 @@ export async function launchMind(profileId: string): Promise<FormState> {
   revalidatePath(`/profiles/${profileId}/setup`);
 }
 
-export async function checkActivation(profileId: string): Promise<FormState & { balance?: number }> {
+export type ActivationState = FormState & { balance?: number; started?: boolean };
+
+// Called on a timer while the user tops up. Once the Mind has cognition, it gets its
+// brief and the hunt starts, so there's no separate "start" step.
+export async function checkActivation(profileId: string, quiet = false): Promise<ActivationState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  if (!profile.mindId) return { error: "This headhunter hasn't been launched yet." };
+  if (profile.status === "hunting" || profile.status === "paused") return { started: true };
+  if (!profile.mindId) return { error: "This headhunter hasn't been created yet." };
   try {
     const balance = await minds(user).getBalance(profile.mindId);
-    if (balance <= 0) return { balance, error: "No credit yet. Top-ups can take a minute to arrive." };
-    if (profile.status === "needs_topup") {
-      await db.update(schema.profiles).set({ status: "needs_resume" }).where(eq(schema.profiles.id, profile.id));
-    }
-    revalidatePath(`/profiles/${profileId}/setup`);
-    return { balance };
+    if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. Top-ups can take a minute to arrive." };
+    const r = await startHunting(user, profile);
+    if (r?.error) return { balance, error: r.error };
+    return { balance, started: true };
   } catch (e) {
     return { error: friendly(e) };
   }
+}
+
+// Sends the first brief (with the resume) in a fresh conversation and marks the profile hunting.
+async function startHunting(user: User, profile: Profile): Promise<FormState> {
+  if (!profile.mindId || !profile.resumeData || !profile.preferences) return { error: "Finish the earlier steps first." };
+  if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
+    return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel) and try again." };
+  }
+  const ingestKey = newIngestKey();
+  // A fresh alias per brief gives the Mind a clean thread.
+  const alias = `unemploy-${profile.id.slice(0, 8)}-${Date.now().toString(36)}`;
+  // Save first: the Mind may push as soon as it reads the brief.
+  await db
+    .update(schema.profiles)
+    .set({ ingestKeyHash: hashKey(ingestKey), conversationAlias: alias })
+    .where(eq(schema.profiles.id, profile.id));
+  const api = minds(user);
+  await api.createConversation(alias, profile.mindId);
+  await api.sendMessage(
+    alias,
+    buildBrief({
+      ownerName: user.username!,
+      profileLabel: profile.label,
+      prefs: profile.preferences,
+      timezone: user.timezone ?? "UTC",
+      appUrl: mindsConfig.ingestUrl,
+      ingestKey,
+    }),
+    [resumeAttachment(profile)],
+  );
+  await db
+    .update(schema.profiles)
+    .set({ status: "hunting", briefedAt: new Date() })
+    .where(eq(schema.profiles.id, profile.id));
 }
 
 export async function simulateTopUp(profileId: string) {
@@ -183,7 +226,7 @@ export async function loadSampleResume(profileId: string) {
   if (mindsMode !== "mock") return;
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  if (profile.status !== "needs_resume") return;
+  if (profile.status !== "needs_resume" && profile.status !== "draft") return;
   await db
     .update(schema.profiles)
     .set({
@@ -228,38 +271,17 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
       return;
     }
 
-    if (!profile.mindId || !profile.resumeData) return { error: "Finish the earlier steps first." };
-
-    const ingestKey = newIngestKey();
-    // A fresh alias per brief gives the Mind a clean thread.
-    const alias = `unemploy-${profile.id.slice(0, 8)}-${Date.now().toString(36)}`;
-    // Save first: the Mind may push as soon as it reads the brief.
-    await db
-      .update(schema.profiles)
-      .set({ preferences: prefs, ingestKeyHash: hashKey(ingestKey), conversationAlias: alias })
-      .where(eq(schema.profiles.id, profile.id));
-
-    await api.createConversation(alias, profile.mindId);
-    await api.sendMessage(
-      alias,
-      buildBrief({
-        ownerName: user.username!,
-        profileLabel: profile.label,
-        prefs,
-        timezone: user.timezone ?? "UTC",
-        appUrl: mindsConfig.ingestUrl,
-        ingestKey,
-      }),
-      [resumeAttachment(profile)],
-    );
-    await db
-      .update(schema.profiles)
-      .set({ status: "hunting", briefedAt: new Date() })
-      .where(eq(schema.profiles.id, profile.id));
   } catch (e) {
     return { error: friendly(e) };
   }
-  redirect(`/app?profile=${profileId}&welcome=1`);
+
+  // During setup, preferences are just saved; the brief goes out once the Mind is funded.
+  if (!profile.resumeData) return { error: "Upload your resume first." };
+  await db
+    .update(schema.profiles)
+    .set({ preferences: prefs, status: "needs_topup" })
+    .where(eq(schema.profiles.id, profile.id));
+  redirect(`/profiles/${profileId}/setup`);
 }
 
 export async function setPaused(profileId: string, paused: boolean) {

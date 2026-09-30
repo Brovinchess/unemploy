@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { AppHeader } from "@/components/app-header";
+import { Ninja } from "@/components/brand";
 import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
@@ -10,7 +11,7 @@ import { DeleteAccount } from "./delete-account";
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <section className="card grid gap-6 p-6 md:grid-cols-[200px_1fr] md:p-8">
-      <h2 className="font-display font-bold text-ink">{title}</h2>
+      <h2 className="font-display font-medium text-ink">{title}</h2>
       <div>{children}</div>
     </section>
   );
@@ -25,11 +26,14 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
     <>
       <AppHeader tab="settings" profiles={profiles} current={current} balance={balance} />
       <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">{current.label} settings</h1>
+        <h1 className="font-display text-2xl font-medium tracking-tight text-ink">{current.label} settings</h1>
 
         <div className="mt-6 space-y-4">
           <Section title="Headhunter">
-            <p className="font-mono text-[0.9375rem] font-semibold text-ink">{current.mindName}</p>
+            <p className="flex items-center gap-3 font-mono text-[0.9375rem] font-semibold text-ink">
+              <Ninja className="size-9" />
+              {current.mindName}
+            </p>
             <p className="mt-1 text-muted">
               {balance == null ? "Balance unavailable right now." : `${Math.round(balance)} cognition left.`}{" "}
               {current.status === "paused" ? "Paused: not searching or spending." : "Searching every morning."}

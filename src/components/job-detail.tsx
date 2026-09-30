@@ -26,7 +26,7 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
           <CompanyMark name={job.company} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-muted">{job.company}</p>
-            <h1 className="font-display text-2xl font-bold leading-tight tracking-tight text-ink">{job.title}</h1>
+            <h1 className="font-display text-2xl font-medium leading-tight tracking-tight text-ink">{job.title}</h1>
           </div>
           <MatchBadge score={job.matchScore} />
         </div>
@@ -46,12 +46,12 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
 
       <div className="space-y-8 p-6">
         <section>
-          <h2 className="font-display font-bold text-ink">Why it fits</h2>
+          <h2 className="font-display font-medium text-ink">Why it fits</h2>
           <p className="mt-2 leading-relaxed">{job.whyFit}</p>
         </section>
 
         <section>
-          <h2 className="font-display font-bold text-ink">Where you fall short</h2>
+          <h2 className="font-display font-medium text-ink">Where you fall short</h2>
           {job.gaps.length ? (
             <ul className="mt-2 list-disc space-y-1 pl-5 leading-relaxed">
               {job.gaps.map((g) => (
@@ -65,14 +65,14 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
 
         {job.companyNotes && (
           <section>
-            <h2 className="font-display font-bold text-ink">About {job.company}</h2>
+            <h2 className="font-display font-medium text-ink">About {job.company}</h2>
             <p className="mt-2 leading-relaxed">{job.companyNotes}</p>
           </section>
         )}
 
         {pack && (
           <section className="border-t border-line pt-8">
-            <h2 className="font-display text-lg font-bold text-ink">Your application pack</h2>
+            <h2 className="font-display text-lg font-medium text-ink">Your application pack</h2>
             <p className="mt-1 text-sm text-muted">
               Copy these into the application form. Everything is based on your resume. Read it through before you
               send it.

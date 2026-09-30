@@ -13,13 +13,10 @@ export default async function NewProfile() {
 
   return (
     <OnboardingShell>
-      <StepHeading
-        eyebrow={first ? "Your first headhunter" : "New headhunter"}
-        title="What kind of jobs is this headhunter for?"
-      >
+      <StepHeading eyebrow={first ? "Your first headhunter" : "Add a headhunter"} title="What kind of jobs is this one for?">
         {first
-          ? "Each headhunter focuses on one kind of job, using one resume. You can add more later, for example one for design and one for product roles."
-          : "This headhunter gets its own resume, its own daily shortlist and its own credit."}
+          ? "Each headhunter focuses on one kind of job, with its own resume. You can add more later."
+          : "It gets its own resume, its own daily shortlist and its own cognition, so each search stays focused."}
       </StepHeading>
       <NewProfileForm username={user.username} />
     </OnboardingShell>

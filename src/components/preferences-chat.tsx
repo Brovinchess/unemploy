@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil } from "lucide-react";
 import { savePreferences } from "@/app/actions";
+import { Ninja } from "@/components/brand";
 import { FormError } from "@/components/onboarding-shell";
 import {
   estimateDailyCost,
@@ -171,13 +172,7 @@ export function PreferencesChat({
           </p>
           <FormError message={error} />
           <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending
-              ? mode === "setup"
-                ? "Briefing your headhunter…"
-                : "Saving…"
-              : mode === "setup"
-                ? "Start hunting"
-                : "Save and brief my headhunter"}
+            {pending ? "Saving…" : mode === "setup" ? "Looks good, continue" : "Save and brief my headhunter"}
           </button>
         </div>
       )}
@@ -188,9 +183,7 @@ export function PreferencesChat({
 function Bubble({ from, children }: { from: "mind" | "user"; children: React.ReactNode }) {
   return from === "mind" ? (
     <div className="flex items-end gap-2.5">
-      <span className="font-display flex size-8 shrink-0 items-center justify-center rounded-full bg-coral text-xs font-bold text-white" aria-hidden>
-        AI
-      </span>
+      <Ninja className="size-9 shrink-0" />
       <p className="w-fit max-w-[85%] rounded-2xl rounded-bl-md bg-white/[0.07] px-4 py-3 leading-relaxed text-ink">{children}</p>
     </div>
   ) : (

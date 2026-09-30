@@ -13,7 +13,7 @@ export function NewProfileForm({ username }: { username: string }) {
 
   return (
     <form action={action} className="w-full">
-      <label htmlFor="label" className="text-sm font-semibold text-ink">
+      <label htmlFor="label" className="text-sm font-medium text-white">
         Job area
       </label>
       <input
@@ -33,8 +33,8 @@ export function NewProfileForm({ username }: { username: string }) {
           </button>
         ))}
       </div>
-      <p className="mt-6 text-sm text-muted">
-        Your headhunter will be called <span className="rounded-md bg-mist-soft px-1.5 py-0.5 font-mono text-[0.8125rem] text-ink">{preview}</span>
+      <p className="mt-8 rounded-2xl bg-night-2 px-4 py-3 text-sm text-white/55">
+        It will be called <span className="font-mono text-white">{preview}</span>
       </p>
       <FormError message={state?.error} />
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || label.trim().length < 2}>

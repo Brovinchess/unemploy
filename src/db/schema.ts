@@ -43,11 +43,12 @@ export const sessions = pgTable(
   (t) => [index("sessions_user_id").on(t.userId)],
 ).enableRLS();
 
+// Setup order: resume, then preferences, then launch and top up the Mind (money last).
 export type ProfileStatus =
-  | "draft" // named, no Mind yet
-  | "needs_topup" // Mind awakened, waiting for cognition
+  | "draft" // legacy: named, nothing else yet (treated like needs_resume)
   | "needs_resume"
   | "needs_preferences"
+  | "needs_topup" // preferences saved; Mind not launched yet, or launched and waiting for cognition
   | "hunting"
   | "paused";
 

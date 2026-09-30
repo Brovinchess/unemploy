@@ -1,8 +1,8 @@
 import Link from "next/link";
-import { Plus } from "lucide-react";
+import { LogOut, Plus } from "lucide-react";
 import type { Profile } from "@/db/schema";
 import { estimateDailyCost } from "@/lib/preferences";
-import { Logo } from "./logo";
+import { Ninja, Wordmark } from "./brand";
 
 type Tab = "shortlist" | "tracker" | "settings";
 
@@ -30,7 +30,10 @@ export function AppHeader({
   return (
     <header className="sticky top-0 z-20 border-b border-line bg-night/90 backdrop-blur">
       <div className="flex h-15 items-center gap-6 px-[6%]">
-        <Logo href="/app" />
+        <Link href="/app" className="flex items-center gap-2" aria-label="Career Ninja">
+          <Ninja className="size-8" />
+          <Wordmark className="hidden sm:inline" />
+        </Link>
         <nav className="flex h-full items-stretch gap-1" aria-label="Main">
           {TABS.map((t) => (
             <Link
@@ -45,16 +48,25 @@ export function AppHeader({
             </Link>
           ))}
         </nav>
-        {current && balance !== undefined && (
-          <p
-            className={`ml-auto hidden rounded-full px-3 py-1 text-sm sm:block ${low ? "bg-coral-soft font-semibold text-rose" : "bg-mist-soft text-navy"}`}
-            title="Cognition balance for this headhunter"
-          >
-            {balance == null
-              ? "Balance unavailable"
-              : `${Math.round(balance)} cognition${daysLeft != null ? ` · ~${daysLeft}d left` : ""}`}
-          </p>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {current && balance !== undefined && (
+            <Link
+              href={`/app/settings?profile=${current.id}`}
+              className={`hidden rounded-full px-3 py-1.5 text-sm sm:block ${low ? "bg-coral-soft text-rose" : "bg-white/[0.06] text-white/70 hover:text-white"}`}
+              title="Cognition left for this headhunter"
+            >
+              {balance == null
+                ? "Balance unavailable"
+                : `${Math.round(balance)} cognition${daysLeft != null ? ` · about ${daysLeft} ${daysLeft === 1 ? "day" : "days"} left` : ""}`}
+            </Link>
+          )}
+          <form action="/auth/logout" method="post">
+            <button className="flex size-9 items-center justify-center rounded-full text-white/55 hover:bg-white/[0.08] hover:text-white" title="Sign out">
+              <LogOut className="size-4" aria-hidden />
+              <span className="sr-only">Sign out</span>
+            </button>
+          </form>
+        </div>
       </div>
 
       {current && tab !== "tracker" && (

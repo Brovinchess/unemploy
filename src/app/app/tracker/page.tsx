@@ -3,6 +3,7 @@ import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { JobStatus } from "@/db/schema";
 import { AppHeader } from "@/components/app-header";
+import { Ninja } from "@/components/brand";
 import { appContext } from "@/lib/app-context";
 import { MoveJob } from "./move-job";
 import { CompanyMark } from "@/components/logo";
@@ -33,13 +34,14 @@ export default async function Tracker() {
   return (
     <>
       <AppHeader tab="tracker" profiles={profiles} />
-      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-8 sm:px-6">
-        <h1 className="font-display text-2xl font-bold tracking-tight text-ink">Tracker</h1>
+      <main className="mx-auto w-full max-w-4xl flex-1 px-[6%] py-8 sm:px-6">
+        <h1 className="font-display text-2xl font-medium tracking-tight text-white">Tracker</h1>
         <p className="mt-2 text-muted">Every job you saved or applied for, across all your headhunters.</p>
 
         {tracked.length === 0 ? (
           <div className="card mt-8 px-6 py-12 text-center">
-            <h2 className="font-display text-xl font-bold text-ink">Nothing here yet</h2>
+            <Ninja className="mx-auto size-16" />
+            <h2 className="font-display mt-4 text-xl font-medium text-white">Nothing here yet</h2>
             <p className="mt-3 text-muted">Jobs you save or apply for from your shortlist show up here.</p>
           </div>
         ) : (
@@ -49,7 +51,7 @@ export default async function Tracker() {
               if (!items.length) return null;
               return (
                 <section key={col.status}>
-                  <h2 className="font-display flex items-center gap-2 text-sm font-bold text-ink">
+                  <h2 className="font-display flex items-center gap-2 text-sm font-medium text-ink">
                     {col.label} <span className="tag text-xs">{items.length}</span>
                   </h2>
                   <ul className="card mt-3 divide-y divide-line overflow-hidden">

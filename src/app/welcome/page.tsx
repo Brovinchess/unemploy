@@ -8,8 +8,8 @@ export default async function Welcome() {
   if (user.username) redirect("/start");
   return (
     <OnboardingShell>
-      <StepHeading eyebrow="Welcome" title="What should we call you?">
-        Pick a username. Your headhunters are named after it, like <em>yourname-design</em>.
+      <StepHeading eyebrow="Welcome to Career Ninja" title="Let's set up your headhunter">
+        Two quick things, then your resume. It takes about three minutes.
       </StepHeading>
       <WelcomeForm />
     </OnboardingShell>
