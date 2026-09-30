@@ -5,7 +5,7 @@ import { db, schema } from "@/db";
 import type { Job } from "@/db/schema";
 import { AppHeader } from "@/components/app-header";
 import { Ninja } from "@/components/brand";
-import { AutoRefresh } from "@/components/auto-refresh";
+import { ActivityFeed } from "@/components/activity-feed";
 import { JobCard } from "@/components/job-card";
 import { JobDetail } from "@/components/job-detail";
 import { PauseToggle } from "@/components/pause-toggle";
@@ -105,9 +105,12 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
               {fresh.length > 0 && <span className="tag">{fresh.length} new</span>}
             </div>
 
+            <div className="mt-5">
+              <ActivityFeed key={current.id} profileId={current.id} live={!paused} startOpen={jobs.length === 0} />
+            </div>
+
             {jobs.length === 0 && searching && (
               <div className="card mt-5 px-6 py-12 text-center">
-                <AutoRefresh />
                 <Ninja className="float mx-auto size-20" />
                 <h2 className="font-display mt-5 text-lg font-medium text-white">Searching for your first jobs</h2>
                 <p className="mx-auto mt-2 max-w-sm text-sm leading-relaxed text-white/55">

@@ -2,13 +2,33 @@ import "server-only";
 import { after } from "next/server";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { MindsApi } from "./client";
+import type { ChatMessage, MindsApi, ToolUse } from "./client";
 
 // A stand-in for Hello Minds so the full journey runs locally with no cognition spent.
 // State lives in memory per server instance (the database is the real store).
-type MockState = { balances: Map<string, number>; conversations: Map<string, string>; names: Set<string> };
+type MockState = {
+  balances: Map<string, number>;
+  conversations: Map<string, string>;
+  names: Set<string>;
+  chats: Map<string, ChatMessage[]>; // alias -> oldest first
+  usage: Map<string, ToolUse[]>; // mindId -> entries
+};
 const g = globalThis as unknown as { __unemployMock?: MockState };
-const state = (g.__unemployMock ??= { balances: new Map(), conversations: new Map(), names: new Set() });
+const state = (g.__unemployMock ??= { balances: new Map(), conversations: new Map(), names: new Set(), chats: new Map(), usage: new Map() });
+state.chats ??= new Map();
+state.usage ??= new Map();
+
+function say(alias: string, fromMind: boolean, text: string) {
+  state.chats.set(alias, [...(state.chats.get(alias) ?? []), { fromMind, text, at: new Date() }]);
+}
+function spend(alias: string, tool: string, calls: number, cognition: number) {
+  const mindId = state.conversations.get(alias);
+  if (!mindId) return;
+  const hour = new Date();
+  hour.setMinutes(0, 0, 0);
+  state.usage.set(mindId, [...(state.usage.get(mindId) ?? []), { tool, at: hour, calls, cognition }]);
+  state.balances.set(mindId, (state.balances.get(mindId) ?? 0) - cognition);
+}
 
 export const mockMinds: MindsApi = {
   async isNameAvailable(name) {
@@ -27,10 +47,17 @@ export const mockMinds: MindsApi = {
     state.conversations.set(alias, mindId);
   },
   async sendMessage(alias, text) {
+    say(alias, false, text);
     if (text.includes("/api/ingest")) scheduleHunt(alias);
   },
   async beacon() {},
   async setEnabled() {},
+  async history(alias, limit = 30) {
+    return [...(state.chats.get(alias) ?? [])].reverse().slice(0, limit);
+  },
+  async toolUsage(mindId, since) {
+    return (state.usage.get(mindId) ?? []).filter((u: ToolUse) => u.at >= since);
+  },
 };
 
 export function mockTopUp(mindId: string, amount = 160) {
@@ -40,7 +67,15 @@ export function mockTopUp(mindId: string, amount = 160) {
 // Runs after the response is sent, so it also works on serverless hosts.
 function scheduleHunt(alias: string) {
   after(async () => {
-    await new Promise((r) => setTimeout(r, 6000));
+    const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    await wait(3000);
+    spend(alias, "FILE_Analyze", 1, 11);
+    spend(alias, "LLM_Turn", 1, 14);
+    say(alias, true, "Got your brief and read your resume. Starting the search now.");
+    await wait(4000);
+    spend(alias, "SEARCH_Web", 9, 8);
+    spend(alias, "LLM_Turn", 2, 22);
+    await wait(3000);
     await runMockHunt(alias).catch((e) => console.error("[mock mind] hunt failed", e));
   });
 }
@@ -115,4 +150,5 @@ async function runMockHunt(alias: string) {
   const { processPush } = await import("../ingest");
   const result = await processPush(profile, { jobs }, { demo: true });
   console.log(`[mock mind] ${alias}: accepted ${result.accepted}, rejected ${result.rejected.length}`);
+  say(alias, true, `Sent ${jobs.length} jobs. The push returned 200 with ${result.accepted} accepted. I'll look again tomorrow morning.`);
 }

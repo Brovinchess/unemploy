@@ -9,6 +9,11 @@ import { mockMinds } from "./mock";
 
 export type Attachment = { fileName: string; mimeType: string; extension: string; content: string };
 
+// One chat message, newest first from history().
+export type ChatMessage = { fromMind: boolean; text: string; at: Date };
+// One hourly bucket of billed work for one tool (the Hello Minds "ledger").
+export type ToolUse = { tool: string; at: Date; calls: number; cognition: number };
+
 export interface MindsApi {
   isNameAvailable(name: string): Promise<boolean>;
   awaken(archetype: string, mindName: string): Promise<{ mindId: string; name: string }>;
@@ -17,6 +22,8 @@ export interface MindsApi {
   sendMessage(alias: string, text: string, attachments?: Attachment[]): Promise<void>;
   beacon(mindId: string, note: string): Promise<void>;
   setEnabled(mindId: string, enabled: boolean): Promise<void>;
+  history(alias: string, limit?: number): Promise<ChatMessage[]>;
+  toolUsage(mindId: string, since: Date): Promise<ToolUse[]>;
 }
 
 export class MindsApiError extends Error {
@@ -111,6 +118,25 @@ function liveMinds(user: User): MindsApi {
     },
     async setEnabled(mindId, isEnabled) {
       await call("PATCH", `/v1/minds/${mindId}`, { isEnabled });
+    },
+    async history(alias, limit = 30) {
+      const rows = await call<{ senderType: number; messageText?: string; createdAt: string }[]>(
+        "GET",
+        `/v1/messaging/histories/${encodeURIComponent(alias)}?limit=${limit}`,
+      );
+      return (Array.isArray(rows) ? rows : []).map((r) => ({
+        fromMind: r.senderType === 0,
+        text: r.messageText ?? "",
+        at: new Date(r.createdAt),
+      }));
+    },
+    async toolUsage(mindId, since) {
+      const q = new URLSearchParams({ interval: "hour", startTime: since.toISOString(), endTime: new Date().toISOString() });
+      const r = await call<{ timeline?: { tool: string; timeBucket: string; callCount: number; creditsUsed: number }[] }>(
+        "GET",
+        `/v1/minds/${mindId}/cognition/usage-by-tool?${q}`,
+      );
+      return (r.timeline ?? []).map((t) => ({ tool: t.tool, at: new Date(t.timeBucket), calls: t.callCount, cognition: t.creditsUsed }));
     },
   };
 }
