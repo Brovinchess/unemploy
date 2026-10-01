@@ -42,18 +42,18 @@ export type DigestJob = { title: string; company: string; matchScore: number; pl
 // Sent when a search the user asked for has finished.
 export async function sendSearchDoneEmail(args: {
   to: string;
-  mindName: string;
+  mindName?: string;
   label: string;
   jobs: DigestJob[]; // the jobs this search added, best first
   link: string;
   timedOut?: boolean;
 }) {
-  const { to, mindName, label, jobs, link, timedOut } = args;
+  const { to, label, jobs, link, timedOut } = args;
   const n = jobs.length;
   const subject =
     n === 0
-      ? `${mindName} finished: no new jobs this time`
-      : `${n} new ${n === 1 ? "job" : "jobs"} from ${mindName}${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
+      ? "Career Ninja: no new jobs this time"
+      : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
   const intro =
     n === 0
       ? `Your ${label} headhunter searched but found nothing that passed every check. Try again later, or give it a focus for the next search.`
