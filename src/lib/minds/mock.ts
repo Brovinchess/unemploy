@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ChatMessage, MindsApi, ToolUse } from "./client";
 
@@ -50,6 +50,8 @@ export const mockMinds: MindsApi = {
     say(alias, false, text);
     if (text.includes("/api/ingest")) say(alias, true, "Got your brief and read your resume. I'll search when you ask.");
     if (text.startsWith("SEARCH REQUEST")) scheduleHunt(alias);
+    if (text.includes("You are my personal Mind")) say(alias, true, "Got it. I'll answer form questions about you, and say when I don't know.");
+    if (text.includes("QUESTIONS from job application forms")) scheduleAnswers(alias);
   },
   async beacon() {},
   async setEnabled() {},
@@ -78,6 +80,22 @@ function scheduleHunt(alias: string) {
     spend(alias, "LLM_Turn", 2, 22);
     await wait(3000);
     await runMockHunt(alias).catch((e) => console.error("[mock mind] hunt failed", e));
+  });
+}
+
+// The mock personal Mind picks the first choice for multiple-choice questions and admits it
+// doesn't know the rest, so both paths in the app can be tried.
+function scheduleAnswers(alias: string) {
+  after(async () => {
+    await new Promise((r) => setTimeout(r, 4000));
+    const user = await db.query.users.findFirst({ where: eq(schema.users.personalAlias, alias) });
+    if (!user) return;
+    const asked = await db.query.questions.findMany({ where: and(eq(schema.questions.userId, user.id), eq(schema.questions.status, "asked")) });
+    const { processAnswers } = await import("../personal");
+    await processAnswers(user, {
+      answers: asked.map((q) => ({ id: q.id, answer: q.options?.[0] ?? null, note: q.options?.length ? "From your resume" : undefined })),
+    });
+    say(alias, true, `Answered ${asked.length} questions.`);
   });
 }
 
@@ -141,6 +159,13 @@ async function runMockHunt(alias: string) {
         { requirement: "Managed a team", met: i % 2 === 0 },
       ],
       verifiedOpenAt: new Date().toISOString().slice(0, 10),
+      formQuestions: [
+        { question: "First name", required: true },
+        { question: "Are you willing to relocate?", options: ["Yes", "No"], required: true },
+        { question: `How many years of experience do you have as a ${role}?`, required: true },
+        { question: "Why do you want to work here?" },
+        { question: "Do you have experience working with remote teams across time zones?", options: ["Yes", "No"] },
+      ],
       pack: {
         coverLetter:
           `Dear ${company.name} hiring team,\n\n` +

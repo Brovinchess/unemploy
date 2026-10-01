@@ -36,6 +36,15 @@ export const users = pgTable("users", {
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
   // Answers the person typed into application forms, reused on later forms.
   savedAnswers: jsonb("saved_answers").$type<SavedAnswer[]>(),
+  // The personal Mind: a second Mind that only learns about the person and answers the
+  // questions application forms ask. It sends answers back with its own key (stored hashed).
+  personalMindId: text("personal_mind_id"),
+  personalMindName: text("personal_mind_name"),
+  personalAlias: text("personal_alias"),
+  personalKeyHash: text("personal_key_hash").unique(),
+  personalBriefedAt: timestamp("personal_briefed_at", { withTimezone: true }),
+  // Saved answers newer than this haven't been taught to the personal Mind yet.
+  personalSyncedAt: timestamp("personal_synced_at", { withTimezone: true }),
   createdAt: createdAt(),
 }).enableRLS();
 
@@ -136,6 +145,9 @@ export type MustHave = { requirement: string; met: boolean };
 
 export type WorkSetting = "onsite" | "hybrid" | "remote";
 
+// A question from the job's application form, as the headhunter read it.
+export type FormQuestion = { question: string; options?: string[]; required?: boolean };
+
 export const jobs = pgTable(
   "jobs",
   {
@@ -165,6 +177,7 @@ export const jobs = pgTable(
     perks: jsonb("perks").$type<string[]>(),
     // Two short "why you" lines for the card, and whether the pay is the Mind's estimate.
     highlights: jsonb("highlights").$type<string[]>(),
+    formQuestions: jsonb("form_questions").$type<FormQuestion[]>(),
     salaryEstimated: boolean("salary_estimated").notNull().default(false),
     // Quality evidence from the Mind: the posting's own location/eligibility line, its
     // must-have requirements checked against the resume, and when it last saw it open.
@@ -198,6 +211,39 @@ export const packs = pgTable("packs", {
   claims: jsonb("claims").$type<PackClaim[]>().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }).enableRLS();
+
+// Form questions waiting on an answer about the person. Once approved, an answer moves to
+// users.savedAnswers (which the extension fills from) and the row is removed.
+export type QuestionStatus =
+  | "new" // not sent to the personal Mind yet
+  | "asked" // sent; waiting for its reply
+  | "review" // the personal Mind answered; the person checks it once
+  | "needs_you" // the personal Mind didn't know
+  | "ignored"; // the person chose not to answer
+
+export const questions = pgTable(
+  "questions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    question: text("question").notNull(),
+    key: text("key").notNull(),
+    options: jsonb("options").$type<string[]>(),
+    status: text("status").$type<QuestionStatus>().notNull().default("new"),
+    answer: text("answer"),
+    note: text("note"),
+    // Where it was first seen, for context ("asked by Acme").
+    company: text("company"),
+    askedAt: timestamp("asked_at", { withTimezone: true }),
+    answeredAt: timestamp("answered_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("questions_user_key").on(t.userId, t.key), index("questions_user_status").on(t.userId, t.status)],
+).enableRLS();
+
+export type Question = typeof questions.$inferSelect;
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
 // One row per search the user asked for, for the headhunter's history.

@@ -71,6 +71,13 @@
       "when": 1790831020694,
       "tag": "0009_saved_answers",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790831636263,
+      "tag": "0010_personal_mind",
+      "breakpoints": true
     }
   ]
 }

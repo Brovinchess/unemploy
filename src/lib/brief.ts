@@ -23,7 +23,7 @@ HOW WE WORK
 - You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.
 - For each request:
   1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
-  2. For each, write an application pack in English: cover letter, a short "about me", answers to likely form questions.
+  2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and answers to the form's questions about the job or company (like "Why us?").
   3. POST them to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}". Test first with ?dry_run=1.
   4. Mark your last push with "final": true. If you found nothing good, POST {"jobs":[],"final":true}. Then stop.
 
@@ -90,6 +90,10 @@ JOB fields
   mustHaves     required  [{"requirement":"5+ years of product management","met":false}, ...]
                           the posting's hard requirements, checked against the resume
   verifiedOpenAt required ISO date you last saw the posting open (today)
+  formQuestions optional  every question on the job's application form, exactly as worded:
+                          [{"question":"Are you willing to relocate?","options":["Yes","No"],"required":true}, ...]
+                          open the "Apply" form to read them; include "options" for choices.
+                          Skip name, email, phone, resume and cover letter fields.
   pack          required
     coverLetter required  under 350 words
     aboutMe     required  2–3 sentences for "tell us about yourself"

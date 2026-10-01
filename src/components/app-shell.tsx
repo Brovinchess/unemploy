@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Puzzle, Settings } from "lucide-react";
+import { Brain, ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Puzzle, Settings } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
 import { estimateSearchCost } from "@/lib/preferences";
+import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { TitleBadge } from "./title-badge";
 
-type Tab = "shortlist" | "tracker" | "settings" | "headhunter" | "extension";
+type Tab = "shortlist" | "tracker" | "answers" | "settings" | "headhunter" | "extension";
 
 // The signed-in frame: a sidebar with the user's headhunters, navigation, cognition and
 // account on large screens; a compact top bar on small ones.
@@ -38,9 +39,11 @@ export async function AppShell({
   const fresh = new Map(newCounts.map((r) => [r.profileId, r.n]));
 
   const allNew = [...fresh.values()].reduce((a, n) => a + n, 0);
+  const { forYou } = await questionCounts(user.id);
   const nav = [
     { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: allNew },
     { id: "tracker" as const, label: "Tracker", href: "/app/tracker", icon: KanbanSquare },
+    { id: "answers" as const, label: "Answers", href: "/app/answers", icon: Brain, badge: forYou },
     { id: "extension" as const, label: "Extension", href: "/app/extension", icon: Puzzle },
     { id: "settings" as const, label: "Settings", href: "/app/settings", icon: Settings },
   ];

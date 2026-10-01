@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
+import { askPersonalMind } from "./personal";
 import { mindsConfig } from "./minds/config";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
@@ -21,7 +22,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
   return (
     `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
-    `and POST them. Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
+    `and POST them. For each job, open its application form and list its questions in "formQuestions". Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `Then stop and wait for my next request. (${new Date().toISOString()})`
   );
@@ -39,6 +40,8 @@ export async function endSearch(profile: Profile, reason: "finished" | "stopped"
   await switchOff(profile);
   await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
   if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
+  // The search's form questions go to the personal Mind in one batch.
+  await askPersonalMind(profile.userId).catch((e) => console.error("[search] personal Mind not asked", profile.id, e));
 }
 
 // Closes the search's history row: when, why, jobs added and the balance after.

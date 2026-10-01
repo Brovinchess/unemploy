@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { and, eq, gte, inArray, isNotNull, isNull, lt } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
+import { releaseStaleQuestions } from "@/lib/personal";
 import { checkPosting } from "@/lib/quality";
 import { endSearch, isSearching } from "@/lib/search";
 
@@ -33,8 +34,11 @@ export async function GET(request: Request) {
     stale++;
   }
 
-  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, expired sessions ${expired.length}`);
-  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale });
+  // Questions the personal Mind never answered go back in the queue, and it's switched off.
+  const released = await releaseStaleQuestions();
+
+  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, expired sessions ${expired.length}, released questions ${released}`);
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, releasedQuestions: released });
 }
 
 // Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the

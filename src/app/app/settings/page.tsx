@@ -1,9 +1,9 @@
+import Link from "next/link";
 import { AppShell } from "@/components/app-shell";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { ApplicantForm } from "./applicant-form";
 import { DeleteAccount } from "./delete-account";
 import { EmailUpdates } from "./email-updates";
-import { SavedAnswers } from "./saved-answers";
 
 function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
@@ -32,7 +32,13 @@ export default async function Settings() {
           </Section>
 
           <Section title="Saved answers" id="answers">
-            <SavedAnswers answers={(user.savedAnswers ?? []).map(({ question, answer }) => ({ question, answer }))} />
+            <p className="text-white/60">
+              {(user.savedAnswers ?? []).length} saved. Answers to form questions now live on the{" "}
+              <Link href="/app/answers" className="text-white underline-offset-2 hover:underline">
+                Answers
+              </Link>{" "}
+              page, with your personal Mind.
+            </p>
           </Section>
 
           <Section title="Email updates" id="email">

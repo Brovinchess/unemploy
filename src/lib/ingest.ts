@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
+import { queueQuestions } from "./personal";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
 
@@ -42,6 +43,17 @@ const jobSchema = z.object({
     .min(1)
     .max(12),
   verifiedOpenAt: z.string().trim().min(8).max(40),
+  // The questions on the job's application form, so the personal Mind can answer them.
+  formQuestions: z
+    .array(
+      z.object({
+        question: z.string().trim().min(3).max(300),
+        options: z.array(z.string().trim().min(1).max(120)).max(30).optional(),
+        required: z.boolean().optional(),
+      }),
+    )
+    .max(40)
+    .optional(),
   pack: z.object({
     coverLetter: z.string().trim().min(80).max(6000),
     aboutMe: z.string().trim().min(20).max(1500),
@@ -382,6 +394,7 @@ export async function processPush(
       industry: job.industry,
       perks: job.perks ?? [],
       highlights: job.highlights,
+      formQuestions: job.formQuestions ?? null,
       salaryEstimated: !!job.salary && !!job.salaryEstimated,
       locationText: job.locationText,
       mustHaves: job.mustHaves,
@@ -390,6 +403,11 @@ export async function processPush(
       demo: !!opts.demo,
     });
     await db.insert(schema.packs).values({ jobId: id, ...job.pack });
+    if (job.formQuestions?.length) {
+      await queueQuestions(profile.userId, job.company, job.formQuestions, job.pack.answers).catch((e) =>
+        console.error("[ingest] queue questions failed", profile.id, e),
+      );
+    }
   }
 
   await db.insert(schema.ingestLog).values({

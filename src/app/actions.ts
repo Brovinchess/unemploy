@@ -422,6 +422,7 @@ export async function deleteAccount() {
   for (const p of profiles) {
     if (p.mindId) await minds(user).setEnabled(p.mindId, false).catch((e) => console.error(e));
   }
+  if (user.personalMindId) await minds(user).setEnabled(user.personalMindId, false).catch((e) => console.error(e));
   await db.delete(schema.users).where(eq(schema.users.id, user.id));
   await destroySession();
   redirect("/?deleted=1");
