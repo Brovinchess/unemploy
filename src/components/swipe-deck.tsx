@@ -46,7 +46,10 @@ const SWIPE_AT = 110;
 export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.ReactNode }) {
   const [queue, setQueue] = useState(jobs);
   const [decided, setDecided] = useState<{ job: CardJob; kind: Decision }[]>([]);
-  const [open, setOpen] = useState(false);
+  // Only the first card of each visit starts face-down. Once it's revealed, every card
+  // after it arrives face-up and just needs a swipe.
+  const [revealed, setRevealed] = useState(false);
+  const [revealing, setRevealing] = useState(false);
   const [toast, setToast] = useState<string>();
   const [, start] = useTransition();
   const [total, setTotal] = useState(jobs.length);
@@ -72,13 +75,19 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
 
   function decide(kind: Decision) {
     if (!current) return;
-    if (!open) return setOpen(true); // reveal before deciding
+    if (!revealed) return reveal();
     const job = current;
     setQueue((q) => q.slice(1));
     setDecided((d) => [{ job, kind }, ...d]);
-    setOpen(false);
     setToast(kind === "apply" ? `Added ${job.company} to apply` : `Dismissed ${job.company}`);
     start(() => setJobStatus(job.id, kind === "apply" ? "saved" : "skipped"));
+  }
+
+  function reveal() {
+    if (revealed) return;
+    setRevealed(true);
+    setRevealing(true);
+    setTimeout(() => setRevealing(false), 1300);
   }
 
   function undo() {
@@ -86,7 +95,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
     if (!last) return;
     setDecided((d) => d.slice(1));
     setQueue((q) => [last.job, ...q]);
-    setOpen(true);
     setToast(undefined);
     start(() => setJobStatus(last.job.id, "new"));
   }
@@ -101,9 +109,9 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
       if ((e.target as HTMLElement)?.closest("input,textarea")) return;
       if (e.key === "ArrowRight") decide("apply");
       if (e.key === "ArrowLeft") decide("dismiss");
-      if (e.key === " " && current) {
+      if (e.key === " " && current && !revealed) {
         e.preventDefault();
-        setOpen((o) => !o);
+        reveal();
       }
     };
     window.addEventListener("keydown", onKey);
@@ -134,18 +142,17 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
       {current ? (
         <>
           <div className="relative h-[min(600px,calc(100svh-330px))] min-h-[500px] w-[min(400px,92vw)]">
+            {revealing && <span className="deck-burst" aria-hidden />}
             {queue
               .slice(0, 3)
               .reverse()
               .map((job, idx, arr) => {
                 const depth = arr.length - 1 - idx;
                 return depth === 0 ? (
-                  <TopCard key={job.id} job={job} n={seen + 1} open={open} onReveal={() => setOpen(true)} onDecide={decide} />
+                  <TopCard key={job.id} job={job} n={seen + 1} open={revealed} revealing={revealing} onReveal={reveal} onDecide={decide} />
                 ) : (
-                  <div key={job.id} className={`deck-card ${depth === 1 ? "b1" : "b2"}`}>
-                    <div className="deck-flip">
-                      <Front />
-                    </div>
+                  <div key={job.id} className={`deck-card ${depth === 1 ? "b1" : "b2"} ${revealed ? "open" : ""}`}>
+                    <div className="deck-flip">{revealed ? <Back job={job} /> : <Front />}</div>
                   </div>
                 );
               })}
@@ -157,11 +164,20 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
                 <X className="size-6" strokeWidth={2.2} />
               </span>
             </Control>
-            <Control label={open ? "Flip back" : "Reveal"} onClick={() => setOpen((o) => !o)} title="Reveal (space)">
-              <span className="mb-2 flex size-[46px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-white">
-                <RefreshCw className="size-[18px]" strokeWidth={2.2} />
-              </span>
-            </Control>
+            {revealed ? (
+              <Link href={`/app/jobs/${current.id}`} className="group flex flex-col items-center gap-2 text-xs text-white/40" title="Full details">
+                <span className="mb-2 flex size-[46px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-white transition-transform group-hover:-translate-y-0.5">
+                  <ArrowUpRight className="size-[18px]" strokeWidth={2.2} />
+                </span>
+                Details
+              </Link>
+            ) : (
+              <Control label="Reveal" onClick={reveal} title="Reveal (space)">
+                <span className="mb-2 flex size-[46px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-white">
+                  <RefreshCw className="size-[18px]" strokeWidth={2.2} />
+                </span>
+              </Control>
+            )}
             <Control label="Apply" onClick={() => decide("apply")} title="Apply (→)">
               <span className="flex size-[62px] items-center justify-center rounded-full bg-gradient-to-b from-[#d27375] to-coral text-white shadow-[0_14px_30px_-10px_rgba(201,101,103,0.8)]">
                 <Check className="size-6" strokeWidth={2.4} />
@@ -198,12 +214,14 @@ function TopCard({
   job,
   n,
   open,
+  revealing,
   onReveal,
   onDecide,
 }: {
   job: CardJob;
   n: number;
   open: boolean;
+  revealing: boolean;
   onReveal: () => void;
   onDecide: (k: Decision) => void;
 }) {
@@ -222,7 +240,7 @@ function TopCard({
   return (
     <div
       ref={el}
-      className={`deck-card ${open ? "open" : ""}`}
+      className={`deck-card ${open ? "open" : ""} ${revealing ? "revealing" : ""}`}
       onPointerDown={(e) => {
         if (!open || (e.target as HTMLElement).closest("a,button")) return;
         drag.current = { on: true, x: e.clientX, dx: 0 };
@@ -327,7 +345,7 @@ function Back({ job }: { job: CardJob }) {
           </span>
           <span className="rounded-full bg-coral/15 px-2.5 py-1.5 text-xs font-medium text-rose">{Math.round(job.match)}% match</span>
         </div>
-        <div className="mt-5 flex items-center gap-3.5">
+        <div className="deck-pop mt-5 flex items-center gap-3.5">
           <CompanyLogo name={job.company} domain={job.domain} size="lg" />
           <div className="min-w-0">
             <p className="font-display text-xl font-semibold leading-tight">{job.title}</p>
