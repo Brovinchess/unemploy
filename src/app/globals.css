@@ -273,7 +273,7 @@ body {
 
 /* Cards waiting under the top one stay blurred until the top card has flown off; the new
    top card then comes into focus. */
-.deck-card.b1 .deck-back > *, .deck-card.b2 .deck-back > * { filter: blur(14px); opacity: 0.7; }
-.deck-card.arrived .deck-back > * { animation: deck-unblur 0.4s ease-out both; }
+.deck-card.b1 .deck-back > :not(.deck-stamp), .deck-card.b2 .deck-back > :not(.deck-stamp) { filter: blur(14px); opacity: 0.7; }
+.deck-card.arrived .deck-back > :not(.deck-stamp) { animation: deck-unblur 0.4s ease-out; }
 @keyframes deck-unblur { from { filter: blur(14px); opacity: 0.7; } to { filter: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .deck-card.arrived .deck-back > * { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .deck-card.arrived .deck-back > :not(.deck-stamp) { animation: none; } }
