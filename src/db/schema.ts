@@ -34,6 +34,8 @@ export const users = pgTable("users", {
   emailOnSearchDone: boolean("email_on_search_done").notNull().default(true),
   // What the Chrome extension types into application forms.
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
+  // Answers the person typed into application forms, reused on later forms.
+  savedAnswers: jsonb("saved_answers").$type<SavedAnswer[]>(),
   createdAt: createdAt(),
 }).enableRLS();
 
@@ -49,6 +51,8 @@ export type ApplicantDetails = {
   noticePeriod?: string;
   salaryExpectation?: string;
 };
+
+export type SavedAnswer = { question: string; answer: string; updatedAt: string };
 
 // The Chrome extension's link to an account: a random token, stored hashed.
 export const extensionTokens = pgTable(

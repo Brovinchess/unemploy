@@ -34,6 +34,25 @@
     return norm(bits.join(" ")).slice(0, 300);
   }
 
+  // The question as the person sees it (original wording), for saving answers.
+  function questionText(el) {
+    let t = el.getAttribute("aria-label") || "";
+    const by = el.getAttribute("aria-labelledby");
+    if (!t && by) t = by.split(/\s+/).map((id) => document.getElementById(id)?.innerText || "").join(" ");
+    if (!t && el.id) t = document.querySelector(`label[for="${CSS.escape(el.id)}"]`)?.innerText || "";
+    if (!t) t = el.closest("label")?.innerText || "";
+    if (!t) {
+      let box = el.parentElement;
+      for (let i = 0; i < 4 && box && !t; i++, box = box.parentElement) {
+        const l = box.querySelector("label, legend, .application-label, [class*='label'], [class*='question']");
+        if (l && !l.contains(el)) t = l.innerText || "";
+      }
+    }
+    return t.replace(/[*✱]/g, "").replace(/\s+/g, " ").trim().slice(0, 300);
+  }
+
+  const SENSITIVE = /gender|\bsex\b|pronoun|race|ethnic|hispanic|latino|veteran|disab|sexual orientation|religio|marital|\bage\b|date of birth|birthday|social security|passport|national id|password/i;
+
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
@@ -103,24 +122,34 @@
       if (has(/cover/)) return { file: "cover" };
       return null;
     }
+    // Saved answers from earlier forms (used when the details don't cover the question).
+    let saved = null, savedScore = 0;
+    for (const qa of d.savedAnswers || []) {
+      const s = similarity(label, qa.question);
+      if (s > savedScore) (savedScore = s), (saved = qa.answer);
+    }
+    const fromSaved = savedScore >= 0.7 ? saved : null;
+    const pick = (v) => (v && String(v).trim() ? v : fromSaved);
+
     if (has(/first ?name|given name|fname|first_name/)) return a.firstName;
     if (has(/last ?name|surname|family name|lname|last_name/)) return a.lastName;
     if (has(/preferred name/)) return a.firstName;
     if (has(/\bname\b/) && !has(/company|employer|school|university|reference|manager|recruiter|hear/)) return [a.firstName, a.lastName].filter(Boolean).join(" ");
     if (has(/e-?mail/)) return a.email;
     if (has(/phone|mobile|telephone|\btel\b/)) return a.phone;
-    if (has(/linkedin/)) return a.linkedin;
+    if (has(/linkedin/)) return pick(a.linkedin);
     if (has(/twitter|\bx\.com|instagram|facebook|dribbble|behance/)) return null;
     if (has(/github/)) return a.website && /github\.com/i.test(a.website) ? a.website : null;
     if (has(/portfolio|website|personal (site|url)|other (url|website)|\burl\b/)) return a.website || null;
     if (has(/\bcountry\b/) && !has(/countries/)) return (a.location || "").split(",").pop().trim() || null;
-    if (has(/location|city|where are you (based|located)|current address|country of residence/)) return a.location;
+    if (has(/location|city|where are you (based|located)|current address|country of residence/)) return pick(a.location);
     if (has(/cover letter/)) return job.coverLetter;
-    if (has(/sponsor/)) return a.workAuthorization && /no sponsorship|not need|don.?t need|without sponsorship/i.test(a.workAuthorization) ? "No" : a.workAuthorization;
-    if (has(/authori[sz]ed|right to work|eligible to work|work permit|visa/)) return a.workAuthorization;
-    if (has(/notice period|start date|when can you start|available to start|availability/)) return a.noticePeriod;
-    if (has(/salary|compensation|pay expectation|expected pay|desired pay/)) return a.salaryExpectation;
+    if (has(/sponsor/)) return pick(a.workAuthorization && /no sponsorship|not need|don.?t need|without sponsorship/i.test(a.workAuthorization) ? "No" : a.workAuthorization);
+    if (has(/authori[sz]ed|right to work|eligible to work|work permit|visa/)) return pick(a.workAuthorization);
+    if (has(/notice period|start date|when can you start|available to start|availability/)) return pick(a.noticePeriod);
+    if (has(/salary|compensation|pay expectation|expected pay|desired pay/)) return pick(a.salaryExpectation);
     // The headhunter's prepared answers, matched by question.
+    if (fromSaved) return fromSaved;
     let best = null, score = 0;
     for (const qa of job.answers || []) {
       const s = similarity(label, qa.question);
@@ -188,6 +217,7 @@
       (el) => !["hidden", "submit", "button", "checkbox", "radio", "password", "search", "image", "reset"].includes(el.type) && !el.disabled && visible(el),
     );
     const filled = [], missing = [], seen = new Set();
+    runInfo = [];
     for (const el of controls) {
       const label = labelFor(el);
       if (!label || seen.has(el)) continue;
@@ -214,6 +244,7 @@
         ok = el.tagName === "SELECT" ? chooseOption(el, ans) : isCombo(el) ? await chooseFromList(el, ans) : (setValue(el, ans), true);
       }
       const name = label.slice(0, 60);
+      runInfo.push({ el, auto: ok });
       if (ok) filled.push(name);
       else if (required) {
         missing.push(name);
@@ -228,5 +259,29 @@
     return { filled, missing: [...new Set(missing)], captcha: captchaPresent(), canSubmit: !!submitButton() };
   }
 
-  window.CareerNinjaFill = { fill, submitButton, submitted, captchaPresent, labelFor };
+  // Fields the extension left for the person, and what they typed there.
+  let runInfo = [];
+  function currentValue(el) {
+    if (el.tagName === "SELECT") return el.selectedOptions[0]?.text?.trim() || "";
+    if (isCombo(el)) {
+      const box = el.closest('[class*="select__control"], [class*="Select-control"], [role="combobox"]')?.parentElement;
+      const shown = box?.querySelector('[class*="single-value"], [class*="singleValue"], [class*="Select-value-label"]');
+      return (shown?.innerText || el.value || "").trim();
+    }
+    return (el.value || "").trim();
+  }
+  function learned() {
+    const out = [];
+    for (const { el, auto } of runInfo) {
+      if (auto || el.type === "file" || !el.isConnected) continue;
+      const question = questionText(el);
+      const answer = currentValue(el);
+      if (!question || question.length < 3 || !answer || SENSITIVE.test(question)) continue;
+      if (el.tagName === "TEXTAREA" && answer.length > 400) continue; // job-specific essays
+      out.push({ question, answer });
+    }
+    return out;
+  }
+
+  window.CareerNinjaFill = { fill, submitButton, submitted, captchaPresent, labelFor, learned };
 })();

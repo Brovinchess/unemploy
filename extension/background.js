@@ -137,11 +137,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         return {
           job,
           applicant: queue.applicant,
+          savedAnswers: queue.savedAnswers || [],
           resume: job ? queue.resumes[job.resume] : null,
           mode: mode || "review",
           position: run.index + 1,
           total: run.ids.length,
         };
+      }
+      case "learn": {
+        // Use them straight away for the rest of this run, and keep them for next time.
+        if (queue) {
+          const key = (q) => q.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+          const map = new Map((queue.savedAnswers || []).map((a) => [key(a.question), a]));
+          msg.answers.forEach((a) => map.set(key(a.question), a));
+          queue.savedAnswers = [...map.values()];
+        }
+        return api("/api/extension/answers", { method: "POST", body: JSON.stringify({ answers: msg.answers }) }).catch(() => null);
       }
       case "submitted":
         return advance("done");

@@ -15,8 +15,14 @@
   for (let i = 0; i < 40 && document.querySelectorAll("input, textarea").length < 3; i++) await new Promise((r) => setTimeout(r, 250));
   await new Promise((r) => setTimeout(r, 600));
 
-  const result = await window.CareerNinjaFill.fill({ applicant: ctx.applicant, job: ctx.job, resume: ctx.resume });
+  const result = await window.CareerNinjaFill.fill({
+    applicant: ctx.applicant,
+    job: ctx.job,
+    resume: ctx.resume,
+    savedAnswers: ctx.savedAnswers,
+  });
   watchForConfirmation();
+  captureAnswersOnSubmit();
 
   const needs = [...result.missing];
   if (result.captcha) needs.unshift("the “are you human?” check");
@@ -44,9 +50,29 @@
         ? `Filled ${result.filled.length} fields. Please check the form and complete: ${needs.slice(0, 4).join(", ")}${needs.length > 4 ? "…" : ""}. Then press Submit.`
         : `Filled ${result.filled.length} fields. Check everything, then press the form's Submit button.`,
       [
-        { label: "I've submitted", act: () => send({ type: "submitted" }) },
+        { label: "I've submitted", act: () => (learn(), send({ type: "submitted" })) },
         { label: "Skip this job", act: () => send({ type: "skip" }) },
       ],
+    );
+  }
+
+  // Remember what the person typed into fields the extension couldn't fill.
+  let learnt = false;
+  function learn() {
+    if (learnt) return;
+    learnt = true;
+    const answers = window.CareerNinjaFill.learned();
+    if (answers.length) send({ type: "learn", answers });
+  }
+  function captureAnswersOnSubmit() {
+    document.addEventListener("submit", learn, true);
+    document.addEventListener(
+      "click",
+      (e) => {
+        const btn = window.CareerNinjaFill.submitButton();
+        if (btn && (e.target === btn || btn.contains(e.target))) learn();
+      },
+      true,
     );
   }
 

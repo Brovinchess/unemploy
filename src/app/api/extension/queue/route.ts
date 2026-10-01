@@ -24,6 +24,7 @@ export async function GET(request: Request) {
     {
       user: user.username,
       applicant: user.applicant ?? null,
+      savedAnswers: (user.savedAnswers ?? []).map(({ question, answer }) => ({ question, answer })),
       detailsComplete: detailsComplete(user.applicant),
       resumes: Object.fromEntries(
         profiles

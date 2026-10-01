@@ -38,3 +38,19 @@ export async function saveApplicantDetails(_: DetailsState, form: FormData): Pro
   revalidatePath("/app", "layout");
   return { ok: true };
 }
+
+export async function updateSavedAnswer(question: string, answer: string) {
+  const user = await requireUser();
+  const clean = answer.trim().slice(0, 1000);
+  if (!clean) return;
+  const saved = (user.savedAnswers ?? []).map((a) => (a.question === question ? { ...a, answer: clean, updatedAt: new Date().toISOString() } : a));
+  await db.update(schema.users).set({ savedAnswers: saved }).where(eq(schema.users.id, user.id));
+  revalidatePath("/app/settings");
+}
+
+export async function deleteSavedAnswer(question: string) {
+  const user = await requireUser();
+  const saved = (user.savedAnswers ?? []).filter((a) => a.question !== question);
+  await db.update(schema.users).set({ savedAnswers: saved }).where(eq(schema.users.id, user.id));
+  revalidatePath("/app/settings");
+}

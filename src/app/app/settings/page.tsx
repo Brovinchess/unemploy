@@ -3,6 +3,7 @@ import { appContext, balanceFor } from "@/lib/app-context";
 import { ApplicantForm } from "./applicant-form";
 import { DeleteAccount } from "./delete-account";
 import { EmailUpdates } from "./email-updates";
+import { SavedAnswers } from "./saved-answers";
 
 function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
@@ -28,6 +29,10 @@ export default async function Settings() {
         <div className="mt-8 space-y-4">
           <Section title="Application details" id="application">
             <ApplicantForm initial={user.applicant ?? null} />
+          </Section>
+
+          <Section title="Saved answers" id="answers">
+            <SavedAnswers answers={(user.savedAnswers ?? []).map(({ question, answer }) => ({ question, answer }))} />
           </Section>
 
           <Section title="Email updates" id="email">

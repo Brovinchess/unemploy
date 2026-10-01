@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { ApplicantDetails } from "@/db/schema";
+import type { ApplicantDetails, SavedAnswer } from "@/db/schema";
 import { hashKey } from "./keys";
 
 // The Chrome extension authenticates with a token the signed-in web app hands it.
@@ -45,3 +45,26 @@ export const isSupported = (url: string) => {
     return false;
   }
 };
+
+// ---------- Saved answers ----------
+
+
+const MAX_SAVED = 200;
+export const questionKey = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+
+// Demographic and identity questions are never stored, even if the person answered them.
+const SENSITIVE = /gender|sex\b|pronoun|race|ethnic|hispanic|latino|veteran|disab|sexual orientation|religio|marital|age\b|date of birth|birthday|social security|passport|national id|password/i;
+export const sensitiveQuestion = (q: string) => SENSITIVE.test(q);
+
+// Newer answers replace older ones to the same question.
+export function mergeAnswers(existing: SavedAnswer[], incoming: { question: string; answer: string }[]) {
+  const now = new Date().toISOString();
+  const byKey = new Map(existing.map((a) => [questionKey(a.question), a]));
+  for (const a of incoming) {
+    const question = a.question.trim().slice(0, 300);
+    const answer = a.answer.trim().slice(0, 1000);
+    if (question.length < 3 || !answer || sensitiveQuestion(question)) continue;
+    byKey.set(questionKey(question), { question, answer, updatedAt: now });
+  }
+  return [...byKey.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, MAX_SAVED);
+}
