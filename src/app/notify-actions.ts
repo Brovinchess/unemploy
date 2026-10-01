@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import { sendVerificationCode } from "@/lib/email";
+import { emailConfigured, sendVerificationCode } from "@/lib/email";
 import { requireUser } from "@/lib/session";
 
 // A verified email for "your search is done" messages. Same 6-digit code flow as the
@@ -17,7 +17,7 @@ const MAX_SENDS_PER_HOUR = 5;
 const hashCode = (email: string, code: string) => createHash("sha256").update(`${email}:${code}`).digest("hex");
 const tag = (userId: string) => `notify:${userId}`;
 
-export type NotifyState = { ok: true; sentTo?: string; done?: boolean } | { ok: false; error: string } | undefined;
+export type NotifyState = { ok: true; sentTo?: string; done?: boolean; devLog?: boolean } | { ok: false; error: string } | undefined;
 
 export async function sendEmailCode(emailInput: string): Promise<NotifyState> {
   const user = await requireUser();
@@ -44,7 +44,8 @@ export async function sendEmailCode(emailInput: string): Promise<NotifyState> {
     console.error("[notify] sending code failed", e);
     return { ok: false, error: "We couldn't send the email just now. Please try again." };
   }
-  return { ok: true, sentTo: email };
+  // Locally, without an email service key, the code goes to the server log instead.
+  return { ok: true, sentTo: email, devLog: !emailConfigured() };
 }
 
 export async function confirmEmailCode(emailInput: string, codeInput: string): Promise<NotifyState> {

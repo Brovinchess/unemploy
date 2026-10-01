@@ -8,6 +8,7 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
   const [pending, start] = useTransition();
   const [draft, setDraft] = useState("");
   const [sentTo, setSentTo] = useState<string>();
+  const [devLog, setDevLog] = useState(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string>();
   const [editing, setEditing] = useState(!email);
@@ -62,6 +63,11 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
         <p className="text-white/70">
           Enter the 6-digit code we sent to <span className="text-white">{sentTo}</span>.
         </p>
+        {devLog && (
+          <p className="mt-2 text-sm text-rose">
+            Running locally without an email service, so no email was sent. The code is in the server log.
+          </p>
+        )}
         <div className="mt-3 flex gap-2">
           <input
             className="field h-11 max-w-44 text-center tracking-[0.4em]"
@@ -95,6 +101,7 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
           if (r && !r.ok) setError(r.error);
           else if (r?.ok && r.sentTo) {
             setSentTo(r.sentTo);
+            setDevLog(!!r.devLog);
             setError(undefined);
           }
         });
