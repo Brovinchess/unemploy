@@ -215,7 +215,7 @@ function TopCard({
   return (
     <div
       ref={el}
-      className={`deck-card ${open ? "open" : ""} ${revealing ? "revealing" : ""}`}
+      className={`deck-card ${open ? "open" : ""} ${revealing ? "revealing" : open ? "arrived" : ""}`}
       onPointerDown={(e) => {
         if (!open || (e.target as HTMLElement).closest("a,button")) return;
         drag.current = { on: true, x: e.clientX, dx: 0 };
