@@ -50,7 +50,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
   // after it arrives face-up and just needs a swipe.
   const [revealed, setRevealed] = useState(false);
   const [revealing, setRevealing] = useState(false);
-  const [toast, setToast] = useState<string>();
   const [, start] = useTransition();
   const [total, setTotal] = useState(jobs.length);
   const known = useRef(new Set(jobs.map((j) => j.id)));
@@ -64,12 +63,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
     setQueue((q) => [...q, ...fresh]);
   }, [jobs]);
 
-  useEffect(() => {
-    if (!toast) return;
-    const t = setTimeout(() => setToast(undefined), 2600);
-    return () => clearTimeout(t);
-  }, [toast]);
-
   const current = queue[0];
   const seen = total - queue.length;
 
@@ -79,7 +72,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
     const job = current;
     setQueue((q) => q.slice(1));
     setDecided((d) => [{ job, kind }, ...d]);
-    setToast(kind === "apply" ? `Added ${job.company} to apply` : `Dismissed ${job.company}`);
     start(() => setJobStatus(job.id, kind === "apply" ? "saved" : "skipped"));
   }
 
@@ -88,15 +80,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
     setRevealed(true);
     setRevealing(true);
     setTimeout(() => setRevealing(false), 1300);
-  }
-
-  function undo() {
-    const last = decided[0];
-    if (!last) return;
-    setDecided((d) => d.slice(1));
-    setQueue((q) => [last.job, ...q]);
-    setToast(undefined);
-    start(() => setJobStatus(last.job.id, "new"));
   }
 
   function move(job: CardJob) {
@@ -189,14 +172,6 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
         <Summary toApply={toApply} dismissed={dismissed} onMove={move} after={after} />
       )}
 
-      {toast && (
-        <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm font-medium text-night shadow-[0_20px_50px_-10px_rgba(0,0,0,0.6)]">
-          {toast}
-          <button className="font-semibold text-coral" onClick={undo}>
-            Undo
-          </button>
-        </div>
-      )}
     </div>
   );
 }
