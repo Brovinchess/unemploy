@@ -12,14 +12,24 @@ const SECTIONS = [
       "Sign-in tokens from Hello Minds, encrypted, so the app can act for your headhunters.",
       "Each resume you upload, the text read from it, and the job preferences you set.",
       "The jobs your headhunters find, their application packs, and the status you give each job.",
+      "If you add them: an email address for search updates, and the application details you want typed into job forms (name, email, phone, location, links, right to work, notice period, salary expectation).",
     ],
   },
   {
     title: "Who sees it",
     items: [
       "Your resume and preferences are sent only to your own Hello Minds headhunters, so they can search for you.",
-      "Job sites see nothing from us. You decide what to send them when you apply.",
+      "Job sites only receive what you choose to send when you apply. If you use the Chrome extension, it types your application details, resume and the application your headhunter wrote into that job's form, and you review it before it's sent.",
       "We don't sell your data or share it with employers or advertisers.",
+    ],
+  },
+  {
+    title: "The Chrome extension",
+    items: [
+      "Its single purpose is to fill in job application forms with your Career Ninja details and application packs, and to apply to the jobs you chose.",
+      "It only runs on Career Ninja and on job application sites it supports (Greenhouse, Lever and Ashby). It doesn't read or collect anything from other websites or your browsing history.",
+      "It stores a sign-in token for your Career Ninja account and your settings in your browser. It fetches your to-apply jobs, packs, resume and application details from Career Ninja, and tells Career Ninja when an application was sent.",
+      "Nothing it handles is sold, shared with third parties, or used for anything other than applying to jobs you chose. Remove it from Chrome at any time, or disconnect it from its menu.",
     ],
   },
   {
