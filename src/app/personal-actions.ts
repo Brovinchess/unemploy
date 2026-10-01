@@ -32,6 +32,8 @@ export async function createPersonalMind(): Promise<PersonalState> {
     for (let n = 2; n <= 12 && !(await api.isNameAvailable(name)); n++) name = `${base}-${n}`;
     if (!(await api.isNameAvailable(name))) name = `${base}-${crypto.randomUUID().slice(0, 6)}`;
     const mind = await api.awaken(mindsConfig.archetype, name);
+    // Off until it's briefed; it's switched on only when it has something to answer.
+    await api.setEnabled(mind.mindId, false).catch((e) => console.error("[personal] couldn't switch off", e));
     await db.update(schema.users).set({ personalMindId: mind.mindId, personalMindName: mind.name }).where(eq(schema.users.id, user.id));
   } catch (e) {
     return { error: friendly(e) };
