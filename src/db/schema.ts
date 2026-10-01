@@ -32,8 +32,38 @@ export const users = pgTable("users", {
   email: text("email"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   emailOnSearchDone: boolean("email_on_search_done").notNull().default(true),
+  // What the Chrome extension types into application forms.
+  applicant: jsonb("applicant").$type<ApplicantDetails>(),
   createdAt: createdAt(),
 }).enableRLS();
+
+export type ApplicantDetails = {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin?: string;
+  website?: string;
+  workAuthorization?: string; // e.g. "Malaysian citizen, no sponsorship needed"
+  noticePeriod?: string;
+  salaryExpectation?: string;
+};
+
+// The Chrome extension's link to an account: a random token, stored hashed.
+export const extensionTokens = pgTable(
+  "extension_tokens",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    lastUsedAt: timestamp("last_used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("extension_tokens_user").on(t.userId)],
+).enableRLS();
 
 export const sessions = pgTable(
   "sessions",

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Settings } from "lucide-react";
+import { ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Puzzle, Settings } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
@@ -9,7 +9,7 @@ import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { TitleBadge } from "./title-badge";
 
-type Tab = "shortlist" | "tracker" | "settings" | "headhunter";
+type Tab = "shortlist" | "tracker" | "settings" | "headhunter" | "extension";
 
 // The signed-in frame: a sidebar with the user's headhunters, navigation, cognition and
 // account on large screens; a compact top bar on small ones.
@@ -41,6 +41,7 @@ export async function AppShell({
   const nav = [
     { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: allNew },
     { id: "tracker" as const, label: "Tracker", href: "/app/tracker", icon: KanbanSquare },
+    { id: "extension" as const, label: "Extension", href: "/app/extension", icon: Puzzle },
     { id: "settings" as const, label: "Settings", href: "/app/settings", icon: Settings },
   ];
 

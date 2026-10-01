@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/app-shell";
 import { appContext, balanceFor } from "@/lib/app-context";
+import { ApplicantForm } from "./applicant-form";
 import { DeleteAccount } from "./delete-account";
 import { EmailUpdates } from "./email-updates";
 
@@ -25,6 +26,10 @@ export default async function Settings() {
         <p className="mt-2 text-white/55">To change what a headhunter looks for, its resume or cognition, open it from the sidebar.</p>
 
         <div className="mt-8 space-y-4">
+          <Section title="Application details" id="application">
+            <ApplicantForm initial={user.applicant ?? null} />
+          </Section>
+
           <Section title="Email updates" id="email">
             <EmailUpdates email={user.emailVerifiedAt ? user.email : null} on={user.emailOnSearchDone} />
           </Section>

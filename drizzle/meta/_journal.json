@@ -57,6 +57,13 @@
       "when": 1790827396221,
       "tag": "0007_searches",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790829376152,
+      "tag": "0008_extension",
+      "breakpoints": true
     }
   ]
 }

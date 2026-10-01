@@ -6,12 +6,14 @@ import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { CompanyLogo } from "@/components/company-logo";
+import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
 import { HuntProgress } from "@/components/hunt-progress";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
+import { detailsComplete } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
 
 function daysAgo(n: number) {
@@ -36,6 +38,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
     orderBy: [desc(schema.jobs.matchScore)],
   });
   const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
+  const toApply = await db.$count(schema.jobs, and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
+  const applyAll = <ApplyAllButton count={toApply} detailsComplete={detailsComplete(user.applicant)} />;
 
   const paused = current.status === "paused";
   const everDelivered = !!current.lastDeliveryAt;
@@ -98,6 +102,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           )}
         </div>
 
+        <ExtensionPrompt />
+
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">
             <p className="text-white/80">
@@ -107,7 +113,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {fresh.length > 0 && <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={searchButton(true)} />}
+        {fresh.length > 0 && <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={<>{applyAll}{searchButton(true)}</>} />}
 
         {fresh.length === 0 && searching && (
           <HuntProgress profileId={current.id} mindName={current.mindName ?? "Your headhunter"} jobsPerDay={perSearch} live />
@@ -142,7 +148,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
               />
               <RecentList title="Dismissed" empty="Nothing dismissed." jobs={recent.filter((j) => j.status === "skipped")} />
             </div>
-            <div className="mx-auto mt-8 max-w-md">{searchButton(true)}</div>
+            <div className="mt-8 flex justify-center">{applyAll}</div>
+            <div className="mx-auto mt-6 max-w-md">{searchButton(true)}</div>
           </section>
         )}
       </main>

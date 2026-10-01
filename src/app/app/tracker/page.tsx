@@ -3,6 +3,8 @@ import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { JobStatus } from "@/db/schema";
 import { AppShell } from "@/components/app-shell";
+import { ApplyAllButton } from "@/components/extension-ui";
+import { detailsComplete } from "@/lib/extension";
 import { Ninja } from "@/components/brand";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { MoveJob } from "./move-job";
@@ -38,7 +40,12 @@ export default async function Tracker({ searchParams }: PageProps<"/app/tracker"
       <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <p className="text-sm text-white/45">All headhunters</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Tracker</h1>
-        <p className="mt-2 text-white/55">Every job you saved or applied for, from saved to offer.</p>
+        <p className="mt-2 text-white/55">Every job you&rsquo;re applying to, from &ldquo;to apply&rdquo; to offer.</p>
+        {tracked.some((j) => j.status === "saved") && (
+          <div className="mt-6">
+            <ApplyAllButton count={tracked.filter((j) => j.status === "saved").length} detailsComplete={detailsComplete(user.applicant)} />
+          </div>
+        )}
 
         {tracked.length === 0 ? (
           <div className="mt-8 rounded-3xl bg-surface px-6 py-16 text-center">
