@@ -50,6 +50,21 @@ const REJECTION_LABELS: Record<string, string> = {
   bad_job: "incomplete details",
 };
 
+// Minds sometimes reply with HTML (<b>, <br>); show it as plain text.
+function plainText(t: string) {
+  return t
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 function describeWork(uses: ToolUse[]): string {
@@ -106,7 +121,7 @@ export async function buildActivity(
     if (m.at < since || !m.text.trim()) return;
     items.push(
       m.fromMind
-        ? { id: `c${i}`, at: m.at.toISOString(), kind: "said", title: `${profile.mindName ?? "Your headhunter"} said`, detail: m.text.trim().slice(0, 400) }
+        ? { id: `c${i}`, at: m.at.toISOString(), kind: "said", title: `${profile.mindName ?? "Your headhunter"} said`, detail: plainText(m.text).slice(0, 400) }
         : { id: `c${i}`, at: m.at.toISOString(), kind: "brief", title: describeOwnMessage(m.text, m === oldestOwn) },
     );
   });

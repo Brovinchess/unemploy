@@ -35,6 +35,7 @@ export type CardJob = {
   mustHaves: { requirement: string; met: boolean }[];
   posted: string | null; // "15 days ago"
   verified: boolean;
+  headhunter?: string; // shown when the user has more than one
 };
 
 type Decision = "apply" | "dismiss";
@@ -325,6 +326,7 @@ function Back({ job }: { job: CardJob }) {
           <div className="min-w-0">
             <p className="font-display text-xl font-semibold leading-tight">{job.title}</p>
             <p className="mt-1 text-[13px] text-white/55">{[job.company, job.industry].filter(Boolean).join(" · ")}</p>
+            {job.headhunter && <p className="mt-1 text-[11px] uppercase tracking-wider text-white/35">Found by {job.headhunter}</p>}
           </div>
         </div>
         <Pay job={job} />

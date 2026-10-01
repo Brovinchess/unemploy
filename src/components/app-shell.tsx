@@ -9,7 +9,7 @@ import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { TitleBadge } from "./title-badge";
 
-type Tab = "shortlist" | "tracker" | "settings";
+type Tab = "shortlist" | "tracker" | "settings" | "headhunter";
 
 // The signed-in frame: a sidebar with the user's headhunters, navigation, cognition and
 // account on large screens; a compact top bar on small ones.
@@ -37,11 +37,11 @@ export async function AppShell({
     .groupBy(schema.jobs.profileId);
   const fresh = new Map(newCounts.map((r) => [r.profileId, r.n]));
 
-  const q = `?profile=${current.id}`;
+  const allNew = [...fresh.values()].reduce((a, n) => a + n, 0);
   const nav = [
-    { id: "shortlist" as const, label: "Shortlist", href: `/app${q}`, icon: ListChecks, badge: fresh.get(current.id) },
-    { id: "tracker" as const, label: "Tracker", href: `/app/tracker${q}`, icon: KanbanSquare },
-    { id: "settings" as const, label: "Settings", href: `/app/settings${q}`, icon: Settings },
+    { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: allNew },
+    { id: "tracker" as const, label: "Tracker", href: "/app/tracker", icon: KanbanSquare },
+    { id: "settings" as const, label: "Settings", href: "/app/settings", icon: Settings },
   ];
 
   const perSearch = current.preferences ? estimateSearchCost(current.preferences.jobsPerDay).cognition : null;
@@ -53,7 +53,7 @@ export async function AppShell({
     <div className="flex min-h-svh flex-1 bg-night text-white">
       <TitleBadge count={[...fresh.values()].reduce((a, n) => a + n, 0)} />
       <aside className="sticky top-0 hidden h-svh w-[264px] shrink-0 flex-col border-r border-white/[0.06] bg-[#10161c] px-4 py-5 lg:flex">
-        <Link href={`/app${q}`} className="flex items-center gap-2.5 px-2" aria-label="Career Ninja">
+        <Link href="/app" className="flex items-center gap-2.5 px-2" aria-label="Career Ninja">
           <Ninja className="size-8" />
           <Wordmark />
         </Link>
@@ -78,11 +78,12 @@ export async function AppShell({
         <p className="mt-8 px-3 text-xs font-medium uppercase tracking-wider text-white/35">Headhunters</p>
         <ul className="mt-2 space-y-0.5">
           {profiles.map((p) => {
-            const active = p.id === current.id;
+            const active = tab === "headhunter" && p.id === current.id;
             return (
               <li key={p.id}>
                 <Link
-                  href={`/app${tab === "shortlist" ? "" : `/${tab}`}?profile=${p.id}`}
+                  href={`/app/headhunters/${p.id}`}
+                  aria-current={active ? "page" : undefined}
                   className={`flex items-center gap-3 rounded-xl px-3 py-2 ${active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                 >
                   <span className="relative">
@@ -98,7 +99,7 @@ export async function AppShell({
                     <span className={`block truncate text-sm ${active ? "text-white" : "text-white/70"}`}>{p.label}</span>
                     <span className="block truncate font-mono text-[11px] text-white/35">{p.mindName}</span>
                   </span>
-                  {!!fresh.get(p.id) && !active && <span className="size-2 rounded-full bg-coral" aria-label="New jobs" />}
+                  {!!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
                 </Link>
               </li>
             );
@@ -166,7 +167,7 @@ export async function AppShell({
         {/* Small screens: logo, tabs, headhunter switcher */}
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-night/90 backdrop-blur lg:hidden">
           <div className="flex h-14 items-center gap-4 px-4">
-            <Link href={`/app${q}`} aria-label="Career Ninja">
+            <Link href="/app" aria-label="Career Ninja">
               <Ninja className="size-8" />
             </Link>
             <nav className="flex flex-1 gap-1" aria-label="Main">
@@ -182,10 +183,10 @@ export async function AppShell({
             </nav>
             <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>{balance == null ? "" : `${Math.round(balance)} cog`}</span>
           </div>
-          {profiles.length > 1 && (
+          {profiles.length > 0 && (
             <div className="flex gap-2 overflow-x-auto px-4 pb-3">
               {profiles.map((p) => (
-                <Link key={p.id} href={`?profile=${p.id}`} aria-selected={p.id === current.id} className="chip min-h-8 shrink-0 px-3.5 text-sm">
+                <Link key={p.id} href={`/app/headhunters/${p.id}`} aria-selected={tab === "headhunter" && p.id === current.id} className="chip min-h-8 shrink-0 px-3.5 text-sm">
                   {p.label}
                 </Link>
               ))}

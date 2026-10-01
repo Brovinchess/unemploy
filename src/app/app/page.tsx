@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import type { Profile } from "@/db/schema";
 import { ArrowUpRight } from "lucide-react";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
@@ -29,10 +30,12 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
 
+  // New jobs from every headhunter, best match first.
   const fresh = await db.query.jobs.findMany({
-    where: and(eq(schema.jobs.profileId, current.id), eq(schema.jobs.status, "new")),
+    where: and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "new")),
     orderBy: [desc(schema.jobs.matchScore)],
   });
+  const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
 
   const paused = current.status === "paused";
   const everDelivered = !!current.lastDeliveryAt;
@@ -56,7 +59,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
     fresh.length === 0 && everDelivered
       ? await db.query.jobs.findMany({
           where: and(
-            eq(schema.jobs.profileId, current.id),
+            inArray(schema.jobs.profileId, profiles.map((p) => p.id)),
             inArray(schema.jobs.status, ["saved", "applied", "skipped"]),
             gte(schema.jobs.createdAt, current.searchStartedAt ?? daysAgo(14)),
           ),
@@ -69,13 +72,30 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       <main className="w-full flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-sm text-white/45">{current.label} headhunter</p>
+            <p className="text-sm text-white/45">{profiles.length > 1 ? "All headhunters" : `${current.label} headhunter`}</p>
             <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">
               {fresh.length ? `${fresh.length} new ${fresh.length === 1 ? "job" : "jobs"}` : "Shortlist"}
             </h1>
             {current.lastDeliveryAt && <p className="mt-1 text-sm text-white/40">Last search {ago(current.lastDeliveryAt)}</p>}
           </div>
-          {(fresh.length > 0 || everDelivered) && searchButton()}
+          {(fresh.length > 0 || everDelivered) && (
+            <div className="flex flex-col items-end gap-2">
+              {searchButton()}
+              {profiles.length > 1 && (
+                <p className="text-xs text-white/40">
+                  Searching with{" "}
+                  {profiles.map((p, i) => (
+                    <span key={p.id}>
+                      {i > 0 && " · "}
+                      <Link href={`/app?profile=${p.id}`} className={p.id === current.id ? "text-white" : "hover:text-white"}>
+                        {p.label}
+                      </Link>
+                    </span>
+                  ))}
+                </p>
+              )}
+            </div>
+          )}
         </div>
 
         {paused && (
@@ -87,7 +107,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {fresh.length > 0 && <SwipeDeck key={current.id} jobs={fresh.map(toCard)} after={searchButton(true)} />}
+        {fresh.length > 0 && <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={searchButton(true)} />}
 
         {fresh.length === 0 && searching && (
           <HuntProgress profileId={current.id} mindName={current.mindName ?? "Your headhunter"} jobsPerDay={perSearch} live />

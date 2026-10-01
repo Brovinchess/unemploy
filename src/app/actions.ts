@@ -362,6 +362,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         ...(profile.preferences ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
       })
       .where(eq(schema.profiles.id, profile.id));
+    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
     await api.setEnabled(profile.mindId, true);
     await api.sendMessage(profile.conversationAlias, searchRequestText(user.username!, wanted, n + 1, note || undefined));
   } catch (e) {

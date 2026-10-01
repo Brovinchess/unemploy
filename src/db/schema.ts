@@ -166,6 +166,26 @@ export const packs = pgTable("packs", {
 }).enableRLS();
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
+// One row per search the user asked for, for the headhunter's history.
+export const searches = pgTable(
+  "searches",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    jobsWanted: integer("jobs_wanted").notNull(),
+    focus: text("focus"),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    endedAt: timestamp("ended_at", { withTimezone: true }),
+    endReason: text("end_reason").$type<"finished" | "stopped" | "timeout">(),
+    jobsAdded: integer("jobs_added"),
+    balanceStart: real("balance_start"),
+    balanceEnd: real("balance_end"),
+  },
+  (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
+).enableRLS();
+
 export const ingestLog = pgTable(
   "ingest_log",
   {

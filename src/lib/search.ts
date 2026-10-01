@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { sendSearchDoneEmail } from "./email";
@@ -37,7 +37,27 @@ export async function endSearch(profile: Profile, reason: "finished" | "stopped"
     .returning({ id: schema.profiles.id });
   if (!ended.length) return;
   await switchOff(profile);
+  await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
   if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
+}
+
+// Closes the search's history row: when, why, jobs added and the balance after.
+async function recordEnd(profile: Profile, reason: "finished" | "stopped" | "timeout") {
+  const row = await db.query.searches.findFirst({
+    where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
+    orderBy: desc(schema.searches.startedAt),
+  });
+  if (!row) return;
+  const [{ n }] = await db
+    .select({ n: count() })
+    .from(schema.jobs)
+    .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, row.startedAt)));
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  const balanceEnd = user && profile.mindId ? await minds(user).getBalance(profile.mindId).catch(() => null) : null;
+  await db
+    .update(schema.searches)
+    .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, balanceEnd })
+    .where(eq(schema.searches.id, row.id));
 }
 
 async function emailResults(profile: Profile, timedOut: boolean) {

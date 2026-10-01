@@ -107,7 +107,7 @@ export function SearchButton({
         ) : (
           <>
             Want an email when it&rsquo;s done?{" "}
-            <a href={`/app/settings?profile=${profileId}#email`} className="text-white/70 underline underline-offset-2 hover:text-white">
+            <a href="/app/settings#email" className="text-white/70 underline underline-offset-2 hover:text-white">
               Add your email
             </a>
           </>

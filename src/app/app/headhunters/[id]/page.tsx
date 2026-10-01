@@ -1,0 +1,157 @@
+import { desc, eq } from "drizzle-orm";
+import { ExternalLink } from "lucide-react";
+import { db, schema } from "@/db";
+import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
+import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
+import { RenameHeadhunter } from "@/app/app/settings/rename-headhunter";
+import { ActivityPanel } from "@/components/activity-feed";
+import { AppShell } from "@/components/app-shell";
+import { Ninja } from "@/components/brand";
+import { PauseToggle } from "@/components/pause-toggle";
+import { PreferencesChat } from "@/components/preferences-chat";
+import { SearchButton } from "@/components/search-button";
+import { appContext, balanceFor } from "@/lib/app-context";
+import { mindsConfig } from "@/lib/minds/config";
+import { estimateSearchCost } from "@/lib/preferences";
+import { isSearching } from "@/lib/search";
+
+function when(d: Date) {
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}
+
+const ENDED: Record<string, string> = { finished: "Finished", stopped: "Stopped by you", timeout: "Timed out" };
+
+// One headhunter: its status and search button, live activity, past searches, cognition,
+// and what it looks for.
+export default async function Headhunter({ params }: PageProps<"/app/headhunters/[id]">) {
+  const { id } = await params;
+  const { user, profiles, unfinished, current } = await appContext(id);
+  const balance = await balanceFor(user, current);
+  const searching = isSearching(current);
+  const paused = current.status === "paused";
+  const perSearch = current.preferences?.jobsPerDay ?? 5;
+  const perSearchCost = estimateSearchCost(perSearch).cognition;
+  const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearchCost)) : null;
+
+  const history = await db.query.searches.findMany({
+    where: eq(schema.searches.profileId, current.id),
+    orderBy: desc(schema.searches.startedAt),
+    limit: 12,
+  });
+
+  return (
+    <AppShell tab="headhunter" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
+      <main className="w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+        {/* Who it is and what it's doing */}
+        <section className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
+          <div className="flex items-center gap-5">
+            <Ninja className={`size-20 shrink-0 ${searching ? "float" : ""}`} />
+            <div>
+              <p className="text-sm text-white/45">Headhunter</p>
+              <h1 className="font-display mt-0.5 text-3xl font-medium tracking-tight text-white">
+                <RenameHeadhunter profileId={current.id} label={current.label} />
+              </h1>
+              <p className="mt-1 flex items-center gap-2 text-sm text-white/55">
+                <span className="font-mono">{current.mindName}</span>
+                <span className="text-white/25">·</span>
+                <span className={searching ? "text-coral" : paused ? "text-white/40" : "text-white/70"}>
+                  {searching ? "Searching now" : paused ? "Paused" : "Ready, switched off until you search"}
+                </span>
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap items-start gap-3">
+            <PauseToggle profileId={current.id} paused={paused} />
+            <SearchButton
+              profileId={current.id}
+              searching={searching}
+              startedAt={current.searchStartedAt?.toISOString() ?? null}
+              defaultJobs={perSearch}
+              balance={balance}
+              notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
+              disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
+            />
+          </div>
+        </section>
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <ActivityPanel profileId={current.id} live={searching} />
+
+          <div className="space-y-6">
+            {/* Cognition */}
+            <section className="rounded-3xl bg-surface p-6">
+              <h2 className="font-display text-lg font-medium text-white">Cognition</h2>
+              <p className="font-display mt-4 text-4xl font-medium text-white">{balance == null ? "–" : Math.round(balance)}</p>
+              <p className="mt-1 text-sm text-white/55">
+                {searchesLeft == null
+                  ? "Balance unavailable right now"
+                  : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearch} jobs (~${perSearchCost} each)`}
+              </p>
+              <a href={mindsConfig.topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-5">
+                Top up <ExternalLink className="size-4" aria-hidden />
+              </a>
+            </section>
+
+            {/* Past searches */}
+            <section className="rounded-3xl bg-surface p-6">
+              <h2 className="font-display text-lg font-medium text-white">Past searches</h2>
+              {history.length === 0 ? (
+                <p className="mt-3 text-sm text-white/45">No searches yet. They&rsquo;ll show here with jobs found and cognition used.</p>
+              ) : (
+                <ul className="mt-3 divide-y divide-white/[0.06]">
+                  {history.map((s) => {
+                    const used = s.balanceStart != null && s.balanceEnd != null ? Math.max(0, Math.round(s.balanceStart - s.balanceEnd)) : null;
+                    return (
+                      <li key={s.id} className="flex items-start justify-between gap-4 py-3 text-sm">
+                        <div className="min-w-0">
+                          <p className="text-white">{when(s.startedAt)}</p>
+                          <p className="mt-0.5 truncate text-white/45">
+                            {s.endedAt ? ENDED[s.endReason ?? "finished"] : "In progress"} · asked for {s.jobsWanted}
+                            {s.focus ? ` · “${s.focus}”` : ""}
+                          </p>
+                        </div>
+                        <div className="shrink-0 text-right">
+                          <p className="text-white">{s.jobsAdded ?? "–"} jobs</p>
+                          <p className="mt-0.5 text-white/45">{used != null ? `${used} cognition` : ""}</p>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </section>
+          </div>
+        </div>
+
+        {/* What it looks for */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+          <section className="rounded-3xl bg-surface p-6">
+            <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
+            <p className="mt-1 mb-5 text-sm text-white/50">Change anything and it gets an updated brief.</p>
+            <PreferencesChat
+              key={current.id + (current.briefedAt?.getTime() ?? 0)}
+              profileId={current.id}
+              mode="edit"
+              initial={current.preferences ?? undefined}
+            />
+          </section>
+          <div className="space-y-6">
+            <section className="rounded-3xl bg-surface p-6">
+              <h2 className="font-display text-lg font-medium text-white">Resume</h2>
+              <p className="mt-1 mb-5 text-sm text-white/55">
+                Current: <span className="text-white">{current.resumeFileName}</span>
+              </p>
+              <ResumeStep profileId={current.id} submitLabel="Replace resume" />
+            </section>
+            <section className="rounded-3xl bg-surface p-6">
+              <h2 className="font-display text-lg font-medium text-white">Remove</h2>
+              <div className="mt-4">
+                <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+    </AppShell>
+  );
+}

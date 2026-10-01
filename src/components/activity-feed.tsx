@@ -136,3 +136,20 @@ export function ActivityFeed({ profileId, live }: { profileId: string; live: boo
     </section>
   );
 }
+
+// Full activity timeline for a headhunter's page.
+export function ActivityPanel({ profileId, live }: { profileId: string; live: boolean }) {
+  const data = useActivity(profileId, live);
+  return (
+    <section className="rounded-3xl bg-surface p-6" aria-label="Headhunter activity">
+      <h2 className="font-display flex items-center gap-2.5 text-lg font-medium text-white">
+        {live && <LiveDot />} Activity
+      </h2>
+      <p className="mt-1 text-sm text-white/50">{live ? "Live while it searches." : "What it did in recent searches."}</p>
+      <div className="mt-6">
+        <ActivityList items={data?.items ?? null} />
+      </div>
+      {data?.partial && <p className="mt-6 text-xs text-white/40">Some updates from Hello Minds couldn&rsquo;t be loaded just now.</p>}
+    </section>
+  );
+}
