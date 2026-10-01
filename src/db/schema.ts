@@ -28,6 +28,10 @@ export const users = pgTable("users", {
   refreshToken: text("refresh_token"),
   tokenExpiresAt: timestamp("token_expires_at", { withTimezone: true }),
   scope: text("scope"),
+  // Verified address for notifications (Hello Minds sign-in doesn't share one).
+  email: text("email"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  emailOnSearchDone: boolean("email_on_search_done").notNull().default(true),
   createdAt: createdAt(),
 }).enableRLS();
 

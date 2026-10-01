@@ -7,12 +7,13 @@ import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { mindsConfig } from "@/lib/minds/config";
 import { DeleteAccount } from "./delete-account";
+import { EmailUpdates } from "./email-updates";
 import { RemoveHeadhunter } from "./remove-headhunter";
 import { RenameHeadhunter } from "./rename-headhunter";
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
-    <section className="grid gap-6 rounded-3xl bg-surface p-6 md:grid-cols-[220px_1fr] md:p-8">
+    <section id={id} className="scroll-mt-8 grid gap-6 rounded-3xl bg-surface p-6 md:grid-cols-[220px_1fr] md:p-8">
       <h2 className="font-display font-medium text-ink">{title}</h2>
       <div>{children}</div>
     </section>
@@ -69,6 +70,10 @@ export default async function Settings({ searchParams }: PageProps<"/app/setting
               Current: <span className="font-semibold">{current.resumeFileName}</span>
             </p>
             <ResumeStep profileId={current.id} submitLabel="Replace resume" />
+          </Section>
+
+          <Section title="Email updates" id="email">
+            <EmailUpdates email={user.emailVerifiedAt ? user.email : null} on={user.emailOnSearchDone} />
           </Section>
 
           <Section title="Account">

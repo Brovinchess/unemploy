@@ -58,6 +58,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       startedAt={current.searchStartedAt?.toISOString() ?? null}
       defaultJobs={perSearch}
       balance={balance}
+      notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
       disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
       big={big}
     />

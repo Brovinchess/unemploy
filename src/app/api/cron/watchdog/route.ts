@@ -29,7 +29,7 @@ export async function GET(request: Request) {
   let stale = 0;
   for (const p of open) {
     if (isSearching(p)) continue;
-    await endSearch(p).catch((e) => console.error("[watchdog] end search failed", p.id, e));
+    await endSearch(p, "timeout").catch((e) => console.error("[watchdog] end search failed", p.id, e));
     stale++;
   }
 

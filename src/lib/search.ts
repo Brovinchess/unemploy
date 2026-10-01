@@ -1,8 +1,10 @@
 import "server-only";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
+import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
+import { mindsConfig } from "./minds/config";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
 // the Mind sends its final batch, fills the quota, or this timeout passes. Between searches
@@ -24,10 +26,41 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
   );
 }
 
-// Ends the active search and switches the Mind off. Safe to call twice.
-export async function endSearch(profile: Profile) {
-  await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+// Ends the active search, switches the Mind off and, unless the user stopped it
+// themselves, emails them what it found. Only the first call for a search does anything.
+export async function endSearch(profile: Profile, reason: "finished" | "stopped" | "timeout" = "finished") {
+  const ended = await db
+    .update(schema.profiles)
+    .set({ searchEndedAt: new Date() })
+    .where(and(eq(schema.profiles.id, profile.id), isNull(schema.profiles.searchEndedAt)))
+    .returning({ id: schema.profiles.id });
+  if (!ended.length) return;
   await switchOff(profile);
+  if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
+}
+
+async function emailResults(profile: Profile, timedOut: boolean) {
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user?.email || !user.emailVerifiedAt || !user.emailOnSearchDone) return;
+  const since = profile.searchStartedAt ?? new Date(Date.now() - SEARCH_TIMEOUT_MS);
+  const jobs = await db.query.jobs.findMany({
+    where: and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, since), inArray(schema.jobs.status, ["new", "saved"])),
+    orderBy: desc(schema.jobs.matchScore),
+  });
+  await sendSearchDoneEmail({
+    to: user.email,
+    mindName: profile.mindName ?? "Your headhunter",
+    label: profile.label,
+    timedOut,
+    link: `${mindsConfig.appUrl}/app?profile=${profile.id}`,
+    jobs: jobs.map((j) => ({
+      title: j.title,
+      company: j.company,
+      matchScore: j.matchScore,
+      place: [j.workSetting === "remote" ? "Remote" : null, j.city, j.country].filter(Boolean).join(", "),
+      verified: !!j.verifiedAt && !!j.locationText,
+    })),
+  });
 }
 
 export async function switchOff(profile: Profile) {

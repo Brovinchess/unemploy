@@ -157,6 +157,7 @@ async function runMockHunt(alias: string) {
   const { processPush } = await import("../ingest");
   const result = await processPush(profile, { jobs }, { demo: true });
   console.log(`[mock mind] ${alias}: accepted ${result.accepted}, rejected ${result.rejected.length}`);
-  await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+  const { endSearch } = await import("../search");
+  await endSearch((await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profile.id) }))!);
   say(alias, true, `Sent ${jobs.length} jobs. The push returned 200 with ${result.accepted} accepted. Waiting for your next request.`);
 }

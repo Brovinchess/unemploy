@@ -20,6 +20,7 @@ export function SearchButton({
   defaultJobs,
   balance,
   disabled,
+  notifyEmail,
   big = false,
 }: {
   profileId: string;
@@ -28,6 +29,7 @@ export function SearchButton({
   defaultJobs: number;
   balance: number | null;
   disabled?: string; // reason the button can't be used
+  notifyEmail: string | null; // where the "search finished" email goes, if on
   big?: boolean;
 }) {
   const [pending, start] = useTransition();
@@ -99,6 +101,18 @@ export function SearchButton({
       >
         <Search className="size-4" aria-hidden /> {pending ? "Starting…" : `Find ${jobs} ${jobs === 1 ? "job" : "jobs"}`}
       </button>
+      <p className="mt-3 text-center text-xs text-white/45">
+        {notifyEmail ? (
+          <>We&rsquo;ll email {notifyEmail} when it&rsquo;s done.</>
+        ) : (
+          <>
+            Want an email when it&rsquo;s done?{" "}
+            <a href={`/app/settings?profile=${profileId}#email`} className="text-white/70 underline underline-offset-2 hover:text-white">
+              Add your email
+            </a>
+          </>
+        )}
+      </p>
       {error && <p className="mt-3 text-sm text-rose">{error}</p>}
     </div>
   );
