@@ -22,7 +22,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
   return (
     `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
-    `and POST them. For each job, open its application form and list its questions in "formQuestions". Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
+    `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `Then stop and wait for my next request. (${new Date().toISOString()})`
   );
