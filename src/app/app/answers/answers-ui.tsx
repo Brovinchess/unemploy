@@ -36,7 +36,7 @@ export function PersonalMindCard({
 
   return (
     <section className="flex flex-col gap-5 rounded-3xl bg-surface p-6 sm:flex-row sm:items-start md:p-8">
-      <Ninja className={`size-14 shrink-0 ${answering ? "float" : ""}`} />
+      <Ninja mood={answering ? "thinking" : state === "ready" ? "sleeping" : "happy"} className={`size-14 shrink-0 ${answering ? "float" : ""}`} />
       <div className="min-w-0 flex-1">
         {state === "none" && (
           <>

@@ -291,7 +291,7 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
           <span className="absolute size-32 rounded-full bg-coral/25 blur-3xl" aria-hidden />
           <Sparkles className="absolute left-6 top-8 size-5 text-rose/70" strokeWidth={1.6} aria-hidden />
           <Sparkles className="absolute bottom-10 right-5 size-4 text-white/40" strokeWidth={1.6} aria-hidden />
-          <Ninja className="float relative size-32" />
+          <Ninja mood="surprised" className="float relative size-32" />
         </div>
         <p className="font-display mt-6 text-[22px] font-medium tracking-tight">A job picked for you</p>
         <p className="mt-1.5 text-sm text-white/50">Reveal it to see what your headhunter found.</p>
@@ -412,7 +412,7 @@ function Summary({
   return (
     <div className="w-full max-w-[820px]">
       <div className="text-center">
-        <Ninja className="mx-auto size-[72px]" />
+        <Ninja mood={toApply.length ? "excited" : "sad"} className="mx-auto size-[72px]" />
         <h2 className="font-display mt-3.5 text-[30px] font-medium tracking-tight">That&rsquo;s this search done</h2>
         <p className="mt-1.5 text-white/55">Here&rsquo;s what you decided. You can change your mind any time.</p>
         <div className="mt-5 flex justify-center gap-3">

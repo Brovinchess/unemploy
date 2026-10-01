@@ -91,7 +91,7 @@ export async function AppShell({
                   className={`flex items-center gap-3 rounded-xl px-3 py-2 ${active ? "bg-white/[0.07]" : "hover:bg-white/[0.04]"}`}
                 >
                   <span className="relative">
-                    <Ninja className="size-7" />
+                    <Ninja mood={isSearching(p) ? "searching" : p.status === "paused" ? "sleeping" : "happy"} className="size-7" />
                     <span
                       className={`absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full ring-2 ring-[#10161c] ${
                         isSearching(p) ? "animate-pulse bg-coral" : p.status === "paused" ? "bg-white/20" : "bg-mist"

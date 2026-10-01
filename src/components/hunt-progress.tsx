@@ -38,7 +38,7 @@ export function HuntProgress({
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
       <section className="rounded-3xl bg-surface p-8 sm:p-10">
         <div className="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-          <Ninja className="float size-24 shrink-0" />
+          <Ninja mood={live ? "searching" : "sleeping"} className="float size-24 shrink-0" />
           <div>
             <p className="flex items-center gap-2 text-sm text-coral">
               {live && <LiveDot />} {live ? "Searching now" : "Paused"}

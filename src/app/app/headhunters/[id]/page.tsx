@@ -45,7 +45,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         {/* Who it is and what it's doing */}
         <section className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
           <div className="flex items-center gap-5">
-            <Ninja className={`size-20 shrink-0 ${searching ? "float" : ""}`} />
+            <Ninja mood={searching ? "searching" : current.status === "paused" ? "sleeping" : "happy"} className={`size-20 shrink-0 ${searching ? "float" : ""}`} />
             <div>
               <p className="text-sm text-white/45">Headhunter</p>
               <h1 className="font-display mt-0.5 text-3xl font-medium tracking-tight text-white">

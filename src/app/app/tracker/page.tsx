@@ -49,7 +49,7 @@ export default async function Tracker({ searchParams }: PageProps<"/app/tracker"
 
         {tracked.length === 0 ? (
           <div className="mt-8 rounded-3xl bg-surface px-6 py-16 text-center">
-            <Ninja className="mx-auto size-16" />
+            <Ninja mood="sad" className="mx-auto size-16" />
             <h2 className="font-display mt-4 text-xl font-medium text-white">Nothing here yet</h2>
             <p className="mt-3 text-muted">Jobs you save or apply for from your shortlist show up here.</p>
           </div>

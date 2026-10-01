@@ -136,7 +136,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         {fresh.length === 0 && !searching && everDelivered && (
           <section className="mx-auto max-w-[820px]">
             <div className="text-center">
-              <Ninja className="mx-auto size-[72px]" />
+              <Ninja mood={recent.some((j) => j.status === "saved" || j.status === "applied") ? "love" : "happy"} className="mx-auto size-[72px]" />
               <h2 className="font-display mt-3.5 text-[28px] font-medium tracking-tight">You&rsquo;ve seen every new job</h2>
               <p className="mt-1.5 text-white/55">Here&rsquo;s where your latest search stands. Ask for more whenever you&rsquo;re ready.</p>
             </div>
