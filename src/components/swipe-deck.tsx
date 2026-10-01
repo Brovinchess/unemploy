@@ -4,15 +4,10 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
-  Briefcase,
-  Building2,
   Check,
   Clock,
-  Lock,
-  MapPin,
   RefreshCw,
   Sparkles,
-  TrendingUp,
   X,
 } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
@@ -145,11 +140,11 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
               .map((job, idx, arr) => {
                 const depth = arr.length - 1 - idx;
                 return depth === 0 ? (
-                  <TopCard key={job.id} job={job} open={open} onReveal={() => setOpen(true)} onDecide={decide} />
+                  <TopCard key={job.id} job={job} n={seen + 1} open={open} onReveal={() => setOpen(true)} onDecide={decide} />
                 ) : (
                   <div key={job.id} className={`deck-card ${depth === 1 ? "b1" : "b2"}`}>
                     <div className="deck-flip">
-                      <Front job={job} />
+                      <Front />
                     </div>
                   </div>
                 );
@@ -199,7 +194,19 @@ function Control({ label, title, onClick, children }: { label: string; title: st
   );
 }
 
-function TopCard({ job, open, onReveal, onDecide }: { job: CardJob; open: boolean; onReveal: () => void; onDecide: (k: Decision) => void }) {
+function TopCard({
+  job,
+  n,
+  open,
+  onReveal,
+  onDecide,
+}: {
+  job: CardJob;
+  n: number;
+  open: boolean;
+  onReveal: () => void;
+  onDecide: (k: Decision) => void;
+}) {
   const el = useRef<HTMLDivElement>(null);
   const drag = useRef({ on: false, x: 0, dx: 0 });
 
@@ -243,7 +250,7 @@ function TopCard({ job, open, onReveal, onDecide }: { job: CardJob; open: boolea
       }}
     >
       <div className="deck-flip">
-        <Front job={job} onReveal={onReveal} />
+        <Front onReveal={onReveal} n={n} />
         <Back job={job} />
       </div>
     </div>
@@ -261,18 +268,6 @@ function Pay({ job }: { job: CardJob }) {
   );
 }
 
-function Fact({ icon: Icon, label, value }: { icon: typeof MapPin; label: string; value: string | null }) {
-  return (
-    <div className="flex items-start gap-2.5 rounded-2xl border border-white/[0.07] bg-white/[0.035] p-3 text-[13px] leading-snug">
-      <Icon className="mt-px size-4 shrink-0 text-rose" strokeWidth={1.8} />
-      <div className="min-w-0">
-        <p className="mb-0.5 text-[11px] text-white/35">{label}</p>
-        <p className="text-white/90">{value ?? "Not stated"}</p>
-      </div>
-    </div>
-  );
-}
-
 function Reasons({ items, bad = false, clamp = false }: { items: string[]; bad?: boolean; clamp?: boolean }) {
   return (
     <ul className="grid gap-2 text-[13.5px] leading-relaxed text-white/80">
@@ -286,62 +281,34 @@ function Reasons({ items, bad = false, clamp = false }: { items: string[]; bad?:
   );
 }
 
-function Front({ job, onReveal }: { job: CardJob; onReveal?: () => void }) {
-  const [first, ...rest] = job.title.split(" ");
-  // The front stays anonymous: drop any reason that names the company.
-  const anonymous = job.highlights.filter((h) => !h.toLowerCase().includes(job.company.toLowerCase())).slice(0, 2);
+// The face-down card: no job details at all, just Mochi and a nudge to reveal.
+function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
   return (
-    <div className="deck-face">
-      <div className="px-6 pt-5">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1.5 text-xs font-medium text-white/55">
-            <Lock className="size-3.5" /> Mystery job
-          </span>
-          {job.verified && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-coral/15 px-2.5 py-1.5 text-xs font-medium text-rose">
-              <Check className="size-3.5" /> Verified open
-            </span>
-          )}
-        </div>
-        <div className="mt-5 flex items-center gap-3.5">
-          <span className="deck-ghost flex size-14 shrink-0 items-center justify-center rounded-[18px] text-white/35">
-            <Building2 className="size-[22px]" strokeWidth={1.8} />
-          </span>
-          <div className="min-w-0">
-            <p className="font-display text-[19px] font-semibold leading-snug">
-              {first} {rest.length > 0 && <span className="deck-blur">{rest.join(" ")}</span>}
-            </p>
-            <p className="mt-1.5 text-[13px] text-white/55">{[job.industry, job.stage].filter(Boolean).join(" · ") || "Company hidden"}</p>
-          </div>
-        </div>
-        <Pay job={job} />
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <Fact icon={MapPin} label="Where" value={job.where} />
-          <Fact icon={Briefcase} label="Type" value={job.jobType} />
-          <Fact icon={TrendingUp} label="Level" value={job.level} />
-          <Fact icon={Building2} label="Company" value={job.size} />
-        </div>
-        <div className="mt-4 flex items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/[0.08]">
-            <i className="block h-full rounded-full bg-gradient-to-r from-[#a9585a] via-coral to-rose" style={{ width: `${job.match}%` }} />
-          </div>
-          <b className="font-display text-[15px] font-semibold text-rose">{Math.round(job.match)}% match</b>
-        </div>
-        <div className="mt-3.5">
-          {anonymous.length ? (
-            <Reasons items={anonymous} clamp />
-          ) : (
-            <p className="text-[13.5px] text-white/45">Reveal to see why it fits you.</p>
-          )}
-        </div>
+    <div className="deck-face deck-front">
+      <div className="deck-front-pattern" aria-hidden />
+      <div className="relative flex items-center justify-between px-6 pt-6">
+        <span className="font-display text-xs font-medium uppercase tracking-[0.2em] text-white/40">Career Ninja</span>
+        {n !== undefined && <span className="font-display text-xs font-medium tracking-[0.2em] text-white/40">No. {n}</span>}
       </div>
-      <div className="mt-auto px-6 pb-6 pt-4">
+      <div className="relative flex flex-1 flex-col items-center justify-center text-center">
+        <div className="relative flex size-56 items-center justify-center">
+          <span className="deck-ring size-56" aria-hidden />
+          <span className="deck-ring size-40 [animation-delay:-2s]" aria-hidden />
+          <span className="absolute size-32 rounded-full bg-coral/25 blur-3xl" aria-hidden />
+          <Sparkles className="absolute left-6 top-8 size-5 text-rose/70" strokeWidth={1.6} aria-hidden />
+          <Sparkles className="absolute bottom-10 right-5 size-4 text-white/40" strokeWidth={1.6} aria-hidden />
+          <Ninja className="float relative size-32" />
+        </div>
+        <p className="font-display mt-6 text-[22px] font-medium tracking-tight">A job picked for you</p>
+        <p className="mt-1.5 text-sm text-white/50">Reveal it to see what your headhunter found.</p>
+      </div>
+      <div className="relative px-6 pb-6">
         <button
           className="flex h-[54px] w-full items-center justify-center gap-2.5 rounded-full bg-gradient-to-b from-[#d27375] to-coral text-base font-semibold text-white shadow-[0_14px_30px_-12px_rgba(201,101,103,0.8)] hover:brightness-105"
           onClick={onReveal}
           tabIndex={onReveal ? 0 : -1}
         >
-          Reveal company <RefreshCw className="size-4" />
+          Reveal <RefreshCw className="size-4" />
         </button>
       </div>
     </div>
