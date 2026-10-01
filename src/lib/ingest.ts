@@ -27,6 +27,14 @@ const jobSchema = z.object({
   whyFit: z.string().trim().min(10).max(1200),
   gaps: z.array(z.string().trim().max(300)).max(10).default([]),
   companyNotes: z.string().trim().max(1500).optional(),
+  // For the job card. The website gives us the company's logo.
+  companyWebsite: z.string().trim().min(3).max(200),
+  companyStage: z.string().trim().max(60).optional(),
+  companySize: z.string().trim().max(60).optional(),
+  industry: z.string().trim().max(80).optional(),
+  perks: z.array(z.string().trim().min(2).max(60)).max(6).optional(),
+  highlights: z.array(z.string().trim().min(5).max(160)).min(1).max(3), // shown before the company is revealed
+  salaryEstimated: z.boolean().optional(),
   // Evidence the Mind must bring from the posting itself.
   locationText: z.string().trim().min(3).max(400),
   mustHaves: z
@@ -163,6 +171,15 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
 }
 
 // Job links come from the Mind, so never let the check reach private or internal addresses.
+// "https://www.acme.com/careers" or "acme.com" → "acme.com"
+function companyDomain(raw: string) {
+  try {
+    return new URL(/^https?:\/\//.test(raw) ? raw : `https://${raw}`).hostname.toLowerCase().replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
 export function isPublicHttpUrl(raw: string) {
   const u = new URL(raw);
   if (u.protocol !== "https:" && u.protocol !== "http:") return false;
@@ -359,6 +376,13 @@ export async function processPush(
       whyFit: job.whyFit,
       gaps: job.gaps,
       companyNotes: job.companyNotes,
+      companyDomain: companyDomain(job.companyWebsite),
+      companyStage: job.companyStage,
+      companySize: job.companySize,
+      industry: job.industry,
+      perks: job.perks ?? [],
+      highlights: job.highlights,
+      salaryEstimated: !!job.salary && !!job.salaryEstimated,
       locationText: job.locationText,
       mustHaves: job.mustHaves,
       verifiedAt: new Date(Date.parse(job.verifiedOpenAt)),

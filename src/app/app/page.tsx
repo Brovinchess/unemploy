@@ -1,52 +1,39 @@
 import Link from "next/link";
-import { and, desc, eq, inArray } from "drizzle-orm";
-import { ArrowLeft } from "lucide-react";
+import { and, desc, eq, gte, inArray } from "drizzle-orm";
+import { ArrowUpRight } from "lucide-react";
 import { db, schema } from "@/db";
-import type { Job } from "@/db/schema";
-import { ActivityFeed } from "@/components/activity-feed";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
+import { CompanyLogo } from "@/components/company-logo";
 import { HuntProgress } from "@/components/hunt-progress";
-import { JobCard } from "@/components/job-card";
-import { JobDetail } from "@/components/job-detail";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
-import { isSearching } from "@/lib/search";
+import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
+import { toCard } from "@/lib/cards";
+import { isSearching } from "@/lib/search";
+
+function daysAgo(n: number) {
+  return new Date(Date.now() - n * 86_400_000);
+}
 
 function ago(d: Date) {
   const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
   return days <= 0 ? "today" : days === 1 ? "yesterday" : `${days} days ago`;
 }
 
+// New jobs arrive as a deck of cards to reveal and swipe. With nothing new, the page shows
+// the last search's decisions, the search in progress, or a ready state.
 export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
   const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
 
-  const jobs = await db.query.jobs.findMany({
-    where: and(eq(schema.jobs.profileId, current.id), inArray(schema.jobs.status, ["new", "saved"])),
-    orderBy: [desc(schema.jobs.createdAt), desc(schema.jobs.matchScore)],
+  const fresh = await db.query.jobs.findMany({
+    where: and(eq(schema.jobs.profileId, current.id), eq(schema.jobs.status, "new")),
+    orderBy: [desc(schema.jobs.matchScore)],
   });
-  // Newest day first, best match first within a day.
-  const day = (j: Job) => j.createdAt.toISOString().slice(0, 10);
-  jobs.sort((a, b) => day(b).localeCompare(day(a)) || b.matchScore - a.matchScore);
-  const fresh = jobs.filter((j) => j.status === "new");
-  const saved = jobs.filter((j) => j.status === "saved");
 
-  // The job shown in the detail panel: the one asked for (it may already be applied or
-  // skipped, e.g. when opened from the tracker), else the top of the list.
-  const wantedId = typeof sp.job === "string" ? sp.job : undefined;
-  let selected: Job | undefined = jobs.find((j) => j.id === wantedId);
-  if (!selected && wantedId) {
-    selected = await db.query.jobs.findFirst({
-      where: and(eq(schema.jobs.id, wantedId), eq(schema.jobs.profileId, current.id)),
-    });
-  }
-  const explicit = !!selected;
-  selected ??= jobs[0];
-
-  const base = `/app?profile=${current.id}`;
   const paused = current.status === "paused";
   const everDelivered = !!current.lastDeliveryAt;
   const searching = isSearching(current);
@@ -64,131 +51,112 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
     />
   );
 
-  const alerts = (
-    <>
-      {paused && (
-        <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">
-          <p className="text-white/80">
-            <span className="font-mono text-white">{current.mindName}</span> is paused and isn&rsquo;t using any cognition.
-          </p>
-          <PauseToggle profileId={current.id} paused />
-        </div>
-      )}
-      {balance != null && balance <= 0 && !paused && (
-        <div className="mb-6 rounded-2xl bg-coral-soft px-5 py-4 text-rose">
-          <span className="font-mono">{current.mindName}</span> is out of cognition. Top it up on Hello Minds before your next
-          search.
-        </div>
-      )}
-    </>
-  );
+  // With nothing new to swipe: what was decided in the latest search.
+  const recent =
+    fresh.length === 0 && everDelivered
+      ? await db.query.jobs.findMany({
+          where: and(
+            eq(schema.jobs.profileId, current.id),
+            inArray(schema.jobs.status, ["saved", "applied", "skipped"]),
+            gte(schema.jobs.createdAt, current.searchStartedAt ?? daysAgo(14)),
+          ),
+          orderBy: [desc(schema.jobs.matchScore)],
+        })
+      : [];
 
   return (
     <AppShell tab="shortlist" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
-        <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+        <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-white/45">{current.label} headhunter</p>
-            <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Shortlist</h1>
+            <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">
+              {fresh.length ? `${fresh.length} new ${fresh.length === 1 ? "job" : "jobs"}` : "Shortlist"}
+            </h1>
+            {current.lastDeliveryAt && <p className="mt-1 text-sm text-white/40">Last search {ago(current.lastDeliveryAt)}</p>}
           </div>
-          <div className="flex items-start gap-6">
-            {jobs.length > 0 && (
-              <p className="mt-3 hidden text-sm text-white/50 sm:block">
-                {fresh.length} new{saved.length > 0 && ` · ${saved.length} saved`}
-                {current.lastDeliveryAt && ` · last search ${ago(current.lastDeliveryAt)}`}
-              </p>
-            )}
-            {(jobs.length > 0 || everDelivered) && searchButton()}
-          </div>
+          {(fresh.length > 0 || everDelivered) && searchButton()}
         </div>
 
-        {alerts}
+        {paused && (
+          <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">
+            <p className="text-white/80">
+              <span className="font-mono text-white">{current.mindName}</span> is paused and isn&rsquo;t using any cognition.
+            </p>
+            <PauseToggle profileId={current.id} paused />
+          </div>
+        )}
 
-        {jobs.length === 0 && !searching && !everDelivered && (
+        {fresh.length > 0 && <SwipeDeck key={current.id} jobs={fresh.map(toCard)} after={searchButton(true)} />}
+
+        {fresh.length === 0 && searching && (
+          <HuntProgress profileId={current.id} mindName={current.mindName ?? "Your headhunter"} jobsPerDay={perSearch} live />
+        )}
+
+        {fresh.length === 0 && !searching && !everDelivered && (
           <section className="flex flex-col items-center rounded-3xl bg-surface px-8 py-16 text-center">
             <Ninja className="float size-24" />
             <h2 className="font-display mt-6 text-3xl font-medium tracking-tight text-white">
               <span className="font-mono text-[0.85em]">{current.mindName}</span> is ready
             </h2>
             <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
-              It has your resume and preferences, and it only searches when you ask. Each search finds up to {perSearch} jobs,
-              checks every one, and writes your application for each.
+              It has your resume and preferences, and it only searches when you ask. Each job comes back as a card: reveal it,
+              then swipe right to apply or left to pass.
             </p>
-            <div className="mt-8">{searchButton(true)}</div>
+            <div className="mt-8 w-full max-w-md">{searchButton(true)}</div>
           </section>
         )}
 
-        {jobs.length === 0 && searching && (
-          <HuntProgress
-            profileId={current.id}
-            mindName={current.mindName ?? "Your headhunter"}
-            jobsPerDay={current.preferences?.jobsPerDay ?? 5}
-            live
-          />
-        )}
-
-        {jobs.length === 0 && !searching && everDelivered && (
-          <div className="grid gap-6 xl:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
-            <section className="flex flex-col items-center justify-center rounded-3xl bg-surface px-8 py-16 text-center">
-              <Ninja className="size-20" />
-              <h2 className="font-display mt-6 text-2xl font-medium text-white">You&rsquo;re all caught up</h2>
-              <p className="mt-2 max-w-sm leading-relaxed text-white/55">
-                Ask for a new search whenever you&rsquo;re ready, or follow up on your applications in the tracker.
-              </p>
-              <div className="mt-6">{searchButton(true)}</div>
-              <Link href={`/app/tracker?profile=${current.id}`} className="mt-4 text-sm text-white/50 hover:text-white">
-                Open the tracker
-              </Link>
-            </section>
-            <ActivityFeed profileId={current.id} live={searching} />
-          </div>
-        )}
-
-        {jobs.length > 0 && (
-          <div className="grid gap-6 xl:grid-cols-[400px_minmax(0,1fr)] 2xl:grid-cols-[440px_minmax(0,1fr)]">
-            {/* List: hidden on small screens while a job is open */}
-            <section className={`space-y-6 ${explicit ? "hidden xl:block" : ""}`} aria-label="Shortlist">
-              <ActivityFeed profileId={current.id} live={searching} />
-
-              {fresh.length > 0 && (
-                <div>
-                  <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-white/40">New for you</h2>
-                  <div className="space-y-2.5">
-                    {fresh.map((j) => (
-                      <JobCard key={j.id} job={j} href={`${base}&job=${j.id}`} selected={j.id === selected?.id} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {saved.length > 0 && (
-                <div>
-                  <h2 className="mb-3 px-1 text-xs font-medium uppercase tracking-wider text-white/40">Saved for later</h2>
-                  <div className="space-y-2.5">
-                    {saved.map((j) => (
-                      <JobCard key={j.id} job={j} href={`${base}&job=${j.id}`} selected={j.id === selected?.id} />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </section>
-
-            {/* Detail: always on large screens, only when a job is open on small ones */}
-            {selected && (
-              <div className={explicit ? "" : "hidden xl:block"}>
-                <div className="xl:sticky xl:top-10">
-                  <Link href={base} className="mb-4 inline-flex items-center gap-1.5 text-sm font-medium text-white/55 xl:hidden">
-                    <ArrowLeft className="size-4" aria-hidden /> Back to shortlist
-                  </Link>
-                  <div className="xl:max-h-[calc(100svh-5rem)] xl:overflow-y-auto xl:rounded-3xl">
-                    <JobDetail job={selected} doneHref={base} />
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+        {fresh.length === 0 && !searching && everDelivered && (
+          <section className="mx-auto max-w-[820px]">
+            <div className="text-center">
+              <Ninja className="mx-auto size-[72px]" />
+              <h2 className="font-display mt-3.5 text-[28px] font-medium tracking-tight">You&rsquo;ve seen every new job</h2>
+              <p className="mt-1.5 text-white/55">Here&rsquo;s where your latest search stands. Ask for more whenever you&rsquo;re ready.</p>
+            </div>
+            <div className="mt-7 grid gap-4 md:grid-cols-2">
+              <RecentList
+                title="To apply"
+                empty="Nothing waiting. Jobs you swipe right on land here."
+                jobs={recent.filter((j) => j.status === "saved" || j.status === "applied")}
+              />
+              <RecentList title="Dismissed" empty="Nothing dismissed." jobs={recent.filter((j) => j.status === "skipped")} />
+            </div>
+            <div className="mx-auto mt-8 max-w-md">{searchButton(true)}</div>
+          </section>
         )}
       </main>
     </AppShell>
+  );
+}
+
+function RecentList({ title, empty, jobs }: { title: string; empty: string; jobs: { id: string; title: string; company: string; companyDomain: string | null; matchScore: number; status: string }[] }) {
+  return (
+    <div className="rounded-3xl border border-white/[0.07] bg-surface p-[18px]">
+      <h3 className="font-display mb-1.5 text-[15px] font-medium text-white/55">
+        {title} <span className="text-white/35">{jobs.length || ""}</span>
+      </h3>
+      {jobs.length ? (
+        <div className="divide-y divide-white/[0.07]">
+          {jobs.map((j) => (
+            <Link key={j.id} href={`/app/jobs/${j.id}`} className="flex items-center gap-3 px-1.5 py-3 hover:bg-white/[0.02]">
+              <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-white">{j.title}</p>
+                <p className="text-xs text-white/55">
+                  {j.company} · {Math.round(j.matchScore)}% match
+                </p>
+              </div>
+              <span className="inline-flex items-center gap-1 text-xs text-rose">
+                {j.status === "applied" ? "Applied" : j.status === "saved" ? "Apply" : "View"}
+                {j.status === "saved" && <ArrowUpRight className="size-3.5" />}
+              </span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <p className="px-1.5 py-2.5 text-[13px] text-white/35">{empty}</p>
+      )}
+    </div>
   );
 }

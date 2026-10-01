@@ -123,6 +123,15 @@ export const jobs = pgTable(
     whyFit: text("why_fit").notNull(),
     gaps: jsonb("gaps").$type<string[]>().notNull(),
     companyNotes: text("company_notes"),
+    // Company facts for the job card: website (for the logo), stage, size, industry, perks.
+    companyDomain: text("company_domain"),
+    companyStage: text("company_stage"),
+    companySize: text("company_size"),
+    industry: text("industry"),
+    perks: jsonb("perks").$type<string[]>(),
+    // Two short "why you" lines for the card, and whether the pay is the Mind's estimate.
+    highlights: jsonb("highlights").$type<string[]>(),
+    salaryEstimated: boolean("salary_estimated").notNull().default(false),
     // Quality evidence from the Mind: the posting's own location/eligibility line, its
     // must-have requirements checked against the resume, and when it last saw it open.
     locationText: text("location_text"),

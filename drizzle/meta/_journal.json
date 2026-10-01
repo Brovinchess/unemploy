@@ -43,6 +43,13 @@
       "when": 1790821997787,
       "tag": "0005_user_email",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790825513963,
+      "tag": "0006_job_cards",
+      "breakpoints": true
     }
   ]
 }

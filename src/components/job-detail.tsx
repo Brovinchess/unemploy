@@ -5,7 +5,7 @@ import type { Job } from "@/db/schema";
 import { CopyBlock } from "./copy-block";
 import { JobActions } from "./job-actions";
 import { JobTags, linkSource, MatchBadge, postedAgo } from "./job-card";
-import { CompanyMark } from "./logo";
+import { CompanyLogo } from "./company-logo";
 
 const STATUS_NOTE: Partial<Record<string, string>> = {
   applied: "You applied for this job.",
@@ -26,7 +26,7 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
     <article className="card overflow-hidden">
       <div className="border-b border-line p-6">
         <div className="flex items-start gap-4">
-          <CompanyMark name={job.company} size="lg" />
+          <CompanyLogo name={job.company} domain={job.companyDomain} size="lg" />
           <div className="min-w-0 flex-1">
             <p className="text-muted">{job.company}</p>
             <h1 className="font-display text-2xl font-medium leading-tight tracking-tight text-ink">{job.title}</h1>

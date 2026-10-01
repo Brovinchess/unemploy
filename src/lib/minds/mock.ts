@@ -129,6 +129,12 @@ async function runMockHunt(alias: string) {
       whyFit: `Your experience lines up with what ${company.name} asks for. In particular: "${e1}"`,
       gaps: i % 2 ? ["The posting prefers someone who has managed a team; your resume doesn't show that yet."] : [],
       companyNotes: company.notes,
+      companyWebsite: `${company.name.toLowerCase().replace(/[^a-z]+/g, "")}.com`,
+      companyStage: ["Series A", "Series B", "Profitable", "Public"][i % 4],
+      companySize: ["~50 people", "~200 people", "~1,000 people"][i % 3],
+      industry: ["Fintech", "HealthTech", "Travel", "Logistics", "EdTech", "Design"][i % 6],
+      perks: ["Flexible hours", "Learning budget", "Remote-friendly"].slice(0, 2 + (i % 2)),
+      highlights: [`Your experience matches what ${company.name} asks for`, "Your level fits the role"],
       locationText: setting === "remote" ? "Remote — we hire worldwide" : `${prefs.city || prefs.country}, ${prefs.country}`,
       mustHaves: [
         { requirement: `Experience as a ${role}`, met: true },

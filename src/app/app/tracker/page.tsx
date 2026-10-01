@@ -6,10 +6,10 @@ import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { MoveJob } from "./move-job";
-import { CompanyMark } from "@/components/logo";
+import { CompanyLogo } from "@/components/company-logo";
 
 const COLUMNS: { status: JobStatus; label: string }[] = [
-  { status: "saved", label: "Saved" },
+  { status: "saved", label: "To apply" },
   { status: "applied", label: "Applied" },
   { status: "heard_back", label: "Heard back" },
   { status: "interview", label: "Interview" },
@@ -62,10 +62,10 @@ export default async function Tracker({ searchParams }: PageProps<"/app/tracker"
                         j.status === "applied" && j.statusChangedAt && Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
                       return (
                         <li key={j.id} className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-4">
-                          <CompanyMark name={j.company} size="sm" />
+                          <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
                           <div className="min-w-0 flex-1">
                             <Link
-                              href={`/app?profile=${j.profileId}&job=${j.id}`}
+                              href={`/app/jobs/${j.id}`}
                               className="font-display font-medium text-white hover:underline hover:decoration-mist hover:underline-offset-4"
                             >
                               {j.title}
