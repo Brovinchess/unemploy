@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
+import { SAME_ROLE_DAYS } from "./dedupe";
 import { askPersonalMind } from "./personal";
 import { mindsConfig } from "./minds/config";
 
@@ -18,11 +19,27 @@ export function isSearching(p: SearchFields, now = Date.now()) {
   return !!p.searchStartedAt && !p.searchEndedAt && now - p.searchStartedAt.getTime() < SEARCH_TIMEOUT_MS;
 }
 
-export function searchRequestText(username: string, jobs: number, n: number, focus?: string) {
+// The user's recent jobs, so the Mind skips them instead of researching them again.
+export async function alreadySentList(userId: string, limit = 80) {
+  const rows = await db
+    .select({ company: schema.jobs.company, title: schema.jobs.title })
+    .from(schema.jobs)
+    .innerJoin(schema.profiles, eq(schema.jobs.profileId, schema.profiles.id))
+    .where(and(eq(schema.profiles.userId, userId), gte(schema.jobs.createdAt, new Date(Date.now() - SAME_ROLE_DAYS * 86_400_000))))
+    .orderBy(desc(schema.jobs.createdAt))
+    .limit(limit);
+  return rows.map((r) => `${r.company}: ${r.title}`);
+}
+
+export function searchRequestText(username: string, jobs: number, n: number, focus?: string, alreadySent: string[] = []) {
+  const skip = alreadySent.length
+    ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `
+    : "";
   return (
     `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
+    skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `If you can't reach that address, reply once to say so, then stop: don't keep retrying or searching. ` +
     `Then stop and wait for my next request. (${new Date().toISOString()})`

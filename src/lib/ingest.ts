@@ -1,8 +1,9 @@
 import "server-only";
-import { and, count, eq, gte, ne } from "drizzle-orm";
+import { and, count, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
+import { SAME_ROLE_DAYS, SeenJobs } from "./dedupe";
 import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
 import { queueQuestions } from "./personal";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
@@ -283,6 +284,15 @@ async function checkAndSave(
     .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, searchStart)));
   let remaining = Math.max(0, prefs.jobsPerDay - n);
 
+  // Every job this user has been sent, to recognise repeats.
+  const sent = await db
+    .select({ url: schema.jobs.url, company: schema.jobs.company, title: schema.jobs.title, createdAt: schema.jobs.createdAt, profileId: schema.jobs.profileId })
+    .from(schema.jobs)
+    .innerJoin(schema.profiles, eq(schema.jobs.profileId, schema.profiles.id))
+    .where(eq(schema.profiles.userId, profile.userId));
+  const mine = new SeenJobs(sent.filter((j) => j.profileId === profile.id));
+  const others = new SeenJobs(sent.filter((j) => j.profileId !== profile.id));
+
   const rejected: Rejection[] = [];
   const adjusted: { url: string; note: string }[] = [];
   const sentToday = new Map<string, number>(); // company -> accepted in this push
@@ -312,24 +322,24 @@ async function checkAndSave(
       continue;
     }
 
-    const existing = await db.query.jobs.findFirst({
-      where: and(eq(schema.jobs.profileId, profile.id), eq(schema.jobs.url, job.url)),
-      columns: { id: true },
-    });
-    if (existing) {
-      rejected.push({ url: job.url, code: "duplicate", hint: "Already sent. Only send new jobs." });
+    // The same posting can come back under another link (tracking, old and new job-board
+    // addresses, "/apply") or as the same role at the same company.
+    const repeat = mine.match(job);
+    if (repeat) {
+      rejected.push({
+        url: job.url,
+        code: "duplicate",
+        hint:
+          repeat === "link"
+            ? "Already sent. Only send new jobs."
+            : `You sent "${job.title}" at ${job.company} in the last ${SAME_ROLE_DAYS} days. Only send new jobs.`,
+      });
       continue;
     }
 
     // The same user may run several headhunters with overlapping searches; show each
     // posting once, in whichever shortlist got it first.
-    const elsewhere = await db
-      .select({ id: schema.jobs.id })
-      .from(schema.jobs)
-      .innerJoin(schema.profiles, eq(schema.jobs.profileId, schema.profiles.id))
-      .where(and(eq(schema.profiles.userId, profile.userId), ne(schema.jobs.profileId, profile.id), eq(schema.jobs.url, job.url)))
-      .limit(1);
-    if (elsewhere.length) {
+    if (others.match(job)) {
       rejected.push({
         url: job.url,
         code: "found_by_other_headhunter",
@@ -379,6 +389,7 @@ async function checkAndSave(
 
     remaining--;
     accepted++;
+    mine.add({ url: job.url, company: job.company, title: job.title, createdAt: new Date() });
     if (dryRun) continue;
 
     const id = crypto.randomUUID();

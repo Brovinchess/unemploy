@@ -108,6 +108,8 @@ REPLY
          found_by_other_headhunter, company_limit, search_limit, job_closed, bad_url, paused,
          no_search_requested
   Fix what each hint says. Do not resend accepted jobs.
+  duplicate also covers the same posting under another link (tracking parameters, old and new
+  job-board addresses) and the same title at the same company within 60 days.
   skippedRecently lists jobs the user skipped and why. Avoid similar jobs.
 
 When remaining is 0, the search is complete: stop and wait for the next request.`;
