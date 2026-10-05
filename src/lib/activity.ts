@@ -48,6 +48,8 @@ const REJECTION_LABELS: Record<string, string> = {
   company_avoided: "company you avoid",
   bad_url: "bad link",
   bad_job: "incomplete details",
+  below_salary: "pays below your floor",
+  paused: "sent while paused",
 };
 
 // Minds sometimes reply with HTML (<b>, <br>); show it as plain text.
