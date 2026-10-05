@@ -26,6 +26,8 @@ export function toCard(job: Job): CardJob {
     industry: job.industry,
     perks: job.perks ?? [],
     highlights: job.highlights?.length ? job.highlights : [firstSentence(job.whyFit)],
+    summary: job.summary,
+    questions: job.formQuestions?.length ?? 0,
     gaps: job.gaps,
     mustHaves: job.mustHaves ?? [],
     posted: postedAgo(job.postedAt)?.text ?? null,

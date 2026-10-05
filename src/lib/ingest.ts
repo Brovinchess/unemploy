@@ -36,6 +36,7 @@ const jobSchema = z.object({
   industry: z.string().trim().max(80).optional(),
   perks: z.array(z.string().trim().min(2).max(60)).max(6).optional(),
   highlights: z.array(z.string().trim().min(5).max(160)).min(1).max(3), // shown before the company is revealed
+  summary: z.string().trim().min(10).max(200).optional(), // "what you'd do", one line
   salaryEstimated: z.boolean().optional(),
   // Evidence the Mind must bring from the posting itself.
   locationText: z.string().trim().min(3).max(400),
@@ -416,6 +417,7 @@ async function checkAndSave(
       industry: job.industry,
       perks: job.perks ?? [],
       highlights: job.highlights,
+      summary: job.summary ?? null,
       formQuestions: job.formQuestions ?? null,
       salaryEstimated: !!job.salary && !!job.salaryEstimated,
       locationText: job.locationText,

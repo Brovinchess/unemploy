@@ -153,6 +153,7 @@ async function runMockHunt(alias: string) {
       industry: ["Fintech", "HealthTech", "Travel", "Logistics", "EdTech", "Design"][i % 6],
       perks: ["Flexible hours", "Learning budget", "Remote-friendly"].slice(0, 2 + (i % 2)),
       highlights: [`Your experience matches what ${company.name} asks for`, "Your level fits the role"],
+      summary: `Own the ${role.toLowerCase()} roadmap for ${company.name}'s core product, working with design and engineering.`,
       locationText: setting === "remote" ? "Remote — we hire worldwide" : `${prefs.city || prefs.country}, ${prefs.country}`,
       mustHaves: [
         { requirement: `Experience as a ${role}`, met: true },

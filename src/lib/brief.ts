@@ -46,7 +46,7 @@ WRITING RULES
 - Every fact about me in the cover letter, about me and answers must come from a "claims" entry whose "evidence" quotes my resume word for word. If you can't quote it, leave it out. No flourishes ("senior scope", "API-first is native to me").
 - Keep each fact with the job, company and project it belongs to on my resume. Don't move numbers or duties between roles.
 - Tailor each letter to that posting's own requirements; don't reuse the same paragraph for every job.
-- For the job card: the company's own website ("companyWebsite"), its stage and size, industry and perks when you can find them, and 2 short "highlights" on why I fit (under 15 words each, never naming the company: they show before the company is revealed). If the posting shows no pay you may estimate it from reliable sources; set "salaryEstimated": true.
+- For the job card: a one-line "summary" of what the job actually is, the company's own website ("companyWebsite"), its stage and size, industry and perks when you can find them, and 2 short "highlights" on why I fit (under 15 words each, never naming the company: they show before the company is revealed). If the posting shows no pay you may estimate it from reliable sources; set "salaryEstimated": true.
 - Write whyFit, gaps and companyNotes to me as "you". Company notes only from the posting or the company's own site; if unsure, leave it out.
 - Say honestly in "gaps" where I fall short, including years of experience and time-zone overlap.
 
@@ -85,6 +85,8 @@ JOB fields
   industry      optional  e.g. "Fintech · Payments"
   perks         optional  up to 6 short perks from the posting, e.g. ["Fully remote","Learning budget"]
   highlights    required  1–3 short reasons the user fits, each under 15 words
+  summary       recommended one plain line on what the job is, from the posting, under 25 words
+                          e.g. "Own the onboarding flow for a payments app used by 2M people"
   salaryEstimated optional true when "salary" is your estimate rather than the posting's
   locationText  required  the posting's location/eligibility line, copied word for word
   mustHaves     required  [{"requirement":"5+ years of product management","met":false}, ...]

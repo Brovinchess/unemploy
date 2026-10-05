@@ -4,8 +4,11 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import {
   ArrowUpRight,
+  Banknote,
+  BadgeCheck,
   Check,
   Clock,
+  MapPin,
   RefreshCw,
   Sparkles,
   X,
@@ -31,6 +34,8 @@ export type CardJob = {
   industry: string | null;
   perks: string[];
   highlights: string[];
+  summary: string | null; // what you'd do
+  questions: number; // questions on its application form
   gaps: string[];
   mustHaves: { requirement: string; met: boolean }[];
   posted: string | null; // "15 days ago"
@@ -251,17 +256,6 @@ function TopCard({
   );
 }
 
-function Pay({ job }: { job: CardJob }) {
-  return job.salary ? (
-    <div className="mt-[18px]">
-      <p className="font-display text-[30px] font-semibold leading-tight tracking-tight">{job.salary}</p>
-      <p className="text-[13px] text-white/55">{job.salaryEstimated ? "Estimate, not from the posting" : "From the posting"}</p>
-    </div>
-  ) : (
-    <p className="font-display mt-[18px] text-[22px] font-semibold text-white/55">Pay not listed</p>
-  );
-}
-
 function Reasons({ items, bad = false, clamp = false }: { items: string[]; bad?: boolean; clamp?: boolean }) {
   return (
     <ul className="grid gap-2 text-[13.5px] leading-relaxed text-white/80">
@@ -309,36 +303,76 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
   );
 }
 
+// What a job seeker decides on, in the order they decide: do I want it (title), is it
+// worth it and can I work it (pay and place, highlighted), can I get it (requirements met),
+// is it real (fresh, checked open). Detail follows for those who scroll.
 function Back({ job }: { job: CardJob }) {
+  const met = job.mustHaves.filter((m) => m.met).length;
+  const company = [job.industry, [job.stage, job.size].filter(Boolean).join(" · ")].filter(Boolean);
   return (
     <div className="deck-face deck-back">
       <div className="deck-stamp yes">APPLY</div>
       <div className="deck-stamp no">NOPE</div>
       <div className="px-6 pt-6">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.06] px-2.5 py-1.5 text-xs font-medium text-white/55">
-            <Clock className="size-3.5" /> {job.posted ? `Posted ${job.posted}` : "Post date not shown"}
-          </span>
-          <span className="rounded-full bg-coral/15 px-2.5 py-1.5 text-xs font-medium text-rose">{Math.round(job.match)}% match</span>
-        </div>
-        <div className="deck-pop mt-5 flex items-center gap-3.5">
+        <div className="deck-pop flex items-center gap-3.5">
           <CompanyLogo name={job.company} domain={job.domain} size="lg" />
           <div className="min-w-0">
-            <p className="font-display text-xl font-semibold leading-tight">{job.title}</p>
-            <p className="mt-1 text-[13px] text-white/55">{[job.company, job.industry].filter(Boolean).join(" · ")}</p>
+            <p className="font-display text-[21px] font-semibold leading-tight">{job.title}</p>
+            <p className="mt-1 text-[13px] text-white/55">{job.company}</p>
             {job.headhunter && <p className="mt-1 text-[11px] uppercase tracking-wider text-white/35">Found by {job.headhunter}</p>}
           </div>
         </div>
-        <Pay job={job} />
-      </div>
-      <div className="no-scrollbar mt-3.5 flex-1 overflow-y-auto px-6">
-        <div className="flex flex-wrap gap-1.5">
-          {[job.where, job.jobType, job.level, [job.stage, job.size].filter(Boolean).join(" · ")].filter(Boolean).map((c) => (
-            <span key={c} className="rounded-[10px] border border-white/[0.07] bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] text-white/80">
-              {c}
-            </span>
-          ))}
+
+        {/* The two deal-breakers, side by side */}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${job.salary ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/50"}`}>
+            <Banknote className="size-4" aria-hidden />
+            {job.salary ?? "Pay not listed"}
+            {job.salary && job.salaryEstimated && <span className="font-normal text-rose/70">· est.</span>}
+          </span>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 text-[13px] font-medium text-white/85 ring-1 ring-white/10">
+            <MapPin className="size-4 text-coral" aria-hidden />
+            {job.where}
+          </span>
         </div>
+
+        {/* Can I get it? */}
+        {job.mustHaves.length > 0 && (
+          <div className="mt-4">
+            <div className="flex items-baseline justify-between text-[13px]">
+              <span className="text-white/85">
+                You meet <b className="font-semibold text-white">{met} of {job.mustHaves.length}</b> requirements
+              </span>
+              <span className="text-[11px] text-white/35">{Math.round(job.match)}% match</span>
+            </div>
+            <div className="mt-1.5 flex gap-1" aria-hidden>
+              {job.mustHaves.map((m, i) => (
+                <span key={i} className={`h-1.5 flex-1 rounded-full ${m.met ? "bg-coral" : "bg-white/10"}`} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Quick facts */}
+        <div className="mt-3.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/50">
+          {[job.level, job.jobType].filter(Boolean).length > 0 && <span>{[job.level, job.jobType].filter(Boolean).join(" · ")}</span>}
+          <span className="inline-flex items-center gap-1">
+            <Clock className="size-3.5" aria-hidden /> {job.posted ? `Posted ${job.posted}` : "Post date not shown"}
+          </span>
+          {job.verified && (
+            <span className="inline-flex items-center gap-1 text-white/70">
+              <BadgeCheck className="size-3.5 text-coral" aria-hidden /> Checked open
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="no-scrollbar mt-1 flex-1 overflow-y-auto px-6">
+        {job.summary && (
+          <Section title="What you'd do">
+            <p className="text-[13.5px] leading-relaxed text-white/80">{job.summary}</p>
+          </Section>
+        )}
         <Section title="Why you">
           <Reasons items={job.highlights} />
         </Section>
@@ -364,6 +398,11 @@ function Back({ job }: { job: CardJob }) {
             </div>
           </Section>
         )}
+        {company.length > 0 && (
+          <Section title="The company">
+            <p className="text-[13px] text-white/70">{company.join(" · ")}</p>
+          </Section>
+        )}
         {job.perks.length > 0 && (
           <Section title="Perks">
             <div className="flex flex-wrap gap-1.5">
@@ -377,9 +416,12 @@ function Back({ job }: { job: CardJob }) {
         )}
         <div className="h-4" />
       </div>
+
       <div className="px-6 pb-6 pt-3">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-coral/25 bg-coral/10 px-4 py-3.5 text-[13px]">
-          <span>Cover letter &amp; answers ready, all from your resume</span>
+          <span>
+            Ready to apply: cover letter{job.questions ? ` and ${job.questions} form ${job.questions === 1 ? "question" : "questions"}` : " and answers"}
+          </span>
           <Link href={`/app/jobs/${job.id}`} className="inline-flex shrink-0 items-center gap-1 text-rose hover:text-white">
             Open <ArrowUpRight className="size-3.5" />
           </Link>

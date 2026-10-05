@@ -78,6 +78,13 @@
       "when": 1790831636263,
       "tag": "0010_personal_mind",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1791183547225,
+      "tag": "0011_job_summary",
+      "breakpoints": true
     }
   ]
 }

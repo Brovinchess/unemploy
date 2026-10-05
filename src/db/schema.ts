@@ -177,6 +177,8 @@ export const jobs = pgTable(
     perks: jsonb("perks").$type<string[]>(),
     // Two short "why you" lines for the card, and whether the pay is the Mind's estimate.
     highlights: jsonb("highlights").$type<string[]>(),
+    // One line on what the job actually is, in plain words ("Own the onboarding flow for…").
+    summary: text("summary"),
     formQuestions: jsonb("form_questions").$type<FormQuestion[]>(),
     salaryEstimated: boolean("salary_estimated").notNull().default(false),
     // Quality evidence from the Mind: the posting's own location/eligibility line, its
