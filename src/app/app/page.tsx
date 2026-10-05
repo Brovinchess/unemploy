@@ -124,7 +124,15 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         )}
 
         {/* While a search runs: one compact progress bar, above any jobs already in. */}
-        {searching && <HuntProgress profileId={current.id} mindName={current.mindName ?? "Your headhunter"} jobsPerDay={perSearch} live />}
+        {searching && (
+          <HuntProgress
+            profileId={current.id}
+            mindName={current.mindName ?? "Your headhunter"}
+            jobsPerDay={perSearch}
+            startedAt={current.searchStartedAt?.toISOString() ?? null}
+            live
+          />
+        )}
 
         {fresh.length > 0 && <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={<>{applyAll}{searchButton(true)}</>} />}
 

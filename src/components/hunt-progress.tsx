@@ -6,6 +6,34 @@ import { Check, ChevronDown } from "lucide-react";
 import { Ninja } from "./brand";
 import { ActivityList, LiveDot, useActivity } from "./activity-feed";
 
+// What the headhunter last said during this search, without its "SEARCH REQUEST #3 - progress:"
+// preamble, and the most jobs it has said it checked ("4 roles fully verified"). Its own
+// words, so the bar matches the activity log even before any job is sent.
+function fromMessages(items: { kind: string; at: string; detail?: string }[], since: string | null) {
+  const said = items.filter((i) => i.kind === "said" && i.detail && (!since || i.at >= since));
+  const latest = said[0];
+  const text = latest?.detail
+    ?.replace(/^\s*search request\s*#?\d*[^:]*:\s*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const line = text ? (text.match(/^.+?[.!?](\s|$)/)?.[0] ?? text).trim().slice(0, 140) : null;
+  let checked = 0;
+  for (const s of said) {
+    for (const m of s.detail!.matchAll(/(\d+)\s+(?:[\w-]+\s+){0,3}?(?:roles?|jobs?|candidates?|postings?)\s+(?:[\w-]+\s+){0,2}?(?:verified|vetted|checked|pass(?:ed|ing)?|ready)/gi)) {
+      checked = Math.max(checked, Number(m[1]));
+    }
+    for (const m of s.detail!.matchAll(/(\d+)\s+(?:[\w-]+\s+){0,2}?(?:verified|vetted|checked)\s+(?:roles?|jobs?|candidates?|postings?)/gi)) {
+      checked = Math.max(checked, Number(m[1]));
+    }
+  }
+  return { line, at: latest?.at ?? null, checked };
+}
+
+function ago(iso: string) {
+  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
+  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ago`;
+}
+
 // A search in progress, as one compact bar: "Searching… found 3 of 20" with a progress
 // bar. The steps and the headhunter's activity log open underneath on request.
 export function HuntProgress({
@@ -13,11 +41,13 @@ export function HuntProgress({
   mindName,
   jobsPerDay,
   live,
+  startedAt = null,
 }: {
   profileId: string;
   mindName: string;
   jobsPerDay: number;
   live: boolean;
+  startedAt?: string | null;
 }) {
   const data = useActivity(profileId, live);
   const [open, setOpen] = useState(false);
@@ -38,6 +68,8 @@ export function HuntProgress({
   const steps = raw.map((st, i) => ({ ...st, done: i <= last }));
   const current = steps.findIndex((st) => !st.done);
   const now = steps[current === -1 ? steps.length - 1 : current];
+  const said = fromMessages(data?.items ?? [], startedAt);
+  const waiting = Math.max(0, said.checked - found);
 
   return (
     <section className="mb-6 rounded-3xl bg-surface" aria-label="Search progress">
@@ -51,6 +83,7 @@ export function HuntProgress({
               <span className="text-white/55">
                 found <b className="font-semibold text-white">{found}</b> of {jobsPerDay}
               </span>
+              {waiting > 0 && <span className="text-xs font-normal text-coral">· {waiting} more checked, not sent yet</span>}
             </p>
             <p className="truncate text-xs text-white/45">
               {current === -1 && live ? "Finding more jobs" : now.label}
@@ -63,6 +96,11 @@ export function HuntProgress({
               style={found ? { width: `${Math.max(4, Math.min(100, (found / jobsPerDay) * 100))}%` } : undefined}
             />
           </div>
+          {said.line && (
+            <p className="mt-2 truncate text-[12.5px] text-white/60" title={said.line}>
+              <span className="text-white/40">Latest:</span> {said.line} <span className="text-white/35">· {ago(said.at!)}</span>
+            </p>
+          )}
         </div>
         <button
           onClick={() => setOpen((o) => !o)}
