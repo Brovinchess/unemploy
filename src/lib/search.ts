@@ -31,7 +31,10 @@ export async function alreadySentList(userId: string, limit = 80) {
   return rows.map((r) => `${r.company}: ${r.title}`);
 }
 
-export function searchRequestText(username: string, jobs: number, n: number, focus?: string, alreadySent: string[] = []) {
+export function searchRequestText(username: string, jobs: number, n: number, focus?: string, alreadySent: string[] = [], payFloor?: string) {
+  const pay = payFloor
+    ? `Pay floor: ${payFloor}. A posted range passes if its top reaches it; skip jobs whose whole posted range is below it; jobs without posted pay are fine. `
+    : "";
   const skip = alreadySent.length
     ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `
     : "";
@@ -39,6 +42,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
     `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". Mark your last push with "final": true (if you found none, POST {"jobs":[],"final":true}). ` +
+    pay +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `If you can't reach that address, reply once to say so, then stop: don't keep retrying or searching. ` +

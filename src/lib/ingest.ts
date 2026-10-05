@@ -4,7 +4,8 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { SAME_ROLE_DAYS, SeenJobs } from "./dedupe";
-import { avoidList, MAX_POSTING_AGE_DAYS } from "./preferences";
+import { clearlyBelow, floorOf } from "./pay";
+import { avoidList, MAX_POSTING_AGE_DAYS, salaryLabel } from "./preferences";
 import { queueQuestions } from "./personal";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
@@ -148,6 +149,17 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
       url: job.url,
       code: "wrong_country",
       hint: `Job must be in ${prefs.country} (got "${job.country ?? "missing"}"). Always send "country" as the full country name.`,
+    };
+  }
+
+  // Pay is a floor: a posted range passes if its top reaches it. Only pay the posting
+  // states is held to it, and only when it's clearly below.
+  const floor = floorOf(prefs);
+  if (!job.salaryEstimated && floor && clearlyBelow(job.salary, floor)) {
+    return {
+      url: job.url,
+      code: "below_salary",
+      hint: `Posted pay "${job.salary}" is below the user's floor of ${salaryLabel(floor)}. Skip jobs whose whole range is under it.`,
     };
   }
 

@@ -63,6 +63,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
               jobTypes: prefsSource.jobTypes,
               levels: prefsSource.levels,
               minSalary: prefsSource.minSalary,
+              salary: prefsSource.salary,
               avoidCompanies: prefsSource.avoidCompanies,
               needsVisa: prefsSource.needsVisa,
               jobsPerDay: prefsSource.jobsPerDay,

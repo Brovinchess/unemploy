@@ -1,5 +1,6 @@
 import type { Preferences } from "./preferences";
-import { avoidList, MAX_POSTING_AGE_DAYS, REMOTE_SCOPES, workSettingLabel } from "./preferences";
+import { floorOf } from "./pay";
+import { avoidList, MAX_POSTING_AGE_DAYS, REMOTE_SCOPES, salaryLabel, workSettingLabel } from "./preferences";
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -31,14 +32,14 @@ WHAT I WANT
 - Roles: ${prefs.targetRoles}
 - I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.join(", ")}.
-- Minimum salary: ${prefs.minSalary || "not set"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
+- Pay: ${floorOf(prefs) ? `at least ${salaryLabel(floorOf(prefs)!)}. It's a floor, not a target: a posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Skip jobs whose whole posted range is below it. Jobs that don't show pay are fine.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
 2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${MAX_POSTING_AGE_DAYS} days ago.
 3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
-4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary". If it's clearly below my minimum, skip it.
+4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "MYR 6,000–8,000 a month"). If its whole range is below my pay floor, skip it.
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
 6. At most 2 roles per company per day. Look at the company's other openings and pick the one that fits me best.
 
@@ -73,7 +74,7 @@ JOB fields
   workSetting   required  "onsite" | "hybrid" | "remote"
   jobType       optional  e.g. "Full-time"
   level         optional  e.g. "Mid-Senior"
-  salary        required when the posting shows pay; as posted, with currency
+  salary        required when the posting shows pay; as posted, with currency and period, e.g. "MYR 6,000–8,000 a month"
   postedAt      ISO date from the posting; required when shown. Over ${MAX_POSTING_AGE_DAYS} days old is refused
   matchScore    required  0–100, how well the user fits; 55 or lower if any must-have is not met
   whyFit        required  2–3 plain sentences
@@ -107,7 +108,7 @@ REPLY
   {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}]}
   codes: bad_job, not_employer_link, not_verified, not_eligible, poor_fit, work_setting_not_wanted,
          wrong_country, company_avoided, claim_not_in_resume, stale_posting, duplicate,
-         found_by_other_headhunter, company_limit, search_limit, job_closed, bad_url, paused,
+         found_by_other_headhunter, company_limit, search_limit, job_closed, bad_url, paused, below_salary,
          no_search_requested
   Fix what each hint says. Do not resend accepted jobs.
   duplicate also covers the same posting under another link (tracking parameters, old and new
