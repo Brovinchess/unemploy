@@ -93,6 +93,7 @@ export async function askNow(): Promise<PersonalState> {
   try {
     const r = await askPersonalMind(user.id);
     done();
+    if (r.unreachable) return { error: "Your personal Mind couldn't reach this app, so nothing was sent. If you're running locally, check the tunnel is up." };
     if (r.busy) return { ok: "It's still answering your last batch." };
     if (!r.sent && !r.taught) return { ok: "Nothing new to ask." };
     return { ok: r.sent ? `Sent ${r.sent} ${r.sent === 1 ? "question" : "questions"}. Answers usually arrive within a few minutes.` : "Sent your latest answers for it to remember." };

@@ -9,7 +9,7 @@
     "lint": "eslint",
     "db:local": "mkdir -p data && pglite-server --db=./data/pglite --port=5433 --max-connections=10",
     "db:migrate": "drizzle-kit migrate",
-    "tunnel": "cloudflared tunnel --no-autoupdate --url http://localhost:3000",
+    "tunnel": "sh scripts/tunnel.sh",
     "ext:zip": "rm -rf .ext-build public/career-ninja-extension.zip && mkdir -p .ext-build && cp -R extension .ext-build/career-ninja-extension && cd .ext-build && zip -qr ../public/career-ninja-extension.zip career-ninja-extension -x '*.DS_Store' && cd .. && rm -rf .ext-build",
     "ext:store": "node store/build.mjs"
   },

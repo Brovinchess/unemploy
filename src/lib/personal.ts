@@ -7,6 +7,7 @@ import type { FormQuestion, PackAnswer, User } from "@/db/schema";
 import { mergeAnswers, questionKey, sensitiveQuestion } from "./extension";
 import { minds } from "./minds/client";
 import { mindsConfig } from "./minds/config";
+import { ingestReachable } from "./search";
 
 // The personal Mind is a second Mind that only learns about the person. The headhunter
 // reads each job's application form and sends its questions; the ones about the person
@@ -117,7 +118,7 @@ function questionsText(username: string, teach: { question: string; answer: stri
   const list = qs.length
     ? `QUESTIONS from job application forms:\n${qs
         .map((q) => `- id ${q.id}: ${q.question}${q.options?.length ? `\n  choices: ${q.options.map((o) => `"${o}"`).join(", ")}` : ""}`)
-        .join("\n")}\n\nAnswer them as your brief says (null when unsure) and POST to ${mindsConfig.ingestUrl}/api/personal with your key. Then stop.`
+        .join("\n")}\n\nAnswer them as your brief says (null when unsure) and POST to ${mindsConfig.ingestUrl}/api/personal with your key (use this address even if your brief says another). If you can't reach it, reply once to say so and stop; don't keep retrying. Then stop.`
     : "No questions this time. Just remember the above, then stop.";
   return `${username} here.\n\n${remember}${list} (${new Date().toISOString()})`;
 }
@@ -143,6 +144,7 @@ export async function askPersonalMind(userId: string, opts: { teachOnly?: boolea
   const teach = (user.savedAnswers ?? []).filter((s) => s.updatedAt > since).slice(0, 60);
   if (!qs.length && !teach.length) return { sent: 0 };
 
+  if (mindsConfig.ingestUrl.startsWith("https://") && !(await ingestReachable())) return { sent: 0, unreachable: true };
   const api = minds(user);
   const now = new Date();
   if (qs.length) {

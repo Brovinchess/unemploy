@@ -16,7 +16,7 @@ import { ownedJob, ownedProfile } from "@/lib/owned";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { endSearch, isSearching, searchRequestText, switchOff } from "@/lib/search";
+import { endSearch, ingestReachable, isSearching, searchRequestText, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 
 export type FormState = { error?: string } | undefined;
@@ -341,6 +341,9 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
   if (isSearching(profile)) return;
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
     return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel)." };
+  }
+  if (mindsMode === "live" && !(await ingestReachable())) {
+    return { error: `Your headhunter couldn't reach ${mindsConfig.ingestUrl}, so it wasn't started. If you're running locally, check the tunnel is up.` };
   }
   const api = minds(user);
   try {
