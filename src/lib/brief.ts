@@ -25,8 +25,8 @@ HOW WE WORK
 - For each request:
   1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
   2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and answers to the form's questions about the job or company (like "Why us?").
-  3. POST them to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}". Test first with ?dry_run=1.
-  4. Mark your last push with "final": true. If you found nothing good, POST {"jobs":[],"final":true}. Then stop.
+  3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Test the format first with ?dry_run=1.
+  4. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -63,6 +63,7 @@ export function buildContract(appUrl: string) {
 POST ${appUrl}/api/ingest            (add ?dry_run=1 to validate without saving)
 Header: x-unemploy-key: <the key from your brief>
 Body: {"jobs":[JOB, ...], "final": true|false}  (0–50 jobs; "final": true on the last push of a search)
+Send each job as soon as it passes every check (one per push is fine) so the user sees it straight away. Don't hold jobs for one batch at the end.
 Only send during a search the user requested (a "SEARCH REQUEST" message). Other pushes are refused.
 
 JOB fields
