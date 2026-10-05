@@ -89,6 +89,8 @@ function describeOwnMessage(text: string, first: boolean) {
   if (text.startsWith("SEARCH REQUEST")) return "You asked for a new search";
   if (text.startsWith("This replaces my earlier brief")) return "Your updated preferences were sent";
   if (text.includes("updated my resume")) return "Your new resume was sent";
+  if (text.includes("about the search you're running")) return "You asked for the jobs found so far";
+  if (text.includes("endpoint moved")) return "Career Ninja sent its new address";
   if (first || text.includes("/api/ingest")) return "Your brief and resume were sent";
   return "Career Ninja sent a note";
 }

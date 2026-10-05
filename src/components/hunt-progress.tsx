@@ -66,9 +66,11 @@ export function HuntProgress({
   // A later step done means the earlier ones are too (usage numbers can lag behind).
   const last = raw.map((st) => st.done).lastIndexOf(true);
   const steps = raw.map((st, i) => ({ ...st, done: i <= last }));
+  const said = fromMessages(data?.items ?? [], startedAt);
+  // Jobs it says it has checked mean the searching step is over, even before any is sent.
+  if (said.checked > 0) for (let i = 0; i <= 2; i++) steps[i].done = true;
   const current = steps.findIndex((st) => !st.done);
   const now = steps[current === -1 ? steps.length - 1 : current];
-  const said = fromMessages(data?.items ?? [], startedAt);
   const waiting = Math.max(0, said.checked - found);
 
   return (
