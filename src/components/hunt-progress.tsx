@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { sendFoundSoFar } from "@/app/actions";
 import { Check, ChevronDown } from "lucide-react";
 import { Ninja } from "./brand";
 import { ActivityList, LiveDot, useActivity } from "./activity-feed";
@@ -20,6 +21,8 @@ export function HuntProgress({
 }) {
   const data = useActivity(profileId, live);
   const [open, setOpen] = useState(false);
+  const [asking, startAsk] = useTransition();
+  const [asked, setAsked] = useState<string>();
   const s = data?.stats;
   const found = s?.jobsAdded ?? 0;
 
@@ -77,6 +80,23 @@ export function HuntProgress({
               <span className="font-mono text-white/80">{mindName}</span> is on it. A search usually takes under an hour; you can
               close this page.
             </p>
+            {live && (
+              <div className="mt-3">
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={asking || !!asked}
+                  onClick={() =>
+                    startAsk(async () => {
+                      const r = await sendFoundSoFar(profileId);
+                      setAsked(r?.error ?? "Asked. Jobs it has already checked will show up here in a few minutes.");
+                    })
+                  }
+                >
+                  {asking ? "Asking…" : "Send me what you've found so far"}
+                </button>
+                {asked && <p className="mt-2 text-xs text-white/50">{asked}</p>}
+              </div>
+            )}
             <ol className="mt-4 space-y-2.5">
               {steps.map((st, i) => {
                 const active = i === current;
