@@ -209,11 +209,22 @@ export function isPublicHttpUrl(raw: string) {
 }
 
 
-export async function processPush(
+export async function processPush(profile: Profile, body: unknown, opts: { dryRun?: boolean; demo?: boolean } = {}): Promise<PushResult> {
+  const result = await checkAndSave(profile, body, opts);
+  // Pushes refused before any job was looked at are logged too: the log is where to look
+  // when a headhunter goes quiet.
+  if (!result.logged) {
+    await db.insert(schema.ingestLog).values({ profileId: profile.id, accepted: 0, rejected: result.rejected.length, detail: result.rejected, dryRun: result.dryRun });
+  }
+  delete result.logged;
+  return result;
+}
+
+async function checkAndSave(
   profile: Profile,
   body: unknown,
-  opts: { dryRun?: boolean; demo?: boolean } = {},
-): Promise<PushResult> {
+  opts: { dryRun?: boolean; demo?: boolean },
+): Promise<PushResult & { logged?: boolean }> {
   const dryRun = !!opts.dryRun;
   const prefs = profile.preferences;
   if (!prefs || !profile.resumeText) {
@@ -440,5 +451,5 @@ export async function processPush(
     searchEnded = true;
   }
 
-  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, dryRun, adjusted, skippedRecently };
+  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, dryRun, adjusted, skippedRecently, logged: true };
 }

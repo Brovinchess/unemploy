@@ -139,7 +139,7 @@ export async function AppShell({
               <div className={`h-full rounded-full ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
             </div>
             <p className="mt-2 text-xs text-white/45">
-              {balance == null ? "Balance unavailable" : searchesLeft == null ? "" : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"}`}
+              {balance == null ? "Balance unavailable" : searchesLeft == null ? "" : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${current.preferences?.jobsPerDay} jobs`}
             </p>
             <a
               href={mindsConfig.topUpUrl}

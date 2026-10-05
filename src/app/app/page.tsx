@@ -71,6 +71,16 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         })
       : [];
 
+  // "To apply" lists every job still waiting, not only the latest search's, so it matches
+  // the Apply-to-all count.
+  const waiting =
+    fresh.length === 0 && everDelivered
+      ? await db.query.jobs.findMany({
+          where: and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")),
+          orderBy: [desc(schema.jobs.matchScore)],
+        })
+      : [];
+
   return (
     <AppShell tab="shortlist" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
@@ -136,7 +146,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         {fresh.length === 0 && !searching && everDelivered && (
           <section className="mx-auto max-w-[820px]">
             <div className="text-center">
-              <Ninja mood={recent.some((j) => j.status === "saved" || j.status === "applied") ? "love" : "happy"} className="mx-auto size-[72px]" />
+              <Ninja mood={waiting.length ? "love" : "happy"} className="mx-auto size-[72px]" />
               <h2 className="font-display mt-3.5 text-[28px] font-medium tracking-tight">You&rsquo;ve seen every new job</h2>
               <p className="mt-1.5 text-white/55">Here&rsquo;s where your latest search stands. Ask for more whenever you&rsquo;re ready.</p>
             </div>
@@ -144,7 +154,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
               <RecentList
                 title="To apply"
                 empty="Nothing waiting. Jobs you swipe right on land here."
-                jobs={recent.filter((j) => j.status === "saved" || j.status === "applied")}
+                jobs={[...waiting, ...recent.filter((j) => j.status === "applied")]}
               />
               <RecentList title="Dismissed" empty="Nothing dismissed." jobs={recent.filter((j) => j.status === "skipped")} />
             </div>
