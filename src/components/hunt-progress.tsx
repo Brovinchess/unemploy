@@ -22,8 +22,8 @@ function fromMessages(items: { kind: string; at: string; detail?: string }[], si
     for (const m of s.detail!.matchAll(/(\d+)\s+(?:[\w-]+\s+){0,3}?(?:roles?|jobs?|candidates?|postings?)\s+(?:[\w-]+\s+){0,2}?(?:verified|vetted|checked|pass(?:ed|ing)?|ready)/gi)) {
       checked = Math.max(checked, Number(m[1]));
     }
-    for (const m of s.detail!.matchAll(/(\d+)\s+(?:[\w-]+\s+){0,2}?(?:verified|vetted|checked)\s+(?:roles?|jobs?|candidates?|postings?)/gi)) {
-      checked = Math.max(checked, Number(m[1]));
+    for (const m of s.detail!.matchAll(/(\d+)\s+(?:[\w-]+\s+){0,2}?(?:verified|vetted|checked)\s+(?:roles?|jobs?|candidates?|postings?)|(?:^|[\s;,(])(\d+)\s+(?:verified|vetted)\b/gi)) {
+      checked = Math.max(checked, Number(m[1] ?? m[2]));
     }
   }
   return { line, at: latest?.at ?? null, checked };
