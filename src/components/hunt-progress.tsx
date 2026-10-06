@@ -100,11 +100,7 @@ export function HuntProgress({
               style={found ? { width: `${Math.max(4, Math.min(100, (found / jobsPerDay) * 100))}%` } : undefined}
             />
           </div>
-          {said.line && (
-            <p className="mt-2 truncate text-[12.5px] text-white/60" title={said.line}>
-              <span className="text-white/40">Latest:</span> {said.line} <span className="text-white/35">· {ago(said.at!)}</span>
-            </p>
-          )}
+
         </div>
         <button
           onClick={() => setOpen((o) => !o)}
@@ -165,6 +161,11 @@ export function HuntProgress({
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-white/35">Activity</p>
+            {said.line && (
+              <p className="mb-4 rounded-2xl bg-white/[0.04] px-4 py-3 text-[13px] leading-relaxed text-white/75">
+                <span className="text-white/40">Latest:</span> {said.line} <span className="text-white/35">· {ago(said.at!)}</span>
+              </p>
+            )}
             <ActivityList items={data?.items ?? null} limit={8} />
             {data?.partial && <p className="mt-4 text-xs text-white/40">Some updates from Hello Minds couldn&rsquo;t be loaded just now.</p>}
           </div>
