@@ -18,12 +18,16 @@ export function ApplyAllButton({ count, detailsComplete }: { count: number; deta
   const ready = status?.installed && status.connected && detailsComplete;
   const label = `Apply to all ${count} with the extension`;
 
+  // Not set up yet: a quiet one-liner instead of a button that can't work.
   if (!ready) {
-    const href = !detailsComplete && status?.installed && status.connected ? "/app/settings#application" : "/app/extension";
+    const needDetails = !detailsComplete && status?.installed && status.connected;
     return (
-      <Link href={href} className="inline-flex h-12 items-center gap-2 rounded-full bg-gradient-to-b from-[#d27375] to-coral px-6 text-sm font-semibold text-white">
-        <Rocket className="size-4" /> {label}
-      </Link>
+      <p className="text-center text-sm text-white/45">
+        {needDetails ? "Add your application details" : "Set up the Chrome extension"} to apply to all {count} in one go.{" "}
+        <Link href={needDetails ? "/app/you#application" : "/app/settings#extension"} className="text-white/75 underline underline-offset-2 hover:text-white">
+          {needDetails ? "Add details" : "Set up"}
+        </Link>
+      </p>
     );
   }
   return (
@@ -52,7 +56,8 @@ export function ApplyAllButton({ count, detailsComplete }: { count: number; deta
 }
 
 // A card nudging people to install the extension, until it's installed and connected.
-export function ExtensionPrompt() {
+// Shown only when there's something to apply to.
+export function ExtensionPrompt({ show = true }: { show?: boolean }) {
   const { status } = useExtension();
   // Nothing renders until the extension check finishes, so reading storage here is safe.
   const [hidden, setHidden] = useState(() => {
@@ -62,7 +67,7 @@ export function ExtensionPrompt() {
       return false;
     }
   });
-  if (!status || (status.installed && status.connected) || hidden) return null;
+  if (!show || !status || (status.installed && status.connected) || hidden) return null;
   return (
     <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-coral/25 bg-coral/10 px-5 py-4">
       <Puzzle className="size-6 shrink-0 text-rose" />
@@ -70,7 +75,7 @@ export function ExtensionPrompt() {
         <p className="font-medium text-white">{status.installed ? "Connect the Chrome extension" : "Get the Chrome extension"}</p>
         <p className="text-sm text-white/60">It fills in each application for you and can apply to all your To-apply jobs in one go.</p>
       </div>
-      <Link href="/app/extension" className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose">
+      <Link href="/app/settings#extension" className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose">
         {status.installed ? "Connect" : "Install"}
       </Link>
       <button
@@ -89,7 +94,7 @@ export function ExtensionPrompt() {
   );
 }
 
-// The setup steps on /app/extension.
+// The setup steps, in Settings.
 export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: boolean; toApply: number }) {
   const { status, connect, refresh } = useExtension();
   const [pending, start] = useTransition();
@@ -152,7 +157,7 @@ export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: 
       <Step n={3} done={detailsComplete} title="Add your application details">
         <p className="mt-1 text-sm text-white/55">Your name, email, phone and location, plus answers to common questions like notice period.</p>
         {!detailsComplete && (
-          <Link href="/app/settings#application" className="btn btn-accent mt-3">
+          <Link href="/app/you#application" className="btn btn-accent mt-3">
             Add details
           </Link>
         )}

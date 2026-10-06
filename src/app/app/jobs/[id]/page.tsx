@@ -15,7 +15,7 @@ export default async function JobPage({ params }: PageProps<"/app/jobs/[id]">) {
   const back = `/app?profile=${job.profileId}`;
 
   return (
-    <AppShell tab="shortlist" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
+    <AppShell tab="jobs" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="mx-auto w-full max-w-3xl flex-1 px-5 py-8 sm:px-8 lg:py-10">
         <Link href={back} className="mb-5 inline-flex items-center gap-1.5 text-sm text-white/55 hover:text-white">
           <ArrowLeft className="size-4" aria-hidden /> Back

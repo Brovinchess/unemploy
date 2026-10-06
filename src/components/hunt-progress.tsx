@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { stopSearch } from "@/app/actions";
 import { Check, ChevronDown } from "lucide-react";
 import { Ninja } from "./brand";
 import { ActivityList, LiveDot, useActivity } from "./activity-feed";
@@ -47,6 +48,7 @@ export function HuntProgress({
 }) {
   const data = useActivity(profileId, live);
   const [open, setOpen] = useState(false);
+  const [stopping, startStop] = useTransition();
   const s = data?.stats;
   const snapshot = useLive();
   const mine = snapshot?.profile.id === profileId ? snapshot.profile : null;
@@ -97,6 +99,15 @@ export function HuntProgress({
           </div>
 
         </div>
+        {live && (
+          <button
+            onClick={() => startStop(() => stopSearch(profileId))}
+            disabled={stopping}
+            className="shrink-0 rounded-full px-3 py-1.5 text-xs text-white/45 hover:bg-white/[0.06] hover:text-white disabled:opacity-50"
+          >
+            {stopping ? "Stopping…" : "Stop"}
+          </button>
+        )}
         <button
           onClick={() => setOpen((o) => !o)}
           aria-expanded={open}
@@ -134,7 +145,7 @@ export function HuntProgress({
             </ol>
             <p className="mt-3 flex items-center gap-3 text-sm text-white/40">
               <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-white/20 text-[10px]">+</span>
-              After the search: your personal Mind answers the form questions (see Answers)
+              After the search: your personal Mind answers the form questions (see You)
             </p>
           </div>
           <div>

@@ -51,7 +51,7 @@ async function applyAll(mode) {
   const q = await loadQueue();
   const { apiBase } = await get(["apiBase"]);
   if (!q.detailsComplete) {
-    chrome.tabs.create({ url: `${apiBase}/app/settings#application` });
+    chrome.tabs.create({ url: `${apiBase}/app/you#application` });
     return { ok: false, reason: "details" };
   }
   const jobs = q.jobs.filter((j) => j.supported);
@@ -98,7 +98,7 @@ async function finish() {
   const { run, apiBase } = await get(["run", "apiBase"]);
   await set({ run: { ...run, active: false } });
   badge("");
-  chrome.tabs.create({ url: `${apiBase}/app/tracker?applied=${run?.done?.length ?? 0}` });
+  chrome.tabs.create({ url: `${apiBase}/app?applied=${run?.done?.length ?? 0}` });
 }
 
 function badge(text) {

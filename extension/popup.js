@@ -5,8 +5,8 @@ async function render() {
   const s = await send({ type: "status" });
   if (!s.connected) {
     el.innerHTML = `<p>Connect the extension to your Career Ninja account to fill applications for you.</p>
-      <a class="btn" href="https://careerninja.app/app/extension" target="_blank">Connect</a>
-      <p class="s">Testing locally? Open localhost:3000/app/extension instead.</p>`;
+      <a class="btn" href="https://careerninja.app/app/settings#extension" target="_blank">Connect</a>
+      <p class="s">Testing locally? Open localhost:3000/app/settings#extension instead.</p>`;
     return;
   }
   if (s.running) {

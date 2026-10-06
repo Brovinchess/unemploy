@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { Brain, ExternalLink, KanbanSquare, ListChecks, LogOut, Plus, Puzzle, Settings } from "lucide-react";
+import { ExternalLink, ListChecks, LogOut, Plus, Settings, UserRound } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
@@ -11,7 +11,7 @@ import { Ninja, Wordmark } from "./brand";
 import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
 import { TitleBadge } from "./title-badge";
 
-type Tab = "shortlist" | "tracker" | "answers" | "settings" | "headhunter" | "extension";
+type Tab = "jobs" | "you" | "settings" | "headhunter";
 
 // The signed-in frame: a sidebar with the user's headhunters, navigation, cognition and
 // account on large screens; a compact top bar on small ones.
@@ -45,12 +45,10 @@ export async function AppShell({
     .select({ n: count() })
     .from(schema.jobs)
     .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
+  // Two places to be: the jobs, and everything about you. Setup lives behind the gear.
   const nav = [
-    { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: "new" as const },
-    { id: "tracker" as const, label: "Tracker", href: "/app/tracker", icon: KanbanSquare },
-    { id: "answers" as const, label: "Answers", href: "/app/answers", icon: Brain, badge: "answers" as const },
-    { id: "extension" as const, label: "Extension", href: "/app/extension", icon: Puzzle },
-    { id: "settings" as const, label: "Settings", href: "/app/settings", icon: Settings },
+    { id: "jobs" as const, label: "Jobs", href: "/app", icon: ListChecks, badge: "new" as const },
+    { id: "you" as const, label: "You", href: "/app/you", icon: UserRound, badge: "answers" as const },
   ];
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
@@ -168,6 +166,15 @@ export async function AppShell({
               {user.username?.[0] ?? "?"}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm text-white/70">{user.username}</span>
+            <Link
+              href="/app/settings"
+              aria-current={tab === "settings" ? "page" : undefined}
+              className={`flex size-8 items-center justify-center rounded-full hover:bg-white/[0.08] hover:text-white ${tab === "settings" ? "bg-white/[0.08] text-white" : "text-white/50"}`}
+              title="Settings"
+            >
+              <Settings className="size-4" aria-hidden />
+              <span className="sr-only">Settings</span>
+            </Link>
             <form action="/auth/logout" method="post">
               <button className="flex size-8 items-center justify-center rounded-full text-white/50 hover:bg-white/[0.08] hover:text-white" title="Sign out">
                 <LogOut className="size-4" aria-hidden />
@@ -199,6 +206,10 @@ export async function AppShell({
             <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>
               <LiveCognitionShort />
             </span>
+            <Link href="/app/settings" className={`flex size-8 items-center justify-center rounded-full ${tab === "settings" ? "text-white" : "text-white/50"}`} title="Settings">
+              <Settings className="size-4" aria-hidden />
+              <span className="sr-only">Settings</span>
+            </Link>
           </div>
           {profiles.length > 0 && (
             <div className="flex gap-2 overflow-x-auto px-4 pb-3">

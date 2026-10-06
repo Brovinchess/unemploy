@@ -61,7 +61,6 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             </div>
           </div>
           <div className="flex flex-wrap items-start gap-3">
-            <PauseToggle profileId={current.id} paused={paused} />
             <SearchButton
               profileId={current.id}
               searching={searching}
@@ -144,7 +143,9 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               <ResumeStep profileId={current.id} submitLabel="Replace resume" />
             </section>
             <section className="rounded-3xl bg-surface p-6">
-              <h2 className="font-display text-lg font-medium text-white">Remove</h2>
+              <h2 className="font-display text-lg font-medium text-white">Pause or remove</h2>
+              <p className="mt-1 mb-4 text-sm text-white/50">Paused, it keeps its memory and uses no cognition.</p>
+              <div className="mb-5"><PauseToggle profileId={current.id} paused={paused} /></div>
               <div className="mt-4">
                 <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
               </div>

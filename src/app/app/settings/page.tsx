@@ -1,7 +1,9 @@
-import Link from "next/link";
+import { and, count, eq, inArray } from "drizzle-orm";
+import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
+import { ExtensionSetup } from "@/components/extension-ui";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { ApplicantForm } from "./applicant-form";
+import { detailsComplete } from "@/lib/extension";
 import { DeleteAccount } from "./delete-account";
 import { EmailUpdates } from "./email-updates";
 
@@ -14,10 +16,15 @@ function Section({ title, id, children }: { title: string; id?: string; children
   );
 }
 
-// Account-level settings. Each headhunter's own settings live on its page.
+// Set-up-once things: the Chrome extension, email, account. Each headhunter's own settings
+// live on its page; details about the person live on the You page.
 export default async function Settings() {
   const { user, profiles, unfinished, current } = await appContext();
   const balance = await balanceFor(user, current);
+  const [{ n: toApply }] = await db
+    .select({ n: count() })
+    .from(schema.jobs)
+    .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
 
   return (
     <AppShell tab="settings" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -27,18 +34,12 @@ export default async function Settings() {
         <p className="mt-2 text-white/55">To change what a headhunter looks for, its resume or cognition, open it from the sidebar.</p>
 
         <div className="mt-8 space-y-4">
-          <Section title="Application details" id="application">
-            <ApplicantForm initial={user.applicant ?? null} />
-          </Section>
-
-          <Section title="Saved answers" id="answers">
-            <p className="text-white/60">
-              {(user.savedAnswers ?? []).length} saved. Answers to form questions now live on the{" "}
-              <Link href="/app/answers" className="text-white underline-offset-2 hover:underline">
-                Answers
-              </Link>{" "}
-              page, with your personal Mind.
+          <Section title="Chrome extension" id="extension">
+            <p className="mb-5 text-sm text-white/55">
+              Opens each job you swiped right on, fills the form with your details, resume, cover letter and answers, and waits
+              for you to press Submit. Works on Greenhouse, Lever and Ashby, in Chrome, Edge and Brave on a computer.
             </p>
+            <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
           </Section>
 
           <Section title="Email updates" id="email">
