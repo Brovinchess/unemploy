@@ -6,7 +6,6 @@ import { Ninja } from "@/components/brand";
 import { useLive } from "@/components/live";
 import {
   activatePersonalMind,
-  askNow,
   createPersonalMind,
   ignoreQuestion,
   saveQuestionAnswer,
@@ -99,21 +98,16 @@ export function PersonalMindCard({
                 </>
               ) : waiting ? (
                 <>
-                  {waiting} {waiting === 1 ? "question is" : "questions are"} waiting. They&rsquo;re sent after your next
-                  search, or now.
+                  {waiting} {waiting === 1 ? "question" : "questions"} queued. They go to it by themselves, during or right after the
+                  search.
                 </>
               ) : (
                 <>Asleep. It wakes after each search to answer that search&rsquo;s form questions.</>
               )}
             </p>
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <button className="btn btn-ghost btn-sm" disabled={pending || !!answering} onClick={() => run(askNow)}>
-                {pending ? "Sending…" : waiting ? `Ask now (${waiting})` : "Teach it my latest answers"}
-              </button>
-              <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="text-sm text-white/45 hover:text-white">
-                Top up
-              </a>
-            </div>
+            <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="mt-4 inline-block text-sm text-white/45 hover:text-white">
+              Top up
+            </a>
           </>
         )}
         {result?.error && <p className="mt-3 text-sm text-rose">{result.error}</p>}

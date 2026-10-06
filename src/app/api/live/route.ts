@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import type { Live } from "@/components/live";
 import { minds } from "@/lib/minds/client";
 import { ownedProfile } from "@/lib/owned";
-import { questionCounts } from "@/lib/personal";
+import { askIfReady, questionCounts } from "@/lib/personal";
 import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
 import { getCurrentUser } from "@/lib/session";
 
@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   after(async () => {
     if (profile.searchStartedAt && !profile.searchEndedAt && !isSearching(profile)) await endSearch(profile, "timeout").catch(() => {});
     else await nudgeIfQuiet(profile).catch(() => {});
+    await askIfReady(user.id).catch((e) => console.error("[live] ask personal Mind", e));
   });
   return NextResponse.json(live, { headers: { "Cache-Control": "no-store" } });
 }

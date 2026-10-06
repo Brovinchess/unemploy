@@ -125,6 +125,23 @@ function questionsText(username: string, teach: { question: string; answer: stri
 
 // Sends waiting questions, plus anything new the person has taught, in one message.
 // Wakes the personal Mind; it is switched off again once it has replied.
+// Mid-search: once enough questions have queued (or the oldest has waited a while), send
+// them without waiting for the search to end. Called in the background by the live poll.
+const ASK_WHEN_QUEUED = 5;
+const ASK_AFTER_MS = 10 * 60 * 1000;
+
+export async function askIfReady(userId: string) {
+  const waiting = await db.query.questions.findMany({
+    where: and(eq(schema.questions.userId, userId), eq(schema.questions.status, "new")),
+    columns: { createdAt: true },
+    orderBy: [desc(schema.questions.createdAt)],
+    limit: ASK_WHEN_QUEUED,
+  });
+  if (!waiting.length) return;
+  const oldest = Math.min(...waiting.map((q) => q.createdAt.getTime()));
+  if (waiting.length >= ASK_WHEN_QUEUED || Date.now() - oldest > ASK_AFTER_MS) await askPersonalMind(userId);
+}
+
 export async function askPersonalMind(userId: string, opts: { teachOnly?: boolean } = {}) {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
   if (!user || !personalReady(user)) return { sent: 0 };
