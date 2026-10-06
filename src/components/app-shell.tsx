@@ -8,6 +8,7 @@ import { estimateSearchCost } from "@/lib/preferences";
 import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
+import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
 import { TitleBadge } from "./title-badge";
 
 type Tab = "shortlist" | "tracker" | "answers" | "settings" | "headhunter" | "extension";
@@ -39,23 +40,42 @@ export async function AppShell({
   const fresh = new Map(newCounts.map((r) => [r.profileId, r.n]));
 
   const allNew = [...fresh.values()].reduce((a, n) => a + n, 0);
-  const { forYou } = await questionCounts(user.id);
+  const { forYou, asked, new: waiting } = await questionCounts(user.id);
+  const [{ n: toApply }] = await db
+    .select({ n: count() })
+    .from(schema.jobs)
+    .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
   const nav = [
-    { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: allNew },
+    { id: "shortlist" as const, label: "Shortlist", href: "/app", icon: ListChecks, badge: "new" as const },
     { id: "tracker" as const, label: "Tracker", href: "/app/tracker", icon: KanbanSquare },
-    { id: "answers" as const, label: "Answers", href: "/app/answers", icon: Brain, badge: forYou },
+    { id: "answers" as const, label: "Answers", href: "/app/answers", icon: Brain, badge: "answers" as const },
     { id: "extension" as const, label: "Extension", href: "/app/extension", icon: Puzzle },
     { id: "settings" as const, label: "Settings", href: "/app/settings", icon: Settings },
   ];
 
-  const perSearch = current.preferences ? estimateSearchCost(current.preferences.jobsPerDay).cognition : null;
-  const searchesLeft = balance != null && perSearch ? Math.max(0, Math.floor(balance / perSearch)) : null;
-  const low = balance != null && (balance <= 0 || (searchesLeft != null && searchesLeft < 1));
-  const fill = searchesLeft == null ? 0 : Math.min(100, (searchesLeft / 10) * 100);
+  const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
+  const perSearch = estimateSearchCost(perSearchJobs).cognition;
+  const low = balance != null && balance < perSearch;
+  const searching = isSearching(current);
+  const initial: Live = {
+    at: new Date().toISOString(),
+    profile: {
+      id: current.id,
+      searching,
+      startedAt: searching ? (current.searchStartedAt?.toISOString() ?? null) : null,
+      lastDeliveryAt: current.lastDeliveryAt?.toISOString() ?? null,
+      jobsFound: 0,
+      balance,
+    },
+    newJobs: allNew,
+    toApply,
+    answers: { forYou, asked, waiting, balance: null },
+  };
 
   return (
+    <LiveProvider key={current.id} initial={initial}>
     <div className="flex min-h-svh flex-1 bg-night text-white">
-      <TitleBadge count={[...fresh.values()].reduce((a, n) => a + n, 0)} />
+      <TitleBadge count={allNew} />
       <aside className="sticky top-0 hidden h-svh w-[264px] shrink-0 flex-col border-r border-white/[0.06] bg-[#10161c] px-4 py-5 lg:flex">
         <Link href="/app" className="flex items-center gap-2.5 px-2" aria-label="Career Ninja">
           <Ninja className="size-8" />
@@ -74,7 +94,7 @@ export async function AppShell({
             >
               <n.icon className="size-4" aria-hidden />
               <span className="flex-1">{n.label}</span>
-              {!!n.badge && <span className="rounded-full bg-coral px-2 py-0.5 text-xs font-medium text-white">{n.badge}</span>}
+              {n.badge && <LiveBadge kind={n.badge} />}
             </Link>
           ))}
         </nav>
@@ -131,16 +151,7 @@ export async function AppShell({
 
         <div className="mt-auto space-y-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <p className="flex items-baseline justify-between text-sm">
-              <span className="text-white/60">Cognition</span>
-              <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
-            </p>
-            <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
-              <div className={`h-full rounded-full ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
-            </div>
-            <p className="mt-2 text-xs text-white/45">
-              {balance == null ? "Balance unavailable" : searchesLeft == null ? "" : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${current.preferences?.jobsPerDay} jobs`}
-            </p>
+            <LiveCognition perSearchJobs={perSearchJobs} />
             <a
               href={mindsConfig.topUpUrl}
               target="_blank"
@@ -185,7 +196,9 @@ export async function AppShell({
                 </Link>
               ))}
             </nav>
-            <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>{balance == null ? "" : `${Math.round(balance)} cog`}</span>
+            <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>
+              <LiveCognitionShort />
+            </span>
           </div>
           {profiles.length > 0 && (
             <div className="flex gap-2 overflow-x-auto px-4 pb-3">
@@ -200,5 +213,6 @@ export async function AppShell({
         {children}
       </div>
     </div>
+    </LiveProvider>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { ChevronDown, FileText, MessageCircle, PackageCheck, PlugZap, Search } from "lucide-react";
 import type { ActivityItem, ActivityStats } from "@/lib/activity";
 
@@ -11,12 +10,10 @@ const ICONS = { brief: FileText, said: MessageCircle, work: Search, delivery: Pa
 
 type Activity = { items: ActivityItem[]; stats: ActivityStats; partial: boolean };
 
-// Polls the headhunter's activity while the tab is visible, and refreshes the page when a
-// new delivery lands so new jobs appear without a reload.
+// Polls the headhunter's activity while the tab is visible. (Page refreshes when jobs land
+// are LiveProvider's job.)
 export function useActivity(profileId: string, live: boolean) {
-  const router = useRouter();
   const [data, setData] = useState<Activity | null>(null);
-  const lastDelivery = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     let stop = false;
@@ -25,10 +22,7 @@ export function useActivity(profileId: string, live: boolean) {
       try {
         const r = await fetch(`/api/activity?profile=${profileId}`, { cache: "no-store" });
         if (r.ok && !stop) {
-          const d = (await r.json()) as Activity & { lastDeliveryAt: string | null };
-          setData(d);
-          if (lastDelivery.current !== undefined && d.lastDeliveryAt !== lastDelivery.current) router.refresh();
-          lastDelivery.current = d.lastDeliveryAt;
+          setData((await r.json()) as Activity);
         }
       } catch {
         // Offline for a moment; try again on the next tick.
@@ -41,7 +35,7 @@ export function useActivity(profileId: string, live: boolean) {
       stop = true;
       clearTimeout(timer);
     };
-  }, [profileId, live, router]);
+  }, [profileId, live]);
 
   return data;
 }

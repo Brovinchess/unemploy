@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { Check, ExternalLink, X } from "lucide-react";
 import { Ninja } from "@/components/brand";
+import { useLive } from "@/components/live";
 import {
   activatePersonalMind,
   askNow,
@@ -16,9 +17,9 @@ import {
 export function PersonalMindCard({
   state,
   name,
-  balance,
-  waiting,
-  answering,
+  balance: balanceProp,
+  waiting: waitingProp,
+  answering: answeringProp,
   topUpUrl,
   mock,
 }: {
@@ -33,6 +34,10 @@ export function PersonalMindCard({
   const [pending, start] = useTransition();
   const [result, setResult] = useState<PersonalState>();
   const run = (fn: () => Promise<PersonalState | void>) => start(async () => setResult((await fn()) ?? undefined));
+  const live = useLive();
+  const balance = live?.answers.balance ?? balanceProp;
+  const waiting = live?.answers.waiting ?? waitingProp;
+  const answering = live?.answers.asked ?? answeringProp;
 
   return (
     <section className="flex flex-col gap-5 rounded-3xl bg-surface p-6 sm:flex-row sm:items-start md:p-8">

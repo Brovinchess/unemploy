@@ -6,19 +6,16 @@ import { requestSearch, stopSearch } from "@/app/actions";
 import { estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
 import { JobsSlider } from "./jobs-slider";
-
-function minutesSince(iso: string) {
-  return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-}
+import { minutesSince, useLive, useNow } from "./live";
 
 // The only way a search starts: the user asks, choosing how many jobs (and optionally a
 // one-off focus). Shows the running search and a way to stop it.
 export function SearchButton({
   profileId,
-  searching,
-  startedAt,
+  searching: searchingProp,
+  startedAt: startedAtProp,
   defaultJobs,
-  balance,
+  balance: balanceProp,
   disabled,
   notifyEmail,
   big = false,
@@ -38,6 +35,13 @@ export function SearchButton({
   const [jobs, setJobs] = useState(defaultJobs);
   const [focus, setFocus] = useState("");
   const panel = useRef<HTMLDivElement>(null);
+  // Live values win over what the page was rendered with.
+  const live = useLive();
+  const mine = live?.profile.id === profileId ? live.profile : null;
+  const searching = mine ? mine.searching : searchingProp;
+  const startedAt = mine ? mine.startedAt : startedAtProp;
+  const balance = mine?.balance ?? balanceProp;
+  const now = useNow();
 
   // Close the pop-over on Escape or a click outside.
   useEffect(() => {
@@ -53,7 +57,7 @@ export function SearchButton({
   }, [open, big]);
 
   if (searching) {
-    const mins = startedAt ? minutesSince(startedAt) : 0;
+    const mins = startedAt ? minutesSince(startedAt, now) : 0;
     return (
       <div className={`flex flex-col gap-2 ${big ? "items-center" : "items-end"}`}>
         <div className="flex items-center gap-3">

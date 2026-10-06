@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Check, ChevronDown } from "lucide-react";
 import { Ninja } from "./brand";
 import { ActivityList, LiveDot, useActivity } from "./activity-feed";
+import { useLive } from "./live";
 
 // What the headhunter last said during this search, without its "SEARCH REQUEST #3 - progress:"
 // preamble, and the most jobs it has said it checked ("4 roles fully verified"). Its own
@@ -47,9 +48,11 @@ export function HuntProgress({
   const data = useActivity(profileId, live);
   const [open, setOpen] = useState(false);
   const s = data?.stats;
-  const found = s?.jobsAdded ?? 0;
+  const snapshot = useLive();
+  const mine = snapshot?.profile.id === profileId ? snapshot.profile : null;
+  const found = Math.max(s?.jobsAdded ?? 0, mine?.jobsFound ?? 0);
 
-  const said = fromMessages(data?.items ?? [], startedAt);
+  const said = fromMessages(data?.items ?? [], mine?.startedAt ?? startedAt);
   const sent = !!s && s.deliveries > 0;
   const raw = [
     { label: "Search request sent", done: true },
