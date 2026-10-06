@@ -96,8 +96,8 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.target as HTMLElement)?.closest("input,textarea")) return;
-      if (e.key === "ArrowRight") decide("apply");
-      if (e.key === "ArrowLeft") decide("dismiss");
+      if (e.key === "ArrowRight" && revealed) decide("apply");
+      if (e.key === "ArrowLeft" && revealed) decide("dismiss");
       if (e.key === " " && current && !revealed) {
         e.preventDefault();
         reveal();
@@ -147,7 +147,8 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
               })}
           </div>
 
-          <div className="mt-5 grid w-[min(460px,92vw)] grid-cols-[1fr_auto_1fr] items-end">
+          {/* Decide only once you've seen the job: the controls appear after the reveal. */}
+          <div className={`mt-5 grid w-[min(460px,92vw)] grid-cols-[1fr_auto_1fr] items-end transition-opacity duration-500 ${revealed ? "opacity-100" : "pointer-events-none opacity-0"}`} aria-hidden={!revealed}>
             <Control label="Dismiss" onClick={() => decide("dismiss")} title="Dismiss (←)">
               <span className="flex size-[62px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-mist">
                 <X className="size-6" strokeWidth={2.2} />
