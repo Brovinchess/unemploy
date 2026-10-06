@@ -6,7 +6,7 @@ import type { Profile } from "@/db/schema";
 import { SAME_ROLE_DAYS, SeenJobs } from "./dedupe";
 import { clearlyBelow, floorOf } from "./pay";
 import { avoidList, MAX_POSTING_AGE_DAYS, salaryLabel } from "./preferences";
-import { queueQuestions } from "./personal";
+import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
 
@@ -426,6 +426,18 @@ async function checkAndSave(
       job.matchScore = MAX_SCORE_WITH_GAPS;
     }
     sentToday.set(job.company.toLowerCase(), (sentToday.get(job.company.toLowerCase()) ?? 0) + 1);
+
+    // Questions about the job or the fit are the Mind's to answer, in the form's own words,
+    // so the extension can fill them. Accept the job, but point out any it skipped.
+    const unanswered = (job.formQuestions ?? []).filter(
+      (f) => isAboutTheJob(f.question) && !job.pack.answers.some((a) => similarity(f.question, a.question) >= 0.5),
+    );
+    if (unanswered.length) {
+      adjusted.push({
+        url: job.url,
+        note: `pack.answers is missing answers for questions about the job or your fit: ${unanswered.map((f) => `"${f.question.slice(0, 80)}"`).join("; ")}. Next time include one for each, using the form's exact wording.`,
+      });
+    }
 
     remaining--;
     accepted++;

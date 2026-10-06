@@ -20,8 +20,11 @@ export const ASK_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 // Questions the extension already fills from the person's details or the job's pack.
 const HANDLED =
   /first name|last name|full name|^name$|legal name|preferred name|e-?mail|phone|mobile|resume|\bcv\b|cover letter|linkedin|github|portfolio|website|personal (site|url)/i;
-// Questions about the job or company, which the headhunter answers in each pack.
-const ABOUT_THE_JOB = /why (do you|are you|would you)|why .*\b(us|company|here|join|role|position|team)\b|interest(ed)? in (this|the|our)|what excites you|about (this|the) (role|company)/i;
+// Questions about the job or company, or about how the person fits it: the headhunter
+// answers those in each pack, because only it has read the posting.
+export const ABOUT_THE_JOB =
+  /why (do you|are you|would you|should we)|why .*\b(us|company|here|join|role|position|team)\b|interest(ed)? in (this|the|our)|what excites you|about (this|the) (role|company|position)|this (position|role|job|opportunity|company|team)|the (position|role) (you|we)|good fit|right fit|makes you (a|the)|qualif(y|ied|ications) (you )?for|suited (to|for)|what (would|will|can) you bring|relevant experience|experience (do you have )?that/i;
+export const isAboutTheJob = (q: string) => ABOUT_THE_JOB.test(q);
 
 const words = (s: string) => new Set(questionKey(s).split(" ").filter((w) => w.length > 2));
 // Share of the shorter question's words found in the other (same measure as the extension).
@@ -103,11 +106,12 @@ HOW WE WORK
 - "REMEMBER" lines in my messages are new facts about me. Keep them; a newer fact replaces an older one.
 - "QUESTIONS" lists form questions, each with an id, the form's wording and sometimes its choices. For each:
   - Answer only from my resume, the facts above and what I've told you since. Don't search the web.
-  - Never guess. If you aren't sure, send "answer": null. I'll answer it myself and you'll learn it next time.
+  - Never guess a fact. If you aren't sure, send "answer": null. I'll answer it myself and you'll learn it next time.
+  - Open-ended questions ("describe a project you're proud of", "tell us about a time you…") are different: if my resume has the material, write a short draft from it in my voice and send it with "draft": true. I'll edit it before it's used. If the resume has nothing relevant, send null.
   - If it has choices, answer with one choice exactly as written.
   - Write as me, short, the way I'd type it into the form.
 - POST all the answers in one go to ${ingestUrl}/api/personal with header "x-unemploy-key: ${key}":
-  {"answers":[{"id":"<id>","answer":"<text>" or null,"note":"<where you got it, optional>"}]}
+  {"answers":[{"id":"<id>","answer":"<text>" or null,"draft":true|false,"note":"<where you got it, optional>"}]}
   The reply says what was saved. Then stop and wait for my next message.
 
 Please reply with one line confirming you've got this. Nothing else to do now.`;
@@ -206,7 +210,8 @@ const replySchema = z.object({
     .array(
       z.object({
         id: z.string().trim().max(64),
-        answer: z.string().trim().max(1000).nullable().optional(),
+        answer: z.string().trim().max(1500).nullable().optional(),
+        draft: z.boolean().optional(),
         note: z.string().trim().max(300).nullable().optional(),
       }),
     )
@@ -245,7 +250,12 @@ export async function processAnswers(user: User, body: unknown) {
     }
     await db
       .update(schema.questions)
-      .set({ status: answer ? "review" : "needs_you", answer, note: a.note?.trim() || null, answeredAt: new Date() })
+      .set({
+        status: answer ? "review" : "needs_you",
+        answer,
+        note: answer && a.draft ? `Draft from your resume: edit it before approving${a.note ? ` · ${a.note.trim()}` : ""}` : a.note?.trim() || null,
+        answeredAt: new Date(),
+      })
       .where(eq(schema.questions.id, row.id));
     if (answer) answered++;
     else unknown++;
