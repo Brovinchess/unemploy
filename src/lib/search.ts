@@ -44,6 +44,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". ` +
     `Send each job AS SOON AS it passes every check, one job per POST is fine: I see it straight away and can start swiping while you keep searching. Don't hold jobs back for one big batch at the end. ` +
+    `Dry-run (?dry_run=1) at most once this search, then POST directly. Progress notes: one line, only when something changes; no long updates. ` +
     `When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). ` +
     pay +
     skip +
