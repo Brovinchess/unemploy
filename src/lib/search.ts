@@ -134,10 +134,18 @@ async function recordEnd(profile: Profile, reason: "finished" | "stopped" | "tim
     .from(schema.jobs)
     .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, row.startedAt)));
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
-  const balanceEnd = user && profile.mindId ? await minds(user).getBalance(profile.mindId).catch(() => null) : null;
+  const api = user ? minds(user) : null;
+  const balanceEnd = api && profile.mindId ? await api.getBalance(profile.mindId).catch(() => null) : null;
+  // The ledger is bucketed by the hour, so read from the start of the hour the search began in.
+  const since = new Date(row.startedAt);
+  since.setUTCMinutes(0, 0, 0);
+  const ledger = api && profile.mindId ? await api.toolUsage(profile.mindId, since).catch(() => null) : null;
+  const fromLedger = ledger ? Math.round(ledger.reduce((a, u) => a + u.cognition, 0)) : null;
+  const fromBalance = row.balanceStart != null && balanceEnd != null ? Math.max(0, Math.round(row.balanceStart - balanceEnd)) : null;
+  const cognitionUsed = fromLedger ?? fromBalance;
   await db
     .update(schema.searches)
-    .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, balanceEnd })
+    .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, balanceEnd, cognitionUsed })
     .where(eq(schema.searches.id, row.id));
 }
 

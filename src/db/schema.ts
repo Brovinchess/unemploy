@@ -268,6 +268,8 @@ export const searches = pgTable(
     jobsAdded: integer("jobs_added"),
     balanceStart: real("balance_start"),
     balanceEnd: real("balance_end"),
+    // From Hello Minds' ledger, so a top-up during the search doesn't distort it.
+    cognitionUsed: real("cognition_used"),
   },
   (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
 ).enableRLS();

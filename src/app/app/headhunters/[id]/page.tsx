@@ -103,7 +103,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               ) : (
                 <ul className="mt-3 divide-y divide-white/[0.06]">
                   {history.map((s) => {
-                    const used = s.balanceStart != null && s.balanceEnd != null ? Math.max(0, Math.round(s.balanceStart - s.balanceEnd)) : null;
+                    const used = s.cognitionUsed ?? (s.balanceStart != null && s.balanceEnd != null ? Math.max(0, Math.round(s.balanceStart - s.balanceEnd)) : null);
                     return (
                       <li key={s.id} className="flex items-start justify-between gap-4 py-3 text-sm">
                         <div className="min-w-0">

@@ -1,0 +1,1 @@
+ALTER TABLE "searches" ADD COLUMN "cognition_used" real;

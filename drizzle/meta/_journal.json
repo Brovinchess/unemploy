@@ -92,6 +92,13 @@
       "when": 1791261342586,
       "tag": "0012_search_nudge",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1791275168898,
+      "tag": "0013_search_cognition_used",
+      "breakpoints": true
     }
   ]
 }
