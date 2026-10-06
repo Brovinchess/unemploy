@@ -61,7 +61,9 @@ export type ApplicantDetails = {
   salaryExpectation?: string;
 };
 
-export type SavedAnswer = { question: string; answer: string; updatedAt: string };
+// `field` is set when the answer was promoted into application details (it stays here so
+// the personal Mind is still taught it, but the list hides it).
+export type SavedAnswer = { question: string; answer: string; updatedAt: string; field?: string };
 
 // The Chrome extension's link to an account: a random token, stored hashed.
 export const extensionTokens = pgTable(

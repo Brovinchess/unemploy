@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, isNotNull, lt, ne } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { FormQuestion, PackAnswer, User } from "@/db/schema";
-import { mergeAnswers, questionKey, sensitiveQuestion } from "./extension";
+import { questionKey, saveAnswers, sensitiveQuestion } from "./extension";
 import { minds } from "./minds/client";
 import { mindsConfig } from "./minds/config";
 import { ingestReachable } from "./search";
@@ -268,8 +268,7 @@ export async function processAnswers(user: User, body: unknown) {
 export async function settleQuestion(user: User, id: string, answer: string) {
   const row = await db.query.questions.findFirst({ where: and(eq(schema.questions.id, id), eq(schema.questions.userId, user.id)) });
   if (!row) return;
-  const saved = mergeAnswers(user.savedAnswers ?? [], [{ question: row.question, answer }]);
-  await db.update(schema.users).set({ savedAnswers: saved }).where(eq(schema.users.id, user.id));
+  await saveAnswers(user, [{ question: row.question, answer }]);
   await db.delete(schema.questions).where(eq(schema.questions.id, row.id));
 }
 

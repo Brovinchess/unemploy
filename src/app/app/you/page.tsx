@@ -62,7 +62,7 @@ export default async function YouPage() {
 
           <section id="saved" className="scroll-mt-8 rounded-3xl bg-surface p-6 md:p-8">
             <h2 className="mb-3 font-display font-medium text-white">Saved answers</h2>
-            <SavedAnswers answers={(user.savedAnswers ?? []).map(({ question, answer }) => ({ question, answer }))} />
+            <SavedAnswers answers={(user.savedAnswers ?? []).map(({ question, answer, updatedAt, field }) => ({ question, answer, updatedAt, field: field ?? null }))} />
           </section>
 
           <section id="application" className="scroll-mt-8 rounded-3xl bg-surface p-6 md:p-8">

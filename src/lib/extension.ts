@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ApplicantDetails, SavedAnswer } from "@/db/schema";
+import { detailFieldFor, usableAsDetail, withDetail } from "./answers";
 import { hashKey } from "./keys";
 
 // The Chrome extension authenticates with a token the signed-in web app hands it.
@@ -64,7 +65,21 @@ export function mergeAnswers(existing: SavedAnswer[], incoming: { question: stri
     const question = a.question.trim().slice(0, 300);
     const answer = a.answer.trim().slice(0, 1000);
     if (question.length < 3 || !answer || sensitiveQuestion(question)) continue;
-    byKey.set(questionKey(question), { question, answer, updatedAt: now });
+    const field = detailFieldFor(question);
+    byKey.set(questionKey(question), { question, answer, updatedAt: now, ...(field && usableAsDetail(field, answer) ? { field } : {}) });
   }
   return [...byKey.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, MAX_SAVED);
+}
+
+// Saves answers for a user: into the list, and the common ones (notice period, salary,
+// right to work) into their application details too, so those fields fill themselves.
+export async function saveAnswers(user: { id: string; savedAnswers: SavedAnswer[] | null; applicant: ApplicantDetails | null }, incoming: { question: string; answer: string }[]) {
+  const savedAnswers = mergeAnswers(user.savedAnswers ?? [], incoming);
+  let applicant = user.applicant ?? null;
+  for (const a of incoming) {
+    const field = detailFieldFor(a.question);
+    if (field && usableAsDetail(field, a.answer)) applicant = withDetail(applicant, field, a.answer.trim().slice(0, 200));
+  }
+  await db.update(schema.users).set({ savedAnswers, applicant }).where(eq(schema.users.id, user.id));
+  return savedAnswers;
 }

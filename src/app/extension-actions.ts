@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
+import { withDetail, type DetailField } from "@/lib/answers";
 import { createExtensionToken } from "@/lib/extension";
 import { requireUser } from "@/lib/session";
 
@@ -44,7 +45,9 @@ export async function updateSavedAnswer(question: string, answer: string) {
   const clean = answer.trim().slice(0, 1000);
   if (!clean) return;
   const saved = (user.savedAnswers ?? []).map((a) => (a.question === question ? { ...a, answer: clean, updatedAt: new Date().toISOString() } : a));
-  await db.update(schema.users).set({ savedAnswers: saved }).where(eq(schema.users.id, user.id));
+  const promoted = saved.find((a) => a.question === question)?.field as DetailField | undefined;
+  const applicant = promoted ? withDetail(user.applicant, promoted, clean.slice(0, 200)) : user.applicant;
+  await db.update(schema.users).set({ savedAnswers: saved, applicant }).where(eq(schema.users.id, user.id));
   revalidatePath("/app/you");
 }
 
