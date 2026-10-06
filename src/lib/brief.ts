@@ -1,4 +1,5 @@
 import type { Preferences } from "./preferences";
+import { discoveryText } from "./discovery";
 import { floorOf } from "./pay";
 import { avoidList, MAX_POSTING_AGE_DAYS, REMOTE_SCOPES, salaryLabel, workSettingLabel } from "./preferences";
 
@@ -35,6 +36,9 @@ WHAT I WANT
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.join(", ")}.
 - Pay: ${floorOf(prefs) ? `at least ${salaryLabel(floorOf(prefs)!)}. It's a floor, not a target: a posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Skip jobs whose whole posted range is below it. Jobs that don't show pay are fine.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
+
+WHERE TO LOOK
+- ${discoveryText(prefs.targetRoles, prefs.country)}
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).

@@ -5,6 +5,7 @@ import type { Profile } from "@/db/schema";
 import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
+import { discoveryText } from "./discovery";
 import { askPersonalMind } from "./personal";
 import { mindsConfig } from "./minds/config";
 
@@ -32,7 +33,16 @@ export async function alreadySentList(userId: string, limit = 80) {
   return rows.map((r) => `${r.company}: ${r.title}`);
 }
 
-export function searchRequestText(username: string, jobs: number, n: number, focus?: string, alreadySent: string[] = [], payFloor?: string) {
+export function searchRequestText(
+  username: string,
+  jobs: number,
+  n: number,
+  focus?: string,
+  alreadySent: string[] = [],
+  payFloor?: string,
+  discovery?: { targetRoles: string; country: string },
+) {
+  const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country) + " " : "";
   const pay = payFloor
     ? `Pay floor: ${payFloor}. A posted range passes if its top reaches it; skip jobs whose whole posted range is below it; jobs without posted pay are fine. `
     : "";
@@ -46,6 +56,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
     `Send each job AS SOON AS it passes every check, one job per POST is fine: I see it straight away and can start swiping while you keep searching. Don't hold jobs back for one big batch at the end. ` +
     `Dry-run (?dry_run=1) at most once this search, then POST directly. Progress notes: one line, only when something changes; no long updates. ` +
     `When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). ` +
+    wide +
     pay +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
