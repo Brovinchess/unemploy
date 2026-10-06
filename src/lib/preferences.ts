@@ -19,8 +19,11 @@ export const LEVELS = ["Internship", "Entry", "Associate", "Mid-Senior", "Direct
 // Rough cost model for one search, shown before users pick how many jobs a search brings. One base wake plus
 // per-job research and writing. Tune from real ledger data once Minds are running.
 export const COGNITION_USD = 2.83 / 160;
-const BASE_COGNITION_PER_DAY = 15;
-const COGNITION_PER_JOB = 8;
+// Measured on real searches (Oct 2026): opening each posting and its form, reading them,
+// writing the pack and sending costs far more than first guessed. The per-job figure is
+// replaced by the headhunter's own history once it has some (see lib/cost.ts).
+export const BASE_COGNITION_PER_SEARCH = 30;
+export const DEFAULT_COGNITION_PER_JOB = 22;
 
 // People answer "no" or "none" to "any companies to avoid?". Those aren't company names.
 const NOTHING = new Set(["no", "none", "nope", "n/a", "na", "nil", "nothing", "-", "no one", "nobody"]);
@@ -41,8 +44,8 @@ export const MIN_JOBS_PER_SEARCH = 1;
 export const MAX_JOBS_PER_SEARCH = 20;
 export const RECOMMENDED_JOBS_PER_SEARCH = 5;
 
-export function estimateSearchCost(jobsPerDay: number) {
-  const cognition = BASE_COGNITION_PER_DAY + COGNITION_PER_JOB * jobsPerDay;
+export function estimateSearchCost(jobsPerDay: number, perJob = DEFAULT_COGNITION_PER_JOB) {
+  const cognition = Math.round(BASE_COGNITION_PER_SEARCH + perJob * jobsPerDay);
   return { cognition, usd: cognition * COGNITION_USD };
 }
 

@@ -3,8 +3,22 @@
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, RECOMMENDED_JOBS_PER_SEARCH } from "@/lib/preferences";
 
 // How many jobs one search brings, with its cost next to the number.
-export function JobsSlider({ value, onChange, balance }: { value: number; onChange: (n: number) => void; balance?: number | null }) {
-  const cost = estimateSearchCost(value);
+export type LastSearch = { used: number; jobs: number } | null;
+
+export function JobsSlider({
+  value,
+  onChange,
+  balance,
+  perJob,
+  last = null,
+}: {
+  value: number;
+  onChange: (n: number) => void;
+  balance?: number | null;
+  perJob?: number; // cognition per job, learnt from past searches
+  last?: LastSearch;
+}) {
+  const cost = estimateSearchCost(value, perJob);
   const pct = ((value - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
   const short = balance != null && cost.cognition > balance;
   return (
@@ -33,11 +47,16 @@ export function JobsSlider({ value, onChange, balance }: { value: number; onChan
       </div>
       <p className="mt-2 text-xs text-white/40">Fewer jobs means each one is checked more carefully.</p>
       <p className={`mt-4 text-sm ${short ? "text-rose" : "text-white/60"}`}>
-        About <span className={short ? "" : "text-white"}>{cost.cognition} cognition</span> (~${cost.usd.toFixed(2)})
+        Roughly <span className={short ? "" : "text-white"}>{cost.cognition} cognition</span> (~${cost.usd.toFixed(2)})
         {balance != null &&
           (short
             ? ` · only ${Math.round(balance)} left, pick fewer or top up`
-            : ` · ${Math.round(balance - cost.cognition)} left after`)}
+            : ` · about ${Math.round(balance - cost.cognition)} left after`)}
+      </p>
+      <p className="mt-1 text-xs text-white/35">
+        {last
+          ? `An estimate, based on your searches so far. Last one: ${last.used} cognition for ${last.jobs} ${last.jobs === 1 ? "job" : "jobs"}.`
+          : "An estimate. It gets more accurate after your first search."}
       </p>
     </div>
   );

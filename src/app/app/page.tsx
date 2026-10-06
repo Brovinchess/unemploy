@@ -11,6 +11,7 @@ import { SearchButton } from "@/components/search-button";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
+import { costModel } from "@/lib/cost";
 import { detailsComplete } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
 
@@ -25,6 +26,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
   const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const balance = await balanceFor(user, current);
+  const cost = await costModel(current.id);
 
   // New jobs from every headhunter, best match first.
   const fresh = await db.query.jobs.findMany({
@@ -49,6 +51,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
       disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
       big={big}
+      perJob={cost.perJob}
+      last={cost.last}
     />
   );
 

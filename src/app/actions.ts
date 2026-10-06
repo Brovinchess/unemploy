@@ -13,6 +13,7 @@ import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
+import { costModel } from "@/lib/cost";
 import { floorOf } from "@/lib/pay";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
@@ -351,8 +352,10 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
   try {
     const balance = await api.getBalance(profile.mindId);
     if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
-    if (estimateSearchCost(wanted).cognition > balance) {
-      return { error: `That search needs about ${estimateSearchCost(wanted).cognition} cognition and ${Math.round(balance)} is left. Pick fewer jobs or top up.` };
+    const { perJob } = await costModel(profile.id);
+    const need = estimateSearchCost(wanted, perJob).cognition;
+    if (need > balance) {
+      return { error: `That search needs roughly ${need} cognition and ${Math.round(balance)} is left. Pick fewer jobs or top up.` };
     }
     const [{ n }] = await db
       .select({ n: count() })

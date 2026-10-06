@@ -103,10 +103,10 @@ export function minutesSince(iso: string, now: number | null) {
 
 // ---------- Sidebar pieces ----------
 
-export function LiveCognition({ perSearchJobs }: { perSearchJobs: number }) {
+export function LiveCognition({ perSearchJobs, perJob }: { perSearchJobs: number; perJob?: number }) {
   const live = useLive();
   const balance = live?.profile.balance ?? null;
-  const perSearch = estimateSearchCost(perSearchJobs).cognition;
+  const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearch)) : null;
   const low = balance != null && (balance <= 0 || searchesLeft === 0);
   const fill = searchesLeft == null ? 0 : Math.min(100, (searchesLeft / 10) * 100);

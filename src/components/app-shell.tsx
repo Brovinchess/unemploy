@@ -4,6 +4,7 @@ import { ExternalLink, ListChecks, LogOut, Plus, Settings, UserRound } from "luc
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
+import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
@@ -52,7 +53,8 @@ export async function AppShell({
   ];
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
-  const perSearch = estimateSearchCost(perSearchJobs).cognition;
+  const { perJob } = await costModel(current.id);
+  const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
   const low = balance != null && balance < perSearch;
   const searching = isSearching(current);
   const initial: Live = {
@@ -149,7 +151,7 @@ export async function AppShell({
 
         <div className="mt-auto space-y-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <LiveCognition perSearchJobs={perSearchJobs} />
+            <LiveCognition perSearchJobs={perSearchJobs} perJob={perJob} />
             <a
               href={mindsConfig.topUpUrl}
               target="_blank"

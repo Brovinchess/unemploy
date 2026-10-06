@@ -5,7 +5,7 @@ import { Search, Square, X } from "lucide-react";
 import { requestSearch, stopSearch } from "@/app/actions";
 import { estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
-import { JobsSlider } from "./jobs-slider";
+import { JobsSlider, type LastSearch } from "./jobs-slider";
 import { minutesSince, useLive, useNow } from "./live";
 
 // The only way a search starts: the user asks, choosing how many jobs (and optionally a
@@ -19,6 +19,8 @@ export function SearchButton({
   disabled,
   notifyEmail,
   big = false,
+  perJob,
+  last = null,
 }: {
   profileId: string;
   searching: boolean;
@@ -28,6 +30,8 @@ export function SearchButton({
   disabled?: string; // reason the button can't be used
   notifyEmail: string | null; // where the "search finished" email goes, if on
   big?: boolean;
+  perJob?: number;
+  last?: LastSearch;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -77,10 +81,10 @@ export function SearchButton({
     );
   }
 
-  const tooExpensive = balance != null && estimateSearchCost(jobs).cognition > balance;
+  const tooExpensive = balance != null && estimateSearchCost(jobs, perJob).cognition > balance;
   const form = (
     <div className={big ? "w-full max-w-md text-left" : ""}>
-      <JobsSlider value={jobs} onChange={setJobs} balance={balance} />
+      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} last={last} />
       <label className="mt-5 block text-sm text-white/60" htmlFor={`focus-${profileId}`}>
         Focus for this search <span className="text-white/35">(optional)</span>
       </label>

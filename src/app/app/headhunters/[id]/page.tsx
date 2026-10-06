@@ -12,6 +12,7 @@ import { PreferencesChat } from "@/components/preferences-chat";
 import { SearchButton } from "@/components/search-button";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { mindsConfig } from "@/lib/minds/config";
+import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
@@ -30,7 +31,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   const searching = isSearching(current);
   const paused = current.status === "paused";
   const perSearch = current.preferences?.jobsPerDay ?? 5;
-  const perSearchCost = estimateSearchCost(perSearch).cognition;
+  const cost = await costModel(current.id);
+  const perSearchCost = estimateSearchCost(perSearch, cost.perJob).cognition;
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearchCost)) : null;
 
   const history = await db.query.searches.findMany({
@@ -69,6 +71,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               balance={balance}
               notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
               disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
+              perJob={cost.perJob}
+              last={cost.last}
             />
           </div>
         </section>
