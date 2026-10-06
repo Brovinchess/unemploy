@@ -57,6 +57,7 @@ export function searchRequestText(
     `Dry-run (?dry_run=1) at most once this search, then POST directly. Progress notes: one line, only when something changes; no long updates. ` +
     `When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). ` +
     wide +
+    `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". ` +
     pay +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +

@@ -49,6 +49,7 @@ CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs tha
 6. At most 2 roles per company per day. Look at the company's other openings and pick the one that fits me best.
 
 WRITING RULES
+- Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like "I am excited to" or "passionate about".
 - Every fact about me in the cover letter, about me and answers must come from a "claims" entry whose "evidence" quotes my resume word for word. If you can't quote it, leave it out. No flourishes ("senior scope", "API-first is native to me").
 - Keep each fact with the job, company and project it belongs to on my resume. Don't move numbers or duties between roles.
 - Tailor each letter to that posting's own requirements; don't reuse the same paragraph for every job.

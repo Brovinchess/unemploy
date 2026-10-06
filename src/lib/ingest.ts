@@ -7,6 +7,7 @@ import { SAME_ROLE_DAYS, SeenJobs } from "./dedupe";
 import { clearlyBelow, floorOf } from "./pay";
 import { avoidList, MAX_POSTING_AGE_DAYS, salaryLabel } from "./preferences";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
+import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
 
@@ -477,7 +478,13 @@ async function checkAndSave(
       lastCheckedAt: new Date(),
       demo: !!opts.demo,
     });
-    await db.insert(schema.packs).values({ jobId: id, ...job.pack });
+    await db.insert(schema.packs).values({
+      jobId: id,
+      ...job.pack,
+      coverLetter: humanise(job.pack.coverLetter),
+      aboutMe: humanise(job.pack.aboutMe),
+      answers: job.pack.answers.map((a) => ({ ...a, answer: humanise(a.answer) })),
+    });
     if (job.formQuestions?.length) {
       await queueQuestions(profile.userId, job.company, job.formQuestions, job.pack.answers).catch((e) =>
         console.error("[ingest] queue questions failed", profile.id, e),

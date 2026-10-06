@@ -5,6 +5,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { FormQuestion, PackAnswer, User } from "@/db/schema";
 import { questionKey, saveAnswers, sensitiveQuestion } from "./extension";
+import { humanise } from "./text";
 import { minds } from "./minds/client";
 import { mindsConfig } from "./minds/config";
 import { ingestReachable } from "./search";
@@ -109,7 +110,7 @@ HOW WE WORK
   - Never guess a fact. If you aren't sure, send "answer": null. I'll answer it myself and you'll learn it next time.
   - Open-ended questions ("describe a project you're proud of", "tell us about a time you…") are different: if my resume has the material, write a short draft from it in my voice and send it with "draft": true. I'll edit it before it's used. If the resume has nothing relevant, send null.
   - If it has choices, answer with one choice exactly as written.
-  - Write as me, short, the way I'd type it into the form.
+  - Write as me, short, the way I'd type it into the form: plain words, commas and full stops, no dashes or bullet points.
 - POST all the answers in one go to ${ingestUrl}/api/personal with header "x-unemploy-key: ${key}":
   {"answers":[{"id":"<id>","answer":"<text>" or null,"draft":true|false,"note":"<where you got it, optional>"}]}
   The reply says what was saved. Then stop and wait for my next message.
@@ -240,7 +241,7 @@ export async function processAnswers(user: User, body: unknown) {
       continue;
     }
     if (row.status !== "asked" && row.status !== "new") continue; // already handled
-    let answer = a.answer?.trim() || null;
+    let answer = a.answer?.trim() ? humanise(a.answer.trim()) : null;
     if (answer && row.options?.length) {
       const match = row.options.find((o) => o.toLowerCase() === answer!.toLowerCase());
       if (!match) {
