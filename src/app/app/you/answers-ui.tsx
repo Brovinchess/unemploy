@@ -134,7 +134,23 @@ function QuestionRow({ item, mode }: { item: Item; mode: "answer" | "review" }) 
   const [value, setValue] = useState(item.answer);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
-  const save = (v = value) => start(async () => setError((await saveQuestionAnswer(item.id, v))?.error));
+  // The row goes away the moment you decide; it only comes back if the save failed.
+  const [gone, setGone] = useState(false);
+  const save = (v = value) =>
+    start(async () => {
+      setGone(true);
+      const r = await saveQuestionAnswer(item.id, v);
+      if (r?.error) {
+        setGone(false);
+        setError(r.error);
+      }
+    });
+  const skip = () =>
+    start(async () => {
+      setGone(true);
+      await ignoreQuestion(item.id);
+    });
+  if (gone) return null;
 
   return (
     <li className="py-4">
@@ -172,7 +188,7 @@ function QuestionRow({ item, mode }: { item: Item; mode: "answer" | "review" }) 
             <Check className="size-4" aria-hidden /> {mode === "review" ? (value === item.answer ? "Approve" : "Save") : "Save"}
           </button>
         )}
-        <button className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white" disabled={pending} onClick={() => start(() => ignoreQuestion(item.id))}>
+        <button className="inline-flex items-center gap-1 text-sm text-white/40 hover:text-white" disabled={pending} onClick={skip}>
           <X className="size-3.5" aria-hidden /> Skip
         </button>
         {error && <span className="text-sm text-rose">{error}</span>}

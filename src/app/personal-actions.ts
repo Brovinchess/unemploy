@@ -100,12 +100,12 @@ export async function saveQuestionAnswer(id: string, answer: string): Promise<Pe
   if (!clean) return { error: "Write an answer first." };
   if (!(await owned(user, id))) return;
   await settleQuestion(user, id, clean);
-  done();
+  revalidatePath("/app/you");
 }
 
 export async function ignoreQuestion(id: string) {
   const user = await requireUser();
   if (!(await owned(user, id))) return;
   await db.update(schema.questions).set({ status: "ignored" }).where(eq(schema.questions.id, id));
-  done();
+  revalidatePath("/app/you");
 }

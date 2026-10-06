@@ -71,7 +71,8 @@ export function LiveProvider({ initial, children }: { initial: Live; children: R
       clearTimeout(timer);
       load();
     };
-    timer = setTimeout(tick, active(initial) ? ACTIVE_MS : IDLE_MS);
+    // First poll right away (fills anything the server render left out), then on the interval.
+    timer = setTimeout(tick, 300);
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       stop = true;

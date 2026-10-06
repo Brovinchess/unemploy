@@ -2,7 +2,6 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { minds } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { questionCounts } from "@/lib/personal";
 import { ApplicantForm } from "../settings/applicant-form";
@@ -14,7 +13,6 @@ import { PersonalMindCard, QuestionList } from "./answers-ui";
 export default async function YouPage() {
   const { user, profiles, unfinished, current } = await appContext();
   const balance = await balanceFor(user, current);
-  const personalBalance = user.personalMindId ? await minds(user).getBalance(user.personalMindId).catch(() => null) : null;
   const counts = await questionCounts(user.id);
   const rows = await db.query.questions.findMany({
     where: and(eq(schema.questions.userId, user.id), inArray(schema.questions.status, ["needs_you", "review"])),
@@ -39,7 +37,7 @@ export default async function YouPage() {
           <PersonalMindCard
             state={!user.personalMindId ? "none" : !user.personalBriefedAt ? "unfunded" : "ready"}
             name={user.personalMindName}
-            balance={personalBalance}
+            balance={null}
             waiting={counts.new}
             answering={counts.asked}
             topUpUrl={mindsConfig.topUpUrl}
