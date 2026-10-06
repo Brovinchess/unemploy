@@ -41,8 +41,7 @@ export const DETAIL_LABELS: Record<DetailField, string> = {
 
 // A yes/no answer isn't a usable value for a details field ("Yes" is not a notice period);
 // those stay in the list.
-export const usableAsDetail = (field: DetailField, answer: string) =>
-  field === "workAuthorization" ? answer.trim().length >= 2 : !/^(yes|no|y|n)\b/i.test(answer.trim()) && answer.trim().length >= 2;
+export const usableAsDetail = (_field: DetailField, answer: string) => !/^(yes|no|y|n)\b/i.test(answer.trim()) && answer.trim().length >= 2;
 
 export function withDetail(details: ApplicantDetails | null | undefined, field: DetailField, value: string): ApplicantDetails {
   const base: ApplicantDetails = details ?? { firstName: "", lastName: "", email: "", phone: "", location: "" };
