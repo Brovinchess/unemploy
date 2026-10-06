@@ -26,7 +26,8 @@ function fromMessages(items: { kind: string; at: string; detail?: string }[], si
       checked = Math.max(checked, Number(m[1] ?? m[2]));
     }
   }
-  return { line, at: latest?.at ?? null, checked };
+  const forms = said.some((s) => /application form|form question|form captur|forms? (?:read|captured)/i.test(s.detail!));
+  return { line, at: latest?.at ?? null, checked, forms };
 }
 
 function ago(iso: string) {
@@ -56,19 +57,20 @@ export function HuntProgress({
   const s = data?.stats;
   const found = s?.jobsAdded ?? 0;
 
+  const said = fromMessages(data?.items ?? [], startedAt);
+  const sent = !!s && s.deliveries > 0;
   const raw = [
     { label: "Search request sent", done: true },
     { label: "Reading your brief", done: !!s && (s.filesRead > 0 || s.replied || s.webSearches > 0) },
-    { label: "Searching job sites", done: !!s && s.webSearches > 0 && s.deliveries > 0, detail: s?.webSearches ? `${s.webSearches} searches` : undefined },
-    { label: "Checking jobs and writing applications", done: !!s && s.deliveries > 0 },
+    { label: "Searching job sites", done: !!s && s.webSearches > 0 && (sent || said.checked > 0), detail: s?.webSearches ? `${s.webSearches} searches` : undefined },
+    { label: "Checking jobs", done: sent || said.checked > 0, detail: said.checked ? `${said.checked} passed` : undefined },
+    { label: "Reading application forms", done: sent, detail: said.forms ? "copying each form's questions" : undefined },
+    { label: "Writing your applications", done: sent },
     { label: "Jobs on your shortlist", done: found > 0, detail: found ? `${found} so far` : undefined },
   ];
   // A later step done means the earlier ones are too (usage numbers can lag behind).
   const last = raw.map((st) => st.done).lastIndexOf(true);
   const steps = raw.map((st, i) => ({ ...st, done: i <= last }));
-  const said = fromMessages(data?.items ?? [], startedAt);
-  // Jobs it says it has checked mean the searching step is over, even before any is sent.
-  if (said.checked > 0) for (let i = 0; i <= 2; i++) steps[i].done = true;
   const current = steps.findIndex((st) => !st.done);
   const now = steps[current === -1 ? steps.length - 1 : current];
   const waiting = Math.max(0, said.checked - found);
@@ -117,8 +119,8 @@ export function HuntProgress({
         <div className="grid gap-6 border-t border-white/[0.06] px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
           <div>
             <p className="text-sm text-white/55">
-              <span className="font-mono text-white/80">{mindName}</span> is on it. A search usually takes under an hour; you can
-              close this page.
+              <span className="font-mono text-white/80">{mindName}</span> is on it. A careful search can take a few hours; you can
+              close this page and jobs will appear as they're sent.
             </p>
             {live && (
               <div className="mt-3">
@@ -156,6 +158,10 @@ export function HuntProgress({
                 );
               })}
             </ol>
+            <p className="mt-3 flex items-center gap-3 text-sm text-white/40">
+              <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-dashed border-white/20 text-[10px]">+</span>
+              After the search: your personal Mind answers the form questions (see Answers)
+            </p>
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-white/35">Activity</p>

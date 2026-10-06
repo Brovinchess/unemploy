@@ -15,6 +15,9 @@ const claimSchema = z.object({
   evidence: z.string().trim().min(3).max(400),
 });
 
+// Text that's merely too long is trimmed rather than costing the whole job.
+const trimmed = (max: number) => z.string().trim().transform((s) => (s.length > max ? `${s.slice(0, max - 1)}…` : s));
+
 const jobSchema = z.object({
   url: z.url({ protocol: /^https?$/ }),
   title: z.string().trim().min(2).max(200),
@@ -24,7 +27,7 @@ const jobSchema = z.object({
   workSetting: z.enum(["onsite", "hybrid", "remote"]),
   jobType: z.string().trim().max(60).optional(),
   level: z.string().trim().max(60).optional(),
-  salary: z.string().trim().max(120).optional(),
+  salary: trimmed(120).optional(),
   postedAt: z.string().trim().max(40).optional(),
   matchScore: z.number().min(0).max(100),
   whyFit: z.string().trim().min(10).max(1200),
@@ -36,7 +39,8 @@ const jobSchema = z.object({
   companySize: z.string().trim().max(60).optional(),
   industry: z.string().trim().max(80).optional(),
   perks: z.array(z.string().trim().min(2).max(60)).max(6).optional(),
-  highlights: z.array(z.string().trim().min(5).max(160)).min(1).max(3), // shown before the company is revealed
+  // Shown before the company is revealed; when missing, the card falls back to whyFit.
+  highlights: z.array(trimmed(160)).max(3).optional(),
   summary: z.string().trim().min(10).max(200).optional(), // "what you'd do", one line
   salaryEstimated: z.boolean().optional(),
   // Evidence the Mind must bring from the posting itself.
@@ -50,13 +54,13 @@ const jobSchema = z.object({
   formQuestions: z
     .array(
       z.object({
-        question: z.string().trim().min(3).max(300),
-        options: z.array(z.string().trim().min(1).max(120)).max(30).optional(),
+        question: trimmed(300),
+        options: z.array(trimmed(120)).max(30).optional(),
         required: z.boolean().optional(),
       }),
     )
-    .max(40)
-    .optional(),
+    .optional()
+    .transform((qs) => qs?.filter((q) => q.question.length >= 3).slice(0, 40)),
   pack: z.object({
     coverLetter: z.string().trim().min(80).max(6000),
     aboutMe: z.string().trim().min(20).max(1500),
@@ -89,12 +93,34 @@ export type PushResult = {
   skippedRecently?: { title: string; company: string; reason: string | null }[];
 };
 
+// Apostrophes and quotes vanish (curly or straight, and the "\uFFFD" left when a Mind's
+// text arrives with a broken encoding); every other symbol is a space.
 const norm = (s: string) =>
   s
     .toLowerCase()
-    .replace(/[‘’“”"'`]/g, "")
+    .replace(/[‘’‛“”"'`´\uFFFD]/g, "")
     .replace(/[^\p{L}\p{N}%+#.]+/gu, " ")
+    .replace(/\s+/g, " ")
     .trim();
+
+// A quote counts as from the resume when it is, word for word, or when nearly all of its
+// three-word runs appear there (PDF line breaks, bullets and dashes read differently).
+function inResume(evidence: string, resume: string, resumeRuns: Set<string>) {
+  const e = norm(evidence);
+  if (!e) return false;
+  if (resume.includes(e)) return true;
+  const w = e.split(" ");
+  if (w.length < 6) return false;
+  let hit = 0;
+  for (let i = 0; i + 3 <= w.length; i++) if (resumeRuns.has(w.slice(i, i + 3).join(" "))) hit++;
+  return hit / (w.length - 2) >= 0.85;
+}
+function runsOf(text: string) {
+  const w = text.split(" ");
+  const out = new Set<string>();
+  for (let i = 0; i + 3 <= w.length; i++) out.add(w.slice(i, i + 3).join(" "));
+  return out;
+}
 
 const sameCountry = (a?: string, b?: string) => !!a && !!b && norm(a) === norm(b);
 
@@ -181,7 +207,8 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
     }
   }
 
-  const unsupported = job.pack.claims.filter((c) => !resume.includes(norm(c.evidence)));
+  const runs = runsOf(resume);
+  const unsupported = job.pack.claims.filter((c) => !inResume(c.evidence, resume, runs));
   if (unsupported.length) {
     return {
       url: job.url,
@@ -428,7 +455,7 @@ async function checkAndSave(
       companySize: job.companySize,
       industry: job.industry,
       perks: job.perks ?? [],
-      highlights: job.highlights,
+      highlights: job.highlights?.filter((h) => h.length >= 5) ?? [],
       summary: job.summary ?? null,
       formQuestions: job.formQuestions ?? null,
       salaryEstimated: !!job.salary && !!job.salaryEstimated,

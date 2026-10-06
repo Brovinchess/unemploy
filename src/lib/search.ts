@@ -11,7 +11,8 @@ import { mindsConfig } from "./minds/config";
 // Headhunters search only when the user asks. A search is "active" from the request until
 // the Mind sends its final batch, fills the quota, or this timeout passes. Between searches
 // the Mind is switched off so it can't wake (and spend) on its own.
-export const SEARCH_TIMEOUT_MS = 3 * 60 * 60 * 1000;
+// Careful searches (opening every posting and its form) can run for several hours.
+export const SEARCH_TIMEOUT_MS = 6 * 60 * 60 * 1000;
 
 type SearchFields = Pick<Profile, "searchStartedAt" | "searchEndedAt">;
 
