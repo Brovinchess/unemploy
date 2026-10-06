@@ -120,7 +120,7 @@ export function HuntProgress({
           <div>
             <p className="text-sm text-white/55">
               <span className="font-mono text-white/80">{mindName}</span> is on it. A careful search can take a few hours; you can
-              close this page and jobs will appear as they're sent.
+              close this page and jobs will appear as they&rsquo;re sent.
             </p>
             {live && (
               <div className="mt-3">
