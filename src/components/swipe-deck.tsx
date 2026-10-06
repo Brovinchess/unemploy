@@ -130,7 +130,7 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
 
       {current ? (
         <>
-          <div className="relative h-[min(600px,calc(100svh-330px))] min-h-[500px] w-[min(400px,92vw)]">
+          <div className="relative h-[min(660px,calc(100svh-290px))] min-h-[520px] w-[min(460px,92vw)]">
             {revealing && <span className="deck-burst" aria-hidden />}
             {queue
               .slice(0, 3)
@@ -147,7 +147,7 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
               })}
           </div>
 
-          <div className="mt-5 grid w-[min(400px,92vw)] grid-cols-[1fr_auto_1fr] items-end">
+          <div className="mt-5 grid w-[min(460px,92vw)] grid-cols-[1fr_auto_1fr] items-end">
             <Control label="Dismiss" onClick={() => decide("dismiss")} title="Dismiss (←)">
               <span className="flex size-[62px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-mist">
                 <X className="size-6" strokeWidth={2.2} />
@@ -161,11 +161,7 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
                 Details
               </Link>
             ) : (
-              <Control label="Reveal" onClick={reveal} title="Reveal (space)">
-                <span className="mb-2 flex size-[46px] items-center justify-center rounded-full border border-white/[0.07] bg-white/[0.05] text-white">
-                  <RefreshCw className="size-[18px]" strokeWidth={2.2} />
-                </span>
-              </Control>
+              <span /> /* Reveal lives on the card itself */
             )}
             <Control label="Apply" onClick={() => decide("apply")} title="Apply (→)">
               <span className="flex size-[62px] items-center justify-center rounded-full bg-gradient-to-b from-[#d27375] to-coral text-white shadow-[0_14px_30px_-10px_rgba(201,101,103,0.8)]">

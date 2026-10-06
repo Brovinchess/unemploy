@@ -39,12 +39,14 @@ export function HuntProgress({
   jobsPerDay,
   live,
   startedAt = null,
+  panel = false,
 }: {
   profileId: string;
   mindName: string;
   jobsPerDay: number;
   live: boolean;
   startedAt?: string | null;
+  panel?: boolean; // stacked, for a side column next to the cards
 }) {
   const data = useActivity(profileId, live);
   const [open, setOpen] = useState(false);
@@ -73,12 +75,12 @@ export function HuntProgress({
   const waiting = Math.max(0, said.checked - found);
 
   return (
-    <section className="mb-6 rounded-3xl bg-surface" aria-label="Search progress">
-      <div className="flex items-center gap-4 px-5 py-4 sm:px-6">
-        <Ninja mood={live ? "searching" : "sleeping"} className="size-11 shrink-0" />
+    <section className={`rounded-3xl bg-surface ${panel ? "" : "mb-6"}`} aria-label="Search progress">
+      <div className={`flex gap-4 px-5 py-4 sm:px-6 ${panel ? "flex-col" : "items-center"}`}>
+        <Ninja mood={live ? "searching" : "sleeping"} className={`shrink-0 ${panel ? "size-12" : "size-11"}`} />
         <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-            <p className="flex items-center gap-2 font-medium text-white">
+          <div className={`flex gap-x-3 gap-y-0.5 ${panel ? "flex-col" : "flex-wrap items-baseline justify-between"}`}>
+            <p className="flex flex-wrap items-center gap-2 font-medium text-white">
               {live && <LiveDot />}
               {live ? "Searching…" : "Paused"}
               <span className="text-white/55">
@@ -99,6 +101,7 @@ export function HuntProgress({
           </div>
 
         </div>
+        <div className={`flex items-center gap-1 ${panel ? "-mx-2" : "shrink-0"}`}>
         {live && (
           <button
             onClick={() => startStop(() => stopSearch(profileId))}
@@ -115,10 +118,11 @@ export function HuntProgress({
         >
           Details <ChevronDown className={`size-4 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
         </button>
+        </div>
       </div>
 
       {open && (
-        <div className="grid gap-6 border-t border-white/[0.06] px-5 py-5 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className={`grid gap-6 border-t border-white/[0.06] px-5 py-5 sm:px-6 ${panel ? "" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]"}`}>
           <div>
             <p className="text-sm text-white/55">
               <span className="font-mono text-white/80">{mindName}</span> is on it. A careful search can take a few hours; you can

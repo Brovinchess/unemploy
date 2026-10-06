@@ -123,7 +123,7 @@ export async function AppShell({
                     <span className={`block truncate text-sm ${active ? "text-white" : "text-white/70"}`}>{p.label}</span>
                     <span className="block truncate font-mono text-[11px] text-white/35">{p.mindName}</span>
                   </span>
-                  {!!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
+                  {profiles.length > 1 && !!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
                 </Link>
               </li>
             );

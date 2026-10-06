@@ -2,7 +2,9 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Profile } from "@/db/schema";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
+import Link from "next/link";
 import { Ninja } from "@/components/brand";
+import { CompanyLogo } from "@/components/company-logo";
 import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
 import { Pipeline } from "@/components/pipeline";
 import { HuntProgress } from "@/components/hunt-progress";
@@ -35,6 +37,14 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   });
   const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
   const toApply = await db.$count(schema.jobs, and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
+  // The queue shown beside the cards while swiping.
+  const queue = fresh.length
+    ? await db.query.jobs.findMany({
+        where: and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")),
+        orderBy: [desc(schema.jobs.statusChangedAt)],
+        limit: 6,
+      })
+    : [];
   const applyAll = <ApplyAllButton count={toApply} detailsComplete={detailsComplete(user.applicant)} />;
 
   const paused = current.status === "paused";
@@ -74,9 +84,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         <div className="mb-6 flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-sm text-white/45">{profiles.length > 1 ? "All headhunters" : `${current.label} headhunter`}</p>
-            <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">
-              {fresh.length ? `${fresh.length} new ${fresh.length === 1 ? "job" : "jobs"}` : "Jobs"}
-            </h1>
+            <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Jobs</h1>
             {current.lastDeliveryAt && <p className="mt-1 text-sm text-white/40">Last search {ago(current.lastDeliveryAt)}</p>}
           </div>
         </div>
@@ -92,8 +100,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {/* While a search runs: one compact progress bar, above any jobs already in. */}
-        {searching && (
+        {/* While a search runs with nothing to swipe yet: one compact progress bar. */}
+        {searching && fresh.length === 0 && (
           <HuntProgress
             profileId={current.id}
             mindName={current.mindName ?? "Your headhunter"}
@@ -103,7 +111,48 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           />
         )}
 
-        {fresh.length > 0 && <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={<>{applyAll}{searchButton(true)}</>} />}
+        {/* Cards to swipe, with the search status and the apply queue alongside. */}
+        {fresh.length > 0 && (
+          <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_330px]">
+            <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={<>{applyAll}{searchButton(true)}</>} />
+            <aside className="space-y-4 xl:sticky xl:top-8 xl:self-start">
+              {searching && (
+                <HuntProgress
+                  profileId={current.id}
+                  mindName={current.mindName ?? "Your headhunter"}
+                  jobsPerDay={perSearch}
+                  startedAt={current.searchStartedAt?.toISOString() ?? null}
+                  live
+                  panel
+                />
+              )}
+              <section className="rounded-3xl bg-surface p-5" aria-label="To apply">
+                <h2 className="font-display flex items-baseline justify-between text-sm font-medium text-white/70">
+                  To apply <span className="text-white/35">{toApply || ""}</span>
+                </h2>
+                {queue.length ? (
+                  <ul className="mt-3 divide-y divide-white/[0.06]">
+                    {queue.map((j) => (
+                      <li key={j.id}>
+                        <Link href={`/app/jobs/${j.id}`} className="flex items-center gap-3 py-2.5 hover:bg-white/[0.02]">
+                          <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm text-white">{j.title}</span>
+                            <span className="block truncate text-xs text-white/50">{j.company}</span>
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-sm text-white/40">Swipe right and jobs pile up here.</p>
+                )}
+                {toApply > queue.length && <p className="mt-2 text-xs text-white/35">and {toApply - queue.length} more</p>}
+                <div className="mt-4">{applyAll}</div>
+              </section>
+            </aside>
+          </div>
+        )}
 
 
         {fresh.length === 0 && searching && (
