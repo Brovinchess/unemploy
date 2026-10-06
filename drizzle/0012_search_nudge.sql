@@ -1,0 +1,1 @@
+ALTER TABLE "searches" ADD COLUMN "nudged_at" timestamp with time zone;

@@ -53,6 +53,36 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
   );
 }
 
+// If a search has run this long with nothing delivered, the headhunter is asked once to send
+// the jobs it has already checked. Runs in the background (activity polls and the watchdog).
+const NUDGE_AFTER_MS = 25 * 60 * 1000;
+
+export async function nudgeIfQuiet(profile: Profile) {
+  if (!isSearching(profile) || !profile.conversationAlias || !profile.searchStartedAt) return;
+  if (Date.now() - profile.searchStartedAt.getTime() < NUDGE_AFTER_MS) return;
+  const delivered = await db.query.ingestLog.findFirst({
+    where: and(eq(schema.ingestLog.profileId, profile.id), eq(schema.ingestLog.dryRun, false), gte(schema.ingestLog.createdAt, profile.searchStartedAt)),
+  });
+  if (delivered) return;
+  // Claim the nudge first so concurrent polls send it only once.
+  const claimed = await db
+    .update(schema.searches)
+    .set({ nudgedAt: new Date() })
+    .where(and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt), isNull(schema.searches.nudgedAt)))
+    .returning({ id: schema.searches.id });
+  if (!claimed.length) return;
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user) return;
+  await minds(user)
+    .sendMessage(
+      profile.conversationAlias,
+      `${user.username} here, about the search you're running: please POST the jobs that have already passed every check to ` +
+        `${mindsConfig.ingestUrl}/api/ingest now, without "final", so I can start on them. Then keep searching and send each ` +
+        `new job as soon as it's checked. Mark the end with {"jobs":[],"final":true}. (${new Date().toISOString()})`,
+    )
+    .catch((e) => console.error("[search] nudge failed", profile.id, e));
+}
+
 // Minds run on Hello Minds' servers, so the address they send results to must be public.
 // Checked before waking a Mind: locally, a tunnel that has died would leave it retrying.
 export async function ingestReachable() {

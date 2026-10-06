@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
 import { releaseStaleQuestions } from "@/lib/personal";
 import { checkPosting } from "@/lib/quality";
-import { endSearch, isSearching } from "@/lib/search";
+import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
 
 // Runs daily (vercel.json): clears expired sessions, closes searches that never finished,
 // and rechecks shortlisted postings. It never wakes a Mind; searches start only from the user.
@@ -29,7 +29,10 @@ export async function GET(request: Request) {
   });
   let stale = 0;
   for (const p of open) {
-    if (isSearching(p)) continue;
+    if (isSearching(p)) {
+      await nudgeIfQuiet(p).catch((e) => console.error("[watchdog] nudge failed", p.id, e));
+      continue;
+    }
     await endSearch(p, "timeout").catch((e) => console.error("[watchdog] end search failed", p.id, e));
     stale++;
   }

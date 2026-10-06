@@ -385,24 +385,6 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
   revalidatePath("/app", "layout");
 }
 
-// Mid-search: asks the headhunter to deliver the jobs it has already checked, then carry on.
-export async function sendFoundSoFar(profileId: string): Promise<FormState & { ok?: boolean }> {
-  const user = await requireUser();
-  const profile = await ownedProfile(user, profileId);
-  if (!isSearching(profile) || !profile.conversationAlias) return { error: "There's no search running." };
-  try {
-    await minds(user).sendMessage(
-      profile.conversationAlias,
-      `${user.username} here, about the search you're running: please POST the jobs that have already passed every check to ` +
-        `${mindsConfig.ingestUrl}/api/ingest now, without "final", so I can start on them. Then keep searching and send each ` +
-        `new job as soon as it's checked. Mark the end with {"jobs":[],"final":true}. (${new Date().toISOString()})`,
-    );
-  } catch (e) {
-    return { error: friendly(e) };
-  }
-  return { ok: true };
-}
-
 export async function stopSearch(profileId: string) {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
