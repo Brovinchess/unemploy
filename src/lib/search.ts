@@ -40,7 +40,7 @@ export function searchRequestText(username: string, jobs: number, n: number, foc
     ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `
     : "";
   return (
-    `SEARCH REQUEST #${n} from ${username}. Find up to ${jobs} jobs now, following every check in your brief, ` +
+    `SEARCH REQUEST #${n} from ${username}. Use the copy of my resume you already saved; don't re-read the file (I'll tell you if it changes). Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". ` +
     `Send each job AS SOON AS it passes every check, one job per POST is fine: I see it straight away and can start swiping while you keep searching. Don't hold jobs back for one big batch at the end. ` +

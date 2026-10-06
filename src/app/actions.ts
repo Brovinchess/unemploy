@@ -215,8 +215,9 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
     try {
       await minds(user).sendMessage(
         profile.conversationAlias,
-        `${user.username} here. I've updated my resume (attached). This replaces the resume I sent before. ` +
-          `From now on quote only this one as evidence. Same endpoint and key as before. Reply with one line when you've read it.`,
+        `${user.username} here. I've updated my resume (attached). This replaces the resume I sent before: read it once now, ` +
+          `replace the copy saved in your memory with its full text, and from now on quote only this one as evidence. ` +
+          `Same endpoint and key as before. Reply with one line when you've read it.`,
         [resumeAttachment(r.values)],
       );
     } catch (e) {

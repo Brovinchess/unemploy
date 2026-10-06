@@ -18,7 +18,7 @@ export function buildBrief(args: {
     ? `Remote jobs: ${REMOTE_SCOPES.find((r) => r.value === prefs.remoteScope)?.label.toLowerCase()}.`
     : "No remote jobs.";
 
-  return `${ownerName} here. You are my headhunter for "${profileLabel}" jobs. My resume is attached.
+  return `${ownerName} here. You are my headhunter for "${profileLabel}" jobs. My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume.
 
 HOW WE WORK
 - You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.
