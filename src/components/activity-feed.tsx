@@ -65,7 +65,8 @@ export function LiveDot() {
   );
 }
 
-export function ActivityList({ items, limit }: { items: ActivityItem[] | null; limit?: number }) {
+// `compact`: one short line per update ("Read a file", "Sent you an update"), no message text.
+export function ActivityList({ items, limit, compact = false }: { items: ActivityItem[] | null; limit?: number; compact?: boolean }) {
   if (items === null) {
     return (
       <div className="space-y-4" aria-hidden>
@@ -77,7 +78,7 @@ export function ActivityList({ items, limit }: { items: ActivityItem[] | null; l
   }
   if (items.length === 0) return <p className="text-sm text-white/50">Nothing yet. Updates show up here as your headhunter works.</p>;
   return (
-    <ol className="relative space-y-5" aria-live="polite">
+    <ol className={`relative ${compact ? "space-y-3" : "space-y-5"}`} aria-live="polite">
       <span className="absolute bottom-2 left-[13px] top-2 w-px bg-white/[0.07]" aria-hidden />
       {items.slice(0, limit).map((it) => {
         const Icon = ICONS[it.kind];
@@ -92,12 +93,12 @@ export function ActivityList({ items, limit }: { items: ActivityItem[] | null; l
             </span>
             <div className="min-w-0 flex-1 pt-0.5">
               <p className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-white">{it.title}</span>
+                <span className="text-white">{compact && it.kind === "said" ? "Sent you an update" : it.title}</span>
                 <time dateTime={it.at} className="shrink-0 text-xs text-white/40" suppressHydrationWarning>
                   {when(it.at)}
                 </time>
               </p>
-              {it.detail && (
+              {it.detail && !compact && (
                 <p className={`mt-1 text-sm leading-relaxed text-white/55 ${it.kind === "said" ? "line-clamp-4" : ""}`}>
                   {it.kind === "said" ? `“${it.detail}”` : it.detail}
                 </p>

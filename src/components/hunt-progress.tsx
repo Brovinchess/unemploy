@@ -30,11 +30,6 @@ function fromMessages(items: { kind: string; at: string; detail?: string }[], si
   return { line, at: latest?.at ?? null, checked, forms };
 }
 
-function ago(iso: string) {
-  const m = Math.round((Date.now() - new Date(iso).getTime()) / 60_000);
-  return m < 1 ? "just now" : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ago`;
-}
-
 // A search in progress, as one compact bar: "Searching… found 3 of 20" with a progress
 // bar. The steps and the headhunter's activity log open underneath on request.
 export function HuntProgress({
@@ -161,12 +156,7 @@ export function HuntProgress({
           </div>
           <div>
             <p className="mb-3 text-xs font-semibold uppercase tracking-[0.08em] text-white/35">Activity</p>
-            {said.line && (
-              <p className="mb-4 rounded-2xl bg-white/[0.04] px-4 py-3 text-[13px] leading-relaxed text-white/75">
-                <span className="text-white/40">Latest:</span> {said.line} <span className="text-white/35">· {ago(said.at!)}</span>
-              </p>
-            )}
-            <ActivityList items={data?.items ?? null} limit={8} />
+            <ActivityList items={data?.items ?? null} limit={8} compact />
             {data?.partial && <p className="mt-4 text-xs text-white/40">Some updates from Hello Minds couldn&rsquo;t be loaded just now.</p>}
           </div>
         </div>
