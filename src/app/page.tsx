@@ -1,9 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { count } from "drizzle-orm";
-import { ArrowDown, ArrowRight, ChevronRight, Compass, Shield, Sparkles } from "lucide-react";
-import { Mark, Ninja } from "@/components/brand";
-import { ApprovePanels, PackPanels, ProfilesPanels, ShortlistPanels, WideArt } from "@/components/landing-art";
+import {
+  ArrowDown,
+  ArrowRight,
+  Brain,
+  Briefcase,
+  CheckCircle2,
+  ChevronRight,
+  Compass,
+  FileText,
+  Hand,
+  Puzzle,
+  Search,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  UserRound,
+} from "lucide-react";
+import { Mark, Ninja, type Mood } from "@/components/brand";
+import { AnswersMock, CardMock, ExtensionMock, FrontMock, ProfilesPanels, ProgressMock } from "@/components/landing-art";
 import { LandingHeader } from "@/components/landing-header";
 import { RotatingPhrase } from "@/components/rotating-phrase";
 import { WaitlistForm } from "@/components/waitlist-form";
@@ -11,7 +27,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH } from "@/lib/preferences";
+import { MAX_POSTING_AGE_DAYS, estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -22,86 +38,81 @@ const LOGIN_ERRORS: Record<string, string> = {
   config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
-const PHRASES = ["finds jobs you'd win", "writes your applications", "searches when you ask", "never makes things up"];
+const PHRASES = ["finds jobs you'd win", "writes your applications", "fills in the forms", "never makes things up"];
 
 // Everything below is true of the product today; numbers come from the same code the app uses.
 const FIVE_JOBS = estimateSearchCost(5);
-const MIN_JOBS = MIN_JOBS_PER_SEARCH;
-const MAX_JOBS = MAX_JOBS_PER_SEARCH;
 
 // Show the live waitlist size once it's big enough to help rather than hurt.
 const SHOW_WAITLIST_FROM = 50;
 
+const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
+  { icon: UserRound, mood: "happy", title: "Sign in with Hello Minds", body: "One click creates your own headhunter agent. It belongs to you, not to us, and only runs when you ask." },
+  { icon: FileText, mood: "thinking", title: "Resume and preferences", body: "Upload your resume and answer a few questions: roles, country, remote or not, level, the least you'd accept." },
+  { icon: Search, mood: "searching", title: "Search when you want", body: "Press Find jobs and watch it work. Each job arrives the moment it passes every check, so you can start while it keeps looking." },
+  { icon: ShieldCheck, mood: "excited", title: "Every job is checked", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, pay not below your floor, and a real fit for your resume.` },
+  { icon: Hand, mood: "surprised", title: "Reveal and swipe", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up in your pipeline from To apply to Offer." },
+  { icon: Puzzle, mood: "love", title: "Apply with one click", body: "The Chrome extension opens each form, fills in your details, cover letter and answers, and waits for you to press Submit." },
+];
+
+const RULES = [
+  "On the company's own careers page or job system, never a job-board copy",
+  "Seen open today, and checked again by the app before it reaches you",
+  `Posted within the last ${MAX_POSTING_AGE_DAYS} days`,
+  "You can apply from your country, by the posting's own words",
+  "Pay isn't clearly below the floor you set",
+  "You meet most of the must-haves; missing any caps the match score",
+  "Not a repeat, even under a different link or title",
+  "Every fact in the application is a line from your resume",
+];
+
 const FACTS = [
-  { n: `${MIN_JOBS}–${MAX_JOBS}`, label: "checked jobs per search, you choose" },
-  { n: "6", label: "filters: setting, type, level, salary, visa, companies to avoid" },
-  { n: "0", label: "claims without a line in your resume behind them" },
+  { n: `${MIN_JOBS_PER_SEARCH}–${MAX_JOBS_PER_SEARCH}`, label: "checked jobs per search. You choose, and it stops when it has them" },
+  { n: `${RULES.length}`, label: "checks every job must pass before you see it" },
+  { n: "0", label: "claims in your applications without a line in your resume behind them" },
   { n: `~$${FIVE_JOBS.usd.toFixed(2)}`, label: "for a search of 5 jobs, paid in Hello Minds cognition. Nothing between searches" },
 ];
 
-const STEPS = [
-  { title: "Sign in with Hello Minds", body: "One click creates your own headhunter. It belongs to you, not to us." },
-  { title: "Upload your resume", body: "Then answer 9 quick questions: roles, country, work setting, level, salary and more." },
-  { title: "Search when you want", body: "Click Find jobs and it brings the best matches, each checked open and written up, ready to paste." },
-];
+const MOODS: Mood[] = ["happy", "searching", "surprised", "love", "thinking", "excited", "sleeping", "sad"];
 
 const FAQ = [
   {
     q: "Does it apply for me?",
-    a: "Not on its own. It finds the job and writes the application; you read it, then apply on the company's site with one click. Nothing is ever sent without you.",
+    a: "Almost. It finds the job, writes the application, and the Chrome extension fills in the whole form. You read it and press Submit yourself. Nothing is ever sent without you.",
   },
   {
     q: "What does it cost?",
-    a: `Career Ninja itself is free. Your headhunter runs on Hello Minds and uses cognition, which you top up on hellominds.ai. It only searches when you ask: a search for 5 jobs uses about ${FIVE_JOBS.cognition} cognition, roughly $${FIVE_JOBS.usd.toFixed(2)}. Between searches it's switched off and spends nothing.`,
+    a: `Career Ninja is free. Your agents run on Hello Minds and use cognition, which you top up on hellominds.ai. A search for 5 jobs is roughly ${FIVE_JOBS.cognition} cognition, about $${FIVE_JOBS.usd.toFixed(2)}; the app shows what your last search really used. Between searches both agents are switched off and spend nothing.`,
+  },
+  {
+    q: "What is the second agent for?",
+    a: "Application forms ask things only you know: notice period, relocation, years with a tool. Your personal agent answers those from your resume and details, you approve once, and it learns. The headhunter never sees your personal answers.",
   },
   {
     q: "Which jobs and countries does it cover?",
-    a: "Any field, any country. You choose on-site, hybrid or remote, job type, seniority, a minimum salary, companies to avoid, and whether you need visa sponsorship.",
+    a: "Any field, any country. You choose on-site, hybrid or remote, job type, seniority, a pay floor, companies to avoid, and whether you need visa sponsorship. It starts from the job sites people in your country actually use, then verifies on the employer's own page.",
   },
   {
     q: "Will it make things up about me?",
-    a: "No. Every claim in a cover letter has to point to a line in your resume. If it can't, that job is thrown out before you see it. Dead job links are checked and removed too.",
+    a: "No. Every claim in a cover letter or answer must quote a line from your resume, and the app checks it. If it can't, the job is refused before you see it. Answers it doesn't know come to you instead of being guessed.",
   },
   {
     q: "What happens to my resume?",
-    a: "It's used only to find and write for your jobs. You can delete your account, resume and every job in one step from Settings.",
-  },
-  {
-    q: "Who can join?",
-    a: "Anyone 18 or over. We're letting people in from the waitlist in order, and we'll email you when it's your turn.",
-  },
-];
-
-const FEATURES = [
-  {
-    title: "Finds the few jobs worth your time",
-    body: "Tell it what you want once. Whenever you ask, it brings you a short list of real, open jobs ranked by how well you fit, each with a plain note on why it fits and what might hold you back.",
-    art: <ShortlistPanels />,
-  },
-  {
-    title: "Writes every application from your real experience",
-    body: "Each job comes with a tailored cover letter and answers to its application questions. Every claim links back to the line in your resume it came from, so you can check it in a second.",
-    art: <PackPanels />,
-  },
-  {
-    title: "Stay in control of what gets sent",
-    body: "Nothing goes out without you. Apply or skip in one tap, and tell it why you skipped so the next list is better. Track every application from saved to offer, and pause whenever you like.",
-    art: <ApprovePanels />,
-  },
-  {
-    title: "One headhunter for every kind of job you want",
-    body: "Open to design and product roles? Give each its own headhunter with its own resume, filters and shortlist, so neither search waters down the other.",
-    art: <ProfilesPanels />,
+    a: "It's used only to find and write for your jobs, and is shared only with your own agents. You can delete your account, resume and every job in one step from Settings.",
   },
 ];
 
 const LEARN = [
   { icon: Compass, title: "Questions and answers", body: "Cost, countries, privacy, and what it will and won't do for you.", href: "#faq" },
   { icon: Shield, title: "Your privacy", body: "What we store, who sees it, and how to delete everything in one step.", href: "/privacy" },
-  { icon: Sparkles, title: "Built on Hello Minds", body: "Your headhunter is an AI agent you own, running on the Hello Minds platform.", href: "https://hellominds.ai" },
+  { icon: Sparkles, title: "Built on Hello Minds", body: "Your agents are AI Minds you own, running on the Hello Minds platform.", href: "https://hellominds.ai" },
 ];
 
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+
+function H2({ children }: { children: React.ReactNode }) {
+  return <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">{children}</h2>;
+}
 
 export default async function Home({ searchParams }: PageProps<"/">) {
   const user = await getCurrentUser();
@@ -132,8 +143,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </span>
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/55">
-          Your own AI headhunter. It finds jobs you&rsquo;d actually get and writes each application from your real resume. You
-          approve every one.
+          Your own AI headhunter. It finds real, open jobs you&rsquo;d actually get, writes each application from your resume,
+          and fills in the forms. You approve every one.
         </p>
 
         <div className="mt-10 w-full">
@@ -142,7 +153,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose">
                 Get your headhunter <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <span className="text-sm text-white/50">Sign in with your Hello Minds account</span>
+              <span className="text-sm text-white/50">Free to use. Sign in with your Hello Minds account.</span>
             </div>
           ) : (
             <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
@@ -155,37 +166,180 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {deleted && <p className="mt-6 text-sm text-white/60">Your account and data have been deleted.</p>}
 
         <a
-          href="#learn-more"
+          href="#how"
           className="absolute bottom-8 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 hover:bg-white/[0.14]"
         >
-          Learn more <ArrowDown className="size-4" aria-hidden />
+          How it works <ArrowDown className="size-4" aria-hidden />
         </a>
       </section>
 
-      <main id="learn-more" className="scroll-mt-15">
-        {/* Centred statement with one wide picture */}
-        <section className="bg-night-2 px-[6%] py-24 sm:py-32">
+      <main>
+        {/* How it works */}
+        <section id="how" className="scroll-mt-15 bg-night-2 px-[6%] py-24 sm:py-32">
           <div className="mx-auto max-w-3xl text-center">
-            <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">
-              Your own headhunter, working in the background
-            </h2>
+            <H2>How it works</H2>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
-              Upload your resume and answer a few questions. When you ask, it searches, picks the jobs you&rsquo;d actually win, and
-              writes your application for each one.
+              Six steps, and you only do three of them: set it up, swipe, press Submit.
             </p>
           </div>
-          <div className="mx-auto mt-14 max-w-[884px]" aria-hidden>
-            <WideArt />
-          </div>
-          <ol className="mx-auto mt-16 grid max-w-5xl gap-10 text-left sm:grid-cols-3">
+          <ol className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {STEPS.map((st, i) => (
-              <li key={st.title}>
-                <span className="font-display text-sm font-medium text-coral">0{i + 1}</span>
-                <p className="font-display mt-2 text-xl font-medium text-white">{st.title}</p>
+              <li key={st.title} className="relative rounded-3xl bg-surface p-7">
+                <div className="flex items-start justify-between">
+                  <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
+                    <st.icon className="size-5" aria-hidden />
+                  </span>
+                  <Ninja mood={st.mood} className="size-14 -mt-2 -mr-1" />
+                </div>
+                <p className="font-display mt-5 text-sm font-medium text-coral">0{i + 1}</p>
+                <p className="font-display mt-1 text-xl font-medium text-white">{st.title}</p>
                 <p className="mt-2 leading-relaxed text-white/55">{st.body}</p>
               </li>
             ))}
           </ol>
+        </section>
+
+        {/* The cards */}
+        <section id="cards" className="bg-night px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+            <div>
+              <H2>Jobs arrive as cards, one at a time</H2>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                Each card arrives face down. Reveal it and you get what matters first: the title and company, the pay, whether you
+                can work it from where you live, and how many of the requirements you actually meet. Then why you fit, what to
+                watch out for, and what the job really is. Swipe right to keep it, left to pass.
+              </p>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                No match percentages pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
+                requirements against your resume.
+              </p>
+            </div>
+            <div className="relative mx-auto w-full max-w-[460px]" aria-hidden>
+              <div className="absolute -left-10 top-10 hidden w-[320px] -rotate-6 opacity-50 lg:block">
+                <FrontMock />
+              </div>
+              <div className="relative">
+                <CardMock />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Live search */}
+        <section id="live" className="bg-night-2 px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+            <div className="flex justify-center md:order-2" aria-hidden>
+              <ProgressMock />
+            </div>
+            <div className="md:order-1">
+              <H2>Watch it work, or walk away</H2>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                A search runs only when you ask. You see what it&rsquo;s doing, how many it has found, and what it has spent.
+                Jobs land on your page as they&rsquo;re checked, so you can swipe while it keeps looking. It stops by itself when it
+                has your number or runs out of good leads, and emails you when it&rsquo;s done.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Two agents */}
+        <section id="agents" className="bg-night px-[6%] py-24 sm:py-32">
+          <div className="mx-auto max-w-3xl text-center">
+            <H2>Two agents, each with one job</H2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
+              They never talk to each other. The app sits in the middle and passes each one only what it needs.
+            </p>
+          </div>
+          <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
+            <div className="rounded-3xl bg-surface p-8">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
+                  <Briefcase className="size-5" aria-hidden />
+                </span>
+                <Ninja mood="searching" className="size-16" />
+              </div>
+              <p className="font-display mt-5 text-2xl font-medium text-white">Your headhunter</p>
+              <p className="mt-1 text-sm text-white/45">Knows the job market and your resume</p>
+              <ul className="mt-5 space-y-2.5 text-white/70">
+                {["Searches the sites people in your country use, then verifies on the employer's own page", "Checks every rule before a job reaches you", "Writes the cover letter and the job-specific answers, quoting only your resume", "Copies the questions off each application form"].map((t) => (
+                  <li key={t} className="flex gap-2.5">
+                    <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-3xl bg-surface p-8">
+              <div className="flex items-center justify-between">
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
+                  <Brain className="size-5" aria-hidden />
+                </span>
+                <Ninja mood="thinking" className="size-16" />
+              </div>
+              <p className="font-display mt-5 text-2xl font-medium text-white">Your personal agent</p>
+              <p className="mt-1 text-sm text-white/45">Knows you, and nothing else</p>
+              <ul className="mt-5 space-y-2.5 text-white/70">
+                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your resume, your details and what you've told it; never a guess", "Says \"I don't know\" and hands the question to you when it has nothing to go on", "Learns every answer you give, so fewer questions reach you each time"].map((t) => (
+                  <li key={t} className="flex gap-2.5">
+                    <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        {/* Answers */}
+        <section id="answers" className="bg-night-2 px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+            <div className="flex justify-center" aria-hidden>
+              <AnswersMock />
+            </div>
+            <div>
+              <H2>Check once, never type it again</H2>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                After a search, your personal agent&rsquo;s answers wait for a quick look: approve, fix, or answer the ones it
+                couldn&rsquo;t. Everything you approve is saved and filled in automatically on every form that asks the same thing,
+                however it&rsquo;s worded.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Extension */}
+        <section id="extension" className="bg-night px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+            <div>
+              <H2>One click fills the whole form</H2>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                The Chrome extension opens each job you kept, on Greenhouse, Lever or Ashby, and fills in your details, your
+                resume, the cover letter, the headhunter&rsquo;s answers and your saved answers. Anything it doesn&rsquo;t know it
+                leaves highlighted for you, and learns what you type. You press Submit.
+              </p>
+            </div>
+            <div className="flex justify-center" aria-hidden>
+              <ExtensionMock />
+            </div>
+          </div>
+        </section>
+
+        {/* Rules */}
+        <section id="rules" className="bg-night-2 px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid max-w-6xl items-start gap-12 md:grid-cols-[1fr_1.2fr]">
+            <div>
+              <H2>What every job must pass</H2>
+              <p className="mt-4 max-w-sm text-lg leading-relaxed text-white/55">
+                Most of what a headhunter finds fails these. You only see what passes, and the app enforces every one, not just the
+                agent.
+              </p>
+            </div>
+            <ul className="divide-y divide-white/[0.08]">
+              {RULES.map((r) => (
+                <li key={r} className="flex items-start gap-4 py-4 text-lg text-white/80">
+                  <ShieldCheck className="mt-1 size-5 shrink-0 text-coral" aria-hidden /> {r}
+                </li>
+              ))}
+            </ul>
+          </div>
         </section>
 
         {/* The product in numbers, all taken from how it actually works */}
@@ -200,26 +354,39 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           </dl>
         </section>
 
-        {/* Full-width bands, alternating shade and side */}
-        {FEATURES.map((f, i) => (
-          <section key={f.title} className={`flex min-h-[92svh] items-center px-[6%] py-20 ${i % 2 ? "bg-night-2" : "bg-night"}`}>
-            <div className="grid w-full items-center gap-14 md:grid-cols-2 md:gap-16">
-              <div className={`flex justify-center ${i % 2 ? "md:order-2" : ""}`} aria-hidden>
-                <div className="w-full origin-center md:scale-110 xl:scale-125">{f.art}</div>
-              </div>
-              <div className={i % 2 ? "md:order-1" : ""}>
-                <h3 className="font-display max-w-[34rem] text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">{f.title}</h3>
-                <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">{f.body}</p>
+        {/* Several headhunters */}
+        <section className="flex items-center bg-night-2 px-[6%] py-24 sm:py-32">
+          <div className="mx-auto grid w-full max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+            <div className="flex justify-center" aria-hidden>
+              <div className="w-full origin-center md:scale-110">
+                <ProfilesPanels />
               </div>
             </div>
-          </section>
-        ))}
+            <div>
+              <H2>One headhunter for every kind of job you want</H2>
+              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+                Open to design and product roles? Give each its own headhunter with its own resume, filters and shortlist, so
+                neither search waters down the other. Your personal agent and your saved answers are shared by all of them.
+              </p>
+            </div>
+          </div>
+        </section>
 
-        {/* Learn more, like Muse's list of links */}
-        <section className="bg-night px-[6%] py-28">
+        {/* Mochi */}
+        <section className="bg-night px-[6%] py-16">
+          <div className="mx-auto flex max-w-5xl flex-wrap items-end justify-center gap-6" aria-hidden>
+            {MOODS.map((m) => (
+              <Ninja key={m} mood={m} className="size-16 sm:size-20" />
+            ))}
+          </div>
+          <p className="mt-6 text-center text-sm text-white/40">Mochi, your headhunter&rsquo;s face. It searches, thinks, sleeps between searches, and gets excited when it finds you something.</p>
+        </section>
+
+        {/* Learn more */}
+        <section className="bg-night-2 px-[6%] py-28">
           <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[1fr_1.4fr]">
             <div>
-              <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">Learn more about Career Ninja</h2>
+              <H2>Learn more about Career Ninja</H2>
               <p className="mt-4 max-w-sm text-lg leading-relaxed text-white/55">What it does, how it protects you, and who it&rsquo;s built on.</p>
             </div>
             <ul>
@@ -242,7 +409,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* Straight answers */}
-        <section id="faq" className="scroll-mt-15 bg-night-2 px-[6%] py-28">
+        <section id="faq" className="scroll-mt-15 bg-night px-[6%] py-28">
           <div className="mx-auto max-w-3xl">
             <h2 className="font-display text-center text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Questions, answered</h2>
             <div className="mt-12 divide-y divide-white/[0.08]">
@@ -260,16 +427,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* Last screen, with the footer at its foot */}
-        <section className="flex min-h-svh flex-col bg-night px-[6%] pt-15">
+        <section className="flex min-h-svh flex-col bg-night-2 px-[6%] pt-15">
           <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <Ninja className="size-28" />
+            <Ninja mood="love" className="size-28" />
             <h2 className="font-display mt-6 text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Stop scrolling job boards.</h2>
             <p className="mt-3 text-lg text-white/55">Let your headhunter bring the right ones to you.</p>
             <a
               href={action.href}
               className="mt-8 inline-flex h-12 w-64 items-center justify-center rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose"
             >
-              {action.label}
+              {open ? "Get your headhunter" : action.label}
             </a>
           </div>
           <footer className="flex flex-col items-center gap-4 py-8 text-sm text-white/45 sm:flex-row sm:justify-between">
