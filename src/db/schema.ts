@@ -126,6 +126,9 @@ export const profiles = pgTable(
     // the Mind is switched off between searches.
     searchStartedAt: timestamp("search_started_at", { withTimezone: true }),
     searchEndedAt: timestamp("search_ended_at", { withTimezone: true }),
+    // Last balance read from Hello Minds, so pages don't wait on that call; the live poll keeps it fresh.
+    balanceCache: real("balance_cache"),
+    balanceCachedAt: timestamp("balance_cached_at", { withTimezone: true }),
     createdAt: createdAt(),
   },
   (t) => [index("profiles_user_id").on(t.userId), index("profiles_conversation_alias").on(t.conversationAlias)],

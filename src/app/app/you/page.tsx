@@ -12,12 +12,14 @@ import { PersonalMindCard, QuestionList } from "./answers-ui";
 // after that the extension fills it in by itself.
 export default async function YouPage() {
   const { user, profiles, unfinished, current } = await appContext();
-  const balance = await balanceFor(user, current);
-  const counts = await questionCounts(user.id);
-  const rows = await db.query.questions.findMany({
-    where: and(eq(schema.questions.userId, user.id), inArray(schema.questions.status, ["needs_you", "review"])),
-    orderBy: desc(schema.questions.answeredAt),
-  });
+  const [balance, counts, rows] = await Promise.all([
+    balanceFor(user, current),
+    questionCounts(user.id),
+    db.query.questions.findMany({
+      where: and(eq(schema.questions.userId, user.id), inArray(schema.questions.status, ["needs_you", "review"])),
+      orderBy: desc(schema.questions.answeredAt),
+    }),
+  ]);
   const pick = (status: string) =>
     rows
       .filter((r) => r.status === status)

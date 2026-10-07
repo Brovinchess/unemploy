@@ -2,6 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { and, count, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Live } from "@/components/live";
+import { freshBalance } from "@/lib/app-context";
 import { minds } from "@/lib/minds/client";
 import { ownedProfile } from "@/lib/owned";
 import { askIfReady, questionCounts } from "@/lib/personal";
@@ -36,7 +37,7 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
   const searching = isSearching(profile);
 
   const [balance, personalBalance, [{ n: newJobs }], [{ n: toApply }], [{ n: jobsFound }], counts] = await Promise.all([
-    profile.mindId ? api.getBalance(profile.mindId).catch(() => null) : null,
+    freshBalance(user, profile),
     user.personalMindId ? api.getBalance(user.personalMindId).catch(() => null) : null,
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "new"))) : [{ n: 0 }],
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "saved"))) : [{ n: 0 }],

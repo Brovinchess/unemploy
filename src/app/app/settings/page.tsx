@@ -20,11 +20,10 @@ function Section({ title, id, children }: { title: string; id?: string; children
 // live on its page; details about the person live on the You page.
 export default async function Settings() {
   const { user, profiles, unfinished, current } = await appContext();
-  const balance = await balanceFor(user, current);
-  const [{ n: toApply }] = await db
-    .select({ n: count() })
-    .from(schema.jobs)
-    .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
+  const [balance, [{ n: toApply }]] = await Promise.all([
+    balanceFor(user, current),
+    db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved"))),
+  ]);
 
   return (
     <AppShell tab="settings" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>

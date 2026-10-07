@@ -99,6 +99,13 @@
       "when": 1791275168898,
       "tag": "0013_search_cognition_used",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1791342866135,
+      "tag": "0014_balance_cache",
+      "breakpoints": true
     }
   ]
 }

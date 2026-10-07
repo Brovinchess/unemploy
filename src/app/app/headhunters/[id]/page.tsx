@@ -27,19 +27,16 @@ const ENDED: Record<string, string> = { finished: "Finished", stopped: "Stopped 
 export default async function Headhunter({ params }: PageProps<"/app/headhunters/[id]">) {
   const { id } = await params;
   const { user, profiles, unfinished, current } = await appContext(id);
-  const balance = await balanceFor(user, current);
+  const [balance, cost, history] = await Promise.all([
+    balanceFor(user, current),
+    costModel(current.id),
+    db.query.searches.findMany({ where: eq(schema.searches.profileId, current.id), orderBy: desc(schema.searches.startedAt), limit: 12 }),
+  ]);
   const searching = isSearching(current);
   const paused = current.status === "paused";
   const perSearch = current.preferences?.jobsPerDay ?? 5;
-  const cost = await costModel(current.id);
   const perSearchCost = estimateSearchCost(perSearch, cost.perJob).cognition;
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearchCost)) : null;
-
-  const history = await db.query.searches.findMany({
-    where: eq(schema.searches.profileId, current.id),
-    orderBy: desc(schema.searches.startedAt),
-    limit: 12,
-  });
 
   return (
     <AppShell tab="headhunter" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>

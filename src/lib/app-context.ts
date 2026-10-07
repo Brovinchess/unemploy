@@ -28,13 +28,26 @@ export async function appContext(profileParam?: string | string[]) {
   return { user, profiles: ready, unfinished, current };
 }
 
-// Balance is read live from Hello Minds; null when it can't be reached.
+const BALANCE_FRESH_MS = 2 * 60 * 1000;
+
+// The headhunter's cognition. Pages use the cached figure when it's recent (the live poll
+// refreshes it every 15–60 s), so a page never waits on Hello Minds.
 export const balanceFor = cache(async (user: User, profile: Profile): Promise<number | null> => {
   if (!profile.mindId) return null;
+  if (profile.balanceCache != null && profile.balanceCachedAt && Date.now() - profile.balanceCachedAt.getTime() < BALANCE_FRESH_MS) {
+    return profile.balanceCache;
+  }
+  return freshBalance(user, profile);
+});
+
+export async function freshBalance(user: User, profile: Profile): Promise<number | null> {
+  if (!profile.mindId) return null;
   try {
-    return await minds(user).getBalance(profile.mindId);
+    const balance = await minds(user).getBalance(profile.mindId);
+    await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    return balance;
   } catch (e) {
     console.error("[balance]", e);
-    return null;
+    return profile.balanceCache ?? null;
   }
-});
+}

@@ -33,19 +33,19 @@ export async function AppShell({
   balance: number | null;
   children: React.ReactNode;
 }) {
-  const newCounts = await db
-    .select({ profileId: schema.jobs.profileId, n: count() })
-    .from(schema.jobs)
-    .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "new")))
-    .groupBy(schema.jobs.profileId);
+  const ids = profiles.map((p) => p.id);
+  const [newCounts, { forYou, asked, new: waiting }, [{ n: toApply }], { perJob }] = await Promise.all([
+    db
+      .select({ profileId: schema.jobs.profileId, n: count() })
+      .from(schema.jobs)
+      .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "new")))
+      .groupBy(schema.jobs.profileId),
+    questionCounts(user.id),
+    db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
+    costModel(current.id),
+  ]);
   const fresh = new Map(newCounts.map((r) => [r.profileId, r.n]));
-
   const allNew = [...fresh.values()].reduce((a, n) => a + n, 0);
-  const { forYou, asked, new: waiting } = await questionCounts(user.id);
-  const [{ n: toApply }] = await db
-    .select({ n: count() })
-    .from(schema.jobs)
-    .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
   // Two places to be: the jobs, and everything about you. Setup lives behind the gear.
   const nav = [
     { id: "jobs" as const, label: "Jobs", href: "/app", icon: ListChecks, badge: "new" as const },
@@ -53,7 +53,6 @@ export async function AppShell({
   ];
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
-  const { perJob } = await costModel(current.id);
   const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
   const low = balance != null && balance < perSearch;
   const searching = isSearching(current);

@@ -27,16 +27,15 @@ function ago(d: Date) {
 export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
   const { user, profiles, unfinished, current } = await appContext(sp.profile);
-  const balance = await balanceFor(user, current);
-  const cost = await costModel(current.id);
-
-  // New jobs from every headhunter, best match first.
-  const fresh = await db.query.jobs.findMany({
-    where: and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "new")),
-    orderBy: [desc(schema.jobs.matchScore)],
-  });
+  const ids = profiles.map((p) => p.id);
+  const [balance, cost, fresh, toApply] = await Promise.all([
+    balanceFor(user, current),
+    costModel(current.id),
+    // New jobs from every headhunter, best match first.
+    db.query.jobs.findMany({ where: and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "new")), orderBy: [desc(schema.jobs.matchScore)] }),
+    db.$count(schema.jobs, and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
+  ]);
   const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
-  const toApply = await db.$count(schema.jobs, and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved")));
   // The queue shown beside the cards while swiping.
   const queue = fresh.length
     ? await db.query.jobs.findMany({
