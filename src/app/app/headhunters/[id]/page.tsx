@@ -6,6 +6,7 @@ import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
 import { RenameHeadhunter } from "@/app/app/settings/rename-headhunter";
 import { ActivityPanel } from "@/components/activity-feed";
 import { AppShell } from "@/components/app-shell";
+import { Considered } from "@/components/considered";
 import { Ninja } from "@/components/brand";
 import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
@@ -91,6 +92,12 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                 Top up <ExternalLink className="size-4" aria-hidden />
               </a>
             </section>
+
+            <Considered
+              profileId={current.id}
+              country={current.preferences?.country ?? "your country"}
+              remoteOnly={(current.preferences?.workSettings ?? []).every((w) => w === "remote")}
+            />
 
             {/* Past searches */}
             <section className="rounded-3xl bg-surface p-6">

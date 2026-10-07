@@ -189,7 +189,13 @@ async function runMockHunt(alias: string) {
   });
 
   const { processPush } = await import("../ingest");
-  const result = await processPush(profile, { jobs }, { demo: true });
+  const dropped = [
+    { company: "Globex", title: `${roles[0] ?? "Specialist"} (US only)`, reason: "not_eligible", note: "Posting says U.S. remote only" },
+    { company: "Initech", title: roles[0] ?? "Specialist", reason: "too_old", note: "Posted 70 days ago" },
+    { company: "Umbrella", title: `Senior ${roles[0] ?? "Specialist"}`, reason: "not_eligible", note: "Hybrid in Berlin" },
+    { company: "Hooli", title: roles[0] ?? "Specialist", reason: "closed", note: "Page says no longer accepting applications" },
+  ];
+  const result = await processPush(profile, { jobs, dropped }, { demo: true });
   console.log(`[mock mind] ${alias}: accepted ${result.accepted}, rejected ${result.rejected.length}`);
   const { endSearch } = await import("../search");
   await endSearch((await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profile.id) }))!);

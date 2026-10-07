@@ -277,6 +277,28 @@ export const searches = pgTable(
   (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
 ).enableRLS();
 
+// Leads the headhunter considered and dropped, with its reason: shows the user why a search
+// came back light, and keeps the next search from re-checking the same postings.
+export type DropReason = "not_eligible" | "too_old" | "closed" | "poor_fit" | "duplicate" | "pay" | "work_setting" | "other";
+
+export const leads = pgTable(
+  "leads",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    profileId: uuid("profile_id")
+      .notNull()
+      .references(() => profiles.id, { onDelete: "cascade" }),
+    searchId: uuid("search_id").references(() => searches.id, { onDelete: "set null" }),
+    company: text("company").notNull(),
+    title: text("title").notNull(),
+    url: text("url"),
+    reason: text("reason").$type<DropReason>().notNull(),
+    note: text("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("leads_profile_created").on(t.profileId, t.createdAt)],
+).enableRLS();
+
 export const ingestLog = pgTable(
   "ingest_log",
   {

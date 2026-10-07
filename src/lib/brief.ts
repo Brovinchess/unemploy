@@ -27,8 +27,9 @@ HOW WE WORK
   1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
   2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. Questions about my personal facts (notice period, licence, years with a tool) are not yours to answer; my personal Mind and I handle those.
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
-  5. Progress notes: one line, only when something changes (a job sent, a job dropped and why, or a problem). No long updates; they cost cognition.
-  4. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
+  6. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
+  4. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, pay, work_setting, other) and a short note. No pack for those. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
+  5. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -71,7 +72,9 @@ export function buildContract(appUrl: string) {
 
 POST ${appUrl}/api/ingest            (?dry_run=1 validates without saving: use it once per search at most)
 Header: x-unemploy-key: <the key from your brief>
-Body: {"jobs":[JOB, ...], "final": true|false}  (0–50 jobs; "final": true on the last push of a search)
+Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...]}  (0–50 jobs; "final": true on the last push)
+DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|pay|work_setting|other,"note"(short)}
+  Every lead you looked at and dropped. Send them with the next push (or on their own with "jobs":[]).
 Send each job as soon as it passes every check (one per push is fine) so the user sees it straight away. Don't hold jobs for one batch at the end.
 Only send during a search the user requested (a "SEARCH REQUEST" message). Other pushes are refused.
 

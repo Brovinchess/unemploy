@@ -18,7 +18,7 @@ import { floorOf } from "@/lib/pay";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { alreadySentList, endSearch, ingestReachable, isSearching, searchRequestText, switchOff } from "@/lib/search";
+import { alreadySentList, endSearch, ingestReachable, isSearching, ruledOutList, searchRequestText, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 
 export type FormState = { error?: string } | undefined;
@@ -380,6 +380,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         await alreadySentList(user.id),
         profile.preferences && floorOf(profile.preferences) ? salaryLabel(floorOf(profile.preferences)!) : undefined,
         profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country } : undefined,
+        await ruledOutList(profile.id),
       ),
     );
   } catch (e) {

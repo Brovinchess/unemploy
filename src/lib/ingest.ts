@@ -1,9 +1,9 @@
 import "server-only";
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
-import { SAME_ROLE_DAYS, SeenJobs } from "./dedupe";
+import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { clearlyBelow, floorOf } from "./pay";
 import { avoidList, MAX_POSTING_AGE_DAYS, salaryLabel } from "./preferences";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
@@ -73,9 +73,18 @@ const jobSchema = z.object({
   }),
 });
 
+export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "pay", "work_setting", "other"] as const;
+const droppedSchema = z.object({
+  company: z.string().trim().min(1).max(120),
+  title: z.string().trim().min(1).max(160),
+  url: z.string().trim().max(500).optional(),
+  reason: z.enum(DROP_REASONS),
+  note: z.string().trim().max(200).optional(),
+});
+
 export const pushSchema = z
-  .object({ jobs: z.array(z.unknown()).max(50), final: z.boolean().optional() })
-  .refine((b) => b.jobs.length > 0 || b.final, { message: "Send at least one job, or an empty list with final: true." });
+  .object({ jobs: z.array(z.unknown()).max(50), final: z.boolean().optional(), dropped: z.array(droppedSchema).max(100).optional() })
+  .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0, { message: "Send at least one job, an empty list with final: true, or a dropped list." });
 
 export type JobPush = z.infer<typeof jobSchema>;
 
@@ -87,6 +96,7 @@ export type PushResult = {
   remaining: number; // jobs still wanted in the current search
   remainingToday?: number; // older name for "remaining", kept for Minds briefed before
   searchEnded?: boolean;
+  droppedRecorded?: number;
   dryRun: boolean;
   // Changes the app made to accepted jobs (e.g. a match score capped), so the Mind learns.
   adjusted?: { url: string; note: string }[];
@@ -499,6 +509,26 @@ async function checkAndSave(
     detail: rejected,
     dryRun,
   });
+
+  // Leads it looked at and dropped, kept so the user sees why and the next search skips them.
+  let droppedRecorded = 0;
+  if (!dryRun && parsed.data.dropped?.length) {
+    const search = await db.query.searches.findFirst({
+      where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
+      columns: { id: true },
+    });
+    const seen = new Set<string>();
+    const rows = parsed.data.dropped
+      .filter((d) => {
+        const k = (d.url ? jobKey(d.url) : `${companyKey(d.company)}|${titleKey(d.title)}`).toLowerCase();
+        if (seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      })
+      .map((d) => ({ profileId: profile.id, searchId: search?.id ?? null, company: d.company, title: d.title, url: d.url ?? null, reason: d.reason, note: d.note ?? null }));
+    if (rows.length) await db.insert(schema.leads).values(rows);
+    droppedRecorded = rows.length;
+  }
   if (accepted > 0 && !dryRun) {
     await db.update(schema.profiles).set({ lastDeliveryAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   }
@@ -522,5 +552,5 @@ async function checkAndSave(
     searchEnded = true;
   }
 
-  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, dryRun, adjusted, skippedRecently, logged: true };
+  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, dryRun, adjusted, skippedRecently, logged: true };
 }
