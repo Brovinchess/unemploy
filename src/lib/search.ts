@@ -55,6 +55,7 @@ export function searchRequestText(
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". ` +
     `Send each job AS SOON AS it passes every check, one job per POST is fine: I see it straight away and can start swiping while you keep searching. Don't hold jobs back for one big batch at the end. ` +
     `Dry-run (?dry_run=1) at most once this search, then POST directly. Progress notes: one line, only when something changes; no long updates. ` +
+    `Work cheaply: for each lead, check the posting date and the location line first (from the search result, the listing's summary or its JSON-LD) and drop it before opening the full posting or form if it fails. Only read the full posting and form for leads that pass those two. For a job you verified on an earlier search, just confirm the posting is still open; don't rebuild its pack. Stop rule: if 12 leads in a row fail, or 90 minutes pass without sending a job, stop, POST {\"jobs\":[],\"final\":true} and say so in one line. ` +
     `When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). ` +
     wide +
     `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". ` +
