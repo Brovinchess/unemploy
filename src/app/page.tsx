@@ -27,7 +27,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { MAX_POSTING_AGE_DAYS, estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH } from "@/lib/preferences";
+import { MAX_POSTING_AGE_DAYS, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -41,7 +41,6 @@ const LOGIN_ERRORS: Record<string, string> = {
 const PHRASES = ["finds jobs you'd win", "writes your applications", "fills in the forms", "never makes things up"];
 
 // Everything below is true of the product today; numbers come from the same code the app uses.
-const FIVE_JOBS = estimateSearchCost(5);
 
 // Show the live waitlist size once it's big enough to help rather than hurt.
 const SHOW_WAITLIST_FROM = 50;
@@ -70,7 +69,14 @@ const FACTS = [
   { n: `${MIN_JOBS_PER_SEARCH}–${MAX_JOBS_PER_SEARCH}`, label: "checked jobs per search. You choose, and it stops when it has them" },
   { n: `${RULES.length}`, label: "checks every job must pass before you see it" },
   { n: "0", label: "claims in your applications without a line in your resume behind them" },
-  { n: `~$${FIVE_JOBS.usd.toFixed(2)}`, label: "for a search of 5 jobs, paid in Hello Minds cognition. Nothing between searches" },
+  { n: "1", label: "click to fill a whole application form. You press Submit" },
+];
+
+// What job hunting feels like today, and what changes.
+const PAINS = [
+  { pain: "Hours scrolling boards full of reposts and jobs that closed weeks ago.", gain: "You see only jobs checked open today, on the employer's own site." },
+  { pain: "\"Remote\" that turns out to mean one country, found after you've applied.", gain: "Every posting's own eligibility line is read before it reaches you." },
+  { pain: "Rewriting the same cover letter and the same twenty form answers, again.", gain: "Written once from your resume, answered once about you, filled in every time." },
 ];
 
 const MOODS: Mood[] = ["happy", "searching", "surprised", "love", "thinking", "excited", "sleeping", "sad"];
@@ -81,8 +87,8 @@ const FAQ = [
     a: "Almost. It finds the job, writes the application, and the Chrome extension fills in the whole form. You read it and press Submit yourself. Nothing is ever sent without you.",
   },
   {
-    q: "What does it cost?",
-    a: `Career Ninja is free. Your agents run on Hello Minds and use cognition, which you top up on hellominds.ai. A search for 5 jobs is roughly ${FIVE_JOBS.cognition} cognition, about $${FIVE_JOBS.usd.toFixed(2)}; the app shows what your last search really used. Between searches both agents are switched off and spend nothing.`,
+    q: "How long does a search take?",
+    a: "Usually one to two hours for a handful of jobs, because each one is opened and checked properly. You don't need to wait: jobs appear as they're found, and you get an email when it's done.",
   },
   {
     q: "What is the second agent for?",
@@ -153,7 +159,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose">
                 Get your headhunter <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <span className="text-sm text-white/50">Free to use. Sign in with your Hello Minds account.</span>
+              <span className="text-sm text-white/50">Sign in with your Hello Minds account.</span>
             </div>
           ) : (
             <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
@@ -174,6 +180,23 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       <main>
+        {/* The problem, and what changes */}
+        <section className="bg-night px-[6%] py-20 sm:py-24">
+          <div className="mx-auto max-w-3xl text-center">
+            <H2>Job hunting is a second job. It shouldn&rsquo;t be.</H2>
+          </div>
+          <ul className="mx-auto mt-12 grid max-w-6xl gap-6 md:grid-cols-3">
+            {PAINS.map((p) => (
+              <li key={p.pain} className="rounded-3xl bg-surface p-7">
+                <p className="text-lg leading-relaxed text-white/50 line-through decoration-white/25">{p.pain}</p>
+                <p className="mt-4 flex gap-2.5 text-lg leading-relaxed text-white">
+                  <CheckCircle2 className="mt-1 size-5 shrink-0 text-coral" aria-hidden /> {p.gain}
+                </p>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         {/* How it works */}
         <section id="how" className="scroll-mt-15 bg-night-2 px-[6%] py-24 sm:py-32">
           <div className="mx-auto max-w-3xl text-center">
