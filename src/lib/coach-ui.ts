@@ -2,12 +2,12 @@ import "server-only";
 import type { Profile } from "@/db/schema";
 import { coachSuggestions, searchPace, TARGET_MIN_PER_JOB } from "./coach";
 
-export function paceStats(p: { jobs: number; minutes: number; perJob: number | null }) {
+export function paceStats(p: { jobs: number; minutes: number; perJob: number | null }): { label: string; value: string }[] {
   const dur = p.minutes >= 60 ? `${Math.floor(p.minutes / 60)}h ${p.minutes % 60}m` : `${p.minutes}m`;
   return [
     { label: "Found", value: String(p.jobs) },
     { label: "Took", value: dur },
-    { label: "Per job", value: p.perJob != null ? `${p.perJob}m` : "–", target: `aim ${TARGET_MIN_PER_JOB}m` },
+    { label: "Per job", value: p.perJob != null ? `${p.perJob}m` : "–" },
   ];
 }
 

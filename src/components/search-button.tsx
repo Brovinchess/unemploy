@@ -38,7 +38,7 @@ export function SearchButton({
   perJob?: number;
   last?: LastSearch;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
-  coach?: { summary: string; stats: { label: string; value: string; target?: string }[]; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
+  coach?: { summary: string; stats: { label: string; value: string }[]; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -139,7 +139,6 @@ export function SearchButton({
                   <div key={st.label} className="px-3 py-3 text-center">
                     <p className="font-display text-lg font-medium text-white">{st.value}</p>
                     <p className="text-[11px] uppercase tracking-[0.08em] text-white/40">{st.label}</p>
-                    {st.target && <p className="text-[11px] text-coral/80">{st.target}</p>}
                   </div>
                 ))}
               </div>
