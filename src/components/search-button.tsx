@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Search, Square, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Lightbulb, Search, Square, X } from "lucide-react";
 import { requestSearch, stopSearch } from "@/app/actions";
 import { setCoachReminders } from "@/app/notify-actions";
 import Link from "next/link";
@@ -64,7 +65,7 @@ export function SearchButton({
 
   // Close the pop-over on Escape or a click outside.
   useEffect(() => {
-    if (!open || big) return;
+    if (!open || big || coachOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
     const onClick = (e: MouseEvent) => panel.current && !panel.current.contains(e.target as Node) && setOpen(false);
     document.addEventListener("keydown", onKey);
@@ -73,7 +74,7 @@ export function SearchButton({
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("mousedown", onClick);
     };
-  }, [open, big]);
+  }, [open, big, coachOpen]);
 
   if (searching) {
     const mins = startedAt ? minutesSince(startedAt, now) : 0;
@@ -97,6 +98,66 @@ export function SearchButton({
   }
 
   const tooExpensive = balance != null && estimateSearchCost(jobs, perJob).cognition > balance;
+
+  // A real pop-up over the page: whichever button starts a search opens it when the last one was slow.
+  const coachModal =
+    coachOpen && coach
+      ? createPortal(
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={() => setCoachOpen(false)}>
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="coach-title"
+              className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-night-2 p-6 text-left shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p id="coach-title" className="font-display text-lg font-medium text-white">
+                    Before you search again
+                  </p>
+                  <p className="mt-1 text-sm text-white/65">{coach.summary}</p>
+                </div>
+                <button className="text-white/40 hover:text-white" onClick={() => setCoachOpen(false)} aria-label="Close">
+                  <X className="size-4" />
+                </button>
+              </div>
+              <ul className="mt-4 space-y-3">
+                {tips.map((s) => (
+                  <li key={s.text} className="flex gap-2.5 text-sm">
+                    <Lightbulb className="mt-0.5 size-4 shrink-0 text-coral" aria-hidden />
+                    <span>
+                      <span className="text-white">{s.text}</span>
+                      <span className="block text-xs text-white/45">{s.evidence}</span>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-5 flex flex-wrap items-center gap-3">
+                <Link href={coach.modifyHref} className="btn btn-accent btn-sm" onClick={() => setCoachOpen(false)}>
+                  Modify
+                </Link>
+                <button
+                  className="btn btn-ghost btn-sm"
+                  disabled={pending}
+                  onClick={async () => {
+                    if (mute) await setCoachReminders(false);
+                    setCoachOpen(false);
+                    begin();
+                  }}
+                >
+                  Keep my search
+                </button>
+                <label className="ml-auto flex items-center gap-2 text-xs text-white/50">
+                  <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} /> Don&rsquo;t remind me
+                </label>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      : null;
+
   const form = (
     <div className={big ? "w-full max-w-md text-left" : ""}>
       <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} last={last} />
@@ -132,39 +193,7 @@ export function SearchButton({
       </p>
       {error && <p className="mt-3 text-sm text-rose">{error}</p>}
 
-      {coachOpen && coach && (
-        <div className="mt-4 rounded-2xl border border-coral/25 bg-coral/10 p-5 text-left">
-          <p className="font-medium text-white">Before you search again</p>
-          <p className="mt-1 text-sm text-white/65">{coach.summary}</p>
-          <ul className="mt-3 space-y-2.5">
-            {tips.map((s) => (
-              <li key={s.text} className="text-sm">
-                <p className="text-white">{s.text}</p>
-                <p className="text-xs text-white/45">{s.evidence}</p>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-4 flex flex-wrap items-center gap-3">
-            <Link href={coach.modifyHref} className="btn btn-accent btn-sm">
-              Modify
-            </Link>
-            <button
-              className="btn btn-ghost btn-sm"
-              disabled={pending}
-              onClick={async () => {
-                if (mute) await setCoachReminders(false);
-                setCoachOpen(false);
-                begin();
-              }}
-            >
-              Keep my search
-            </button>
-            <label className="ml-auto flex items-center gap-2 text-xs text-white/50">
-              <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} /> Don&rsquo;t remind me
-            </label>
-          </div>
-        </div>
-      )}
+      {coachModal}
     </div>
   );
 
