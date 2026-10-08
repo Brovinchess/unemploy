@@ -53,7 +53,9 @@ export function searchRequestText(
   payFloor?: string,
   discovery?: { targetRoles: string; country: string },
   ruledOut: string[] = [],
+  maxAgeDays?: number,
 ) {
+  const age = maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old is fine (this replaces the number in your brief). ` : "";
   const skipRuled = ruledOut.length ? `Already ruled out on earlier searches, don't re-check unless the posting changed: ${ruledOut.join("; ")}. ` : "";
   const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country) + " " : "";
   const pay = payFloor
@@ -71,6 +73,7 @@ export function searchRequestText(
     `Work cheaply: for each lead, check the posting date and the location line first (from the search result, the listing's summary or its JSON-LD) and drop it before opening the full posting or form if it fails. Only read the full posting and form for leads that pass those two. For a job you verified on an earlier search, just confirm the posting is still open; don't rebuild its pack. Stop rule: if 12 leads in a row fail, or 90 minutes pass without sending a job, stop, POST {\"jobs\":[],\"final\":true} and say so in one line. ` +
     `When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). ` +
     wide +
+    age +
     skipRuled +
     `Report every lead you drop in the "dropped" list of your next POST (reason + short note), instead of describing it in chat. ` +
     `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". ` +

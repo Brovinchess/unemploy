@@ -20,8 +20,7 @@ import {
   REMOTE_SCOPES,
   summarizePreferences,
   WORK_SETTINGS,
-  type Preferences,
-} from "@/lib/preferences";
+  type Preferences, MAX_POSTING_AGE_DAYS, POSTING_AGE_OPTIONS } from "@/lib/preferences";
 
 const COUNTRIES = [
   "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
@@ -55,9 +54,10 @@ const QUESTIONS: Question[] = [
   { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas." },
   { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?" },
   { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition." },
+  { key: "maxPostingAgeDays", ask: () => "How recent should a posting be? Older ones are more often filled already, but allowing more gives me more to choose from." },
 ];
 
-const DEFAULTS: Draft = { city: "", minSalary: "", avoidCompanies: "", remoteScope: "country" };
+const DEFAULTS: Draft = { city: "", minSalary: "", avoidCompanies: "", remoteScope: "country", maxPostingAgeDays: MAX_POSTING_AGE_DAYS };
 
 function answerText(key: keyof Preferences, d: Draft): string {
   const v = d[key];
@@ -75,6 +75,8 @@ function answerText(key: keyof Preferences, d: Draft): string {
       return (v as string) || "Any pay";
     case "jobsPerDay":
       return `${v} per search`;
+    case "maxPostingAgeDays":
+      return `Last ${v ?? MAX_POSTING_AGE_DAYS} days`;
     default:
       return (v as string) || "Skip";
   }
@@ -154,7 +156,7 @@ export function PreferencesChat({
           <div className="card divide-y divide-line overflow-hidden">
             {summarizePreferences(draft as Preferences).map((row, i) => {
               const keys: (keyof Preferences)[] = [
-                "targetRoles", "country", "workSettings", "jobTypes", "levels", "minSalary", "avoidCompanies", "needsVisa", "jobsPerDay",
+                "targetRoles", "country", "workSettings", "jobTypes", "levels", "minSalary", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
               ];
               const key = keys[i];
               return (
@@ -260,6 +262,18 @@ function AnswerInput({
       <div className="flex flex-wrap gap-2">
         <button className="chip" onClick={() => onAnswer({ needsVisa: false })}>No</button>
         <button className="chip" onClick={() => onAnswer({ needsVisa: true })}>Yes, I need sponsorship</button>
+      </div>
+    );
+  }
+  if (key === "maxPostingAgeDays") {
+    const current = draft.maxPostingAgeDays ?? MAX_POSTING_AGE_DAYS;
+    return (
+      <div className="flex flex-wrap gap-2">
+        {POSTING_AGE_OPTIONS.map((d) => (
+          <button key={d} className="chip" aria-pressed={current === d} onClick={() => onAnswer({ maxPostingAgeDays: d })}>
+            Last {d} days
+          </button>
+        ))}
       </div>
     );
   }

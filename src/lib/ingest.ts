@@ -5,7 +5,7 @@ import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { clearlyBelow, floorOf } from "./pay";
-import { avoidList, MAX_POSTING_AGE_DAYS, salaryLabel } from "./preferences";
+import { avoidList, postingAgeDays, salaryLabel } from "./preferences";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
@@ -209,11 +209,12 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
 
   if (job.postedAt) {
     const posted = Date.parse(job.postedAt);
-    if (!Number.isNaN(posted) && Date.now() - posted > MAX_POSTING_AGE_DAYS * 86_400_000) {
+    const maxAge = postingAgeDays(prefs);
+    if (!Number.isNaN(posted) && Date.now() - posted > maxAge * 86_400_000) {
       return {
         url: job.url,
         code: "stale_posting",
-        hint: `Posted ${job.postedAt}, over ${MAX_POSTING_AGE_DAYS} days ago; it is probably filled. Send postings from the last ${MAX_POSTING_AGE_DAYS} days.`,
+        hint: `Posted ${job.postedAt}, over ${maxAge} days ago; it is probably filled. Send postings from the last ${maxAge} days.`,
       };
     }
   }

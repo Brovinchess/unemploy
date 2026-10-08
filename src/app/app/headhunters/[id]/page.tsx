@@ -16,6 +16,7 @@ import { mindsConfig } from "@/lib/minds/config";
 import { coachFor } from "@/lib/coach-ui";
 import { searchPace } from "@/lib/coach";
 import { Coach } from "@/components/coach";
+import { ScrollToHash } from "@/components/scroll-to-hash";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
@@ -139,6 +140,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         {/* What it looks for */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
+            <ScrollToHash id="looks-for" />
             <Coach pace={pace} suggestions={coach?.suggestions ?? []} />
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
             <p className="mt-1 mb-5 text-sm text-white/50">Change anything and it gets an updated brief.</p>

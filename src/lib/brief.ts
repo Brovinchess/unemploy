@@ -1,7 +1,7 @@
 import type { Preferences } from "./preferences";
 import { discoveryText } from "./discovery";
 import { floorOf } from "./pay";
-import { avoidList, MAX_POSTING_AGE_DAYS, REMOTE_SCOPES, salaryLabel, workSettingLabel } from "./preferences";
+import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, salaryLabel, workSettingLabel } from "./preferences";
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -46,7 +46,7 @@ HOW TO SPEND MY COGNITION
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
-2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${MAX_POSTING_AGE_DAYS} days ago.
+2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${postingAgeDays(prefs)} days ago.
 3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
 4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "MYR 6,000–8,000 a month"). If its whole range is below my pay floor, skip it.
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
@@ -88,7 +88,7 @@ JOB fields
   jobType       optional  e.g. "Full-time"
   level         optional  e.g. "Mid-Senior"
   salary        required when the posting shows pay; as posted, with currency and period, e.g. "MYR 6,000–8,000 a month"
-  postedAt      ISO date from the posting; required when shown. Over ${MAX_POSTING_AGE_DAYS} days old is refused
+  postedAt      ISO date from the posting; required when shown. Older than the user's posting age limit (${MAX_POSTING_AGE_DAYS} days unless the brief or search request says otherwise) is refused
   matchScore    required  0–100, how well the user fits; 55 or lower if any must-have is not met
   whyFit        required  2–3 plain sentences
   gaps          optional  list of honest shortfalls

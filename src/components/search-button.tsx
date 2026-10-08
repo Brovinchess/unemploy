@@ -8,6 +8,7 @@ import { setCoachReminders } from "@/app/notify-actions";
 import Link from "next/link";
 import { estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
+import { Ninja } from "./brand";
 import { JobsSlider, type LastSearch } from "./jobs-slider";
 import { minutesSince, useLive, useNow } from "./live";
 
@@ -37,7 +38,7 @@ export function SearchButton({
   perJob?: number;
   last?: LastSearch;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
-  coach?: { summary: string; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
+  coach?: { summary: string; stats: { label: string; value: string; target?: string }[]; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -111,53 +112,66 @@ export function SearchButton({
   const coachModal =
     coachOpen && coach
       ? createPortal(
-          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center" onClick={() => setCoachOpen(false)}>
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-night/80 p-4 backdrop-blur-sm sm:items-center" onClick={() => setCoachOpen(false)}>
             <div
               role="dialog"
               aria-modal="true"
               aria-labelledby="coach-title"
-              className="w-full max-w-md rounded-3xl border border-white/[0.08] bg-night-2 p-6 text-left shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
+              className="w-full max-w-md overflow-hidden rounded-3xl border border-white/[0.08] bg-night-2 text-left shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p id="coach-title" className="font-display text-lg font-medium text-white">
-                    Before you search again
-                  </p>
-                  <p className="mt-1 text-sm text-white/65">{coach.summary}</p>
-                </div>
-                <button className="text-white/40 hover:text-white" onClick={() => setCoachOpen(false)} aria-label="Close">
+              <div className="relative px-6 pt-6">
+                <button className="absolute right-5 top-5 text-white/40 hover:text-white" onClick={() => setCoachOpen(false)} aria-label="Close">
                   <X className="size-4" />
                 </button>
+                <Ninja mood="thinking" className="size-14" />
+                <h2 id="coach-title" className="font-display mt-3 text-xl font-medium text-white">
+                  Quick tip before you search
+                </h2>
+                <p className="mt-1 text-sm text-white/60">Last time was slow. A small change could speed things up.</p>
               </div>
-              <ul className="mt-4 space-y-3">
+
+              <div className="mx-6 mt-4 grid grid-cols-3 divide-x divide-white/[0.06] rounded-2xl bg-white/[0.04]">
+                {coach.stats.map((st) => (
+                  <div key={st.label} className="px-3 py-3 text-center">
+                    <p className="font-display text-lg font-medium text-white">{st.value}</p>
+                    <p className="text-[11px] uppercase tracking-[0.08em] text-white/40">{st.label}</p>
+                    {st.target && <p className="text-[11px] text-coral/80">{st.target}</p>}
+                  </div>
+                ))}
+              </div>
+
+              <ul className="mt-4 space-y-2 px-6">
                 {tips.map((s) => (
-                  <li key={s.text} className="flex gap-2.5 text-sm">
+                  <li key={s.text} className="flex gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-4 py-3">
                     <Lightbulb className="mt-0.5 size-4 shrink-0 text-coral" aria-hidden />
-                    <span>
-                      <span className="text-white">{s.text}</span>
-                      <span className="block text-xs text-white/45">{s.evidence}</span>
+                    <span className="min-w-0">
+                      <span className="block font-medium text-white">{s.text}</span>
+                      <span className="mt-0.5 block text-xs leading-relaxed text-white/50">{s.evidence}</span>
                     </span>
                   </li>
                 ))}
               </ul>
-              <div className="mt-5 flex flex-wrap items-center gap-3">
-                <Link href={coach.modifyHref} className="btn btn-accent btn-sm" onClick={() => setCoachOpen(false)}>
-                  Modify
-                </Link>
-                <button
-                  className="btn btn-ghost btn-sm"
-                  disabled={pending}
-                  onClick={async () => {
-                    if (mute) await setCoachReminders(false);
-                    setCoachOpen(false);
-                    begin();
-                  }}
-                >
-                  Keep my search
-                </button>
-                <label className="ml-auto flex items-center gap-2 text-xs text-white/50">
-                  <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} /> Don&rsquo;t remind me
+
+              <div className="mt-5 px-6 pb-6">
+                <div className="grid grid-cols-2 gap-3">
+                  <Link href={coach.modifyHref} className="btn btn-accent justify-center" onClick={() => setCoachOpen(false)}>
+                    Change settings
+                  </Link>
+                  <button
+                    className="btn btn-ghost justify-center"
+                    disabled={pending}
+                    onClick={async () => {
+                      if (mute) await setCoachReminders(false);
+                      setCoachOpen(false);
+                      begin();
+                    }}
+                  >
+                    Search anyway
+                  </button>
+                </div>
+                <label className="mt-4 flex items-center justify-center gap-2 text-xs text-white/45">
+                  <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} /> Don&rsquo;t show tips again
                 </label>
               </div>
             </div>

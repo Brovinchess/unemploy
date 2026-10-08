@@ -34,8 +34,11 @@ export function avoidList(raw: string | undefined): string[] {
     .filter((c) => c.length > 1 && !NOTHING.has(c.toLowerCase()));
 }
 
-// Postings older than this are likely filled or "ghost" listings.
+// Postings older than this are likely filled or "ghost" listings. The default; each
+// headhunter can be told to accept older ones (the coach suggests it when fresh leads run out).
 export const MAX_POSTING_AGE_DAYS = 45;
+export const POSTING_AGE_OPTIONS = [30, 45, 60, 90] as const;
+export const postingAgeDays = (p: { maxPostingAgeDays?: number } | null | undefined) => p?.maxPostingAgeDays ?? MAX_POSTING_AGE_DAYS;
 
 export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 
@@ -105,6 +108,7 @@ export const preferencesSchema = z.object({
   avoidCompanies: z.string().trim().max(500).optional().default(""),
   needsVisa: z.boolean().default(false),
   jobsPerDay: z.number().int().min(1).max(50),
+  maxPostingAgeDays: z.number().int().min(14).max(120).optional(),
 });
 
 export type Preferences = z.infer<typeof preferencesSchema>;
@@ -128,5 +132,6 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },
     { label: "Visa sponsorship", value: p.needsVisa ? "Needed" : "Not needed" },
     { label: "Jobs per search", value: String(p.jobsPerDay) },
+    { label: "Posted within", value: `${postingAgeDays(p)} days` },
   ];
 }
