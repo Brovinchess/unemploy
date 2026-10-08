@@ -76,6 +76,14 @@ export function SearchButton({
     };
   }, [open, big, coachOpen]);
 
+  // Escape closes the coach pop-up.
+  useEffect(() => {
+    if (!coachOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setCoachOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [coachOpen]);
+
   if (searching) {
     const mins = startedAt ? minutesSince(startedAt, now) : 0;
     return (
