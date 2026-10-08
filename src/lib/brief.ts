@@ -54,7 +54,6 @@ CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs tha
 3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
 4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "MYR 6,000–8,000 a month"). If its whole range is below my pay floor, skip it.
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
-6. At most 2 roles per company per day. Look at the company's other openings and pick the one that fits me best.
 
 WRITING RULES
 - Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like "I am excited to" or "passionate about".
@@ -124,10 +123,11 @@ JOB fields
 
 REPLY
   {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}]}
-  codes: bad_job, not_employer_link, not_verified, not_eligible, poor_fit, work_setting_not_wanted,
-         wrong_country, company_avoided, claim_not_in_resume, stale_posting, duplicate,
-         found_by_other_headhunter, company_limit, search_limit, job_closed, bad_url, paused, below_salary,
-         no_search_requested
+  codes: bad_job, not_employer_link, not_eligible, poor_fit, work_setting_not_wanted,
+         wrong_country, company_avoided, stale_posting, duplicate, found_by_other_headhunter,
+         search_limit, job_closed, bad_url, paused, below_salary, no_search_requested
+  Long text is cut to fit and claims without exact resume evidence are dropped from the pack;
+  the job is still accepted and "adjusted" says what changed.
   Fix what each hint says. Do not resend accepted jobs.
   duplicate also covers the same posting under another link (tracking parameters, old and new
   job-board addresses) and the same title at the same company within 60 days.

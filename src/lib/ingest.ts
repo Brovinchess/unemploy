@@ -11,46 +11,47 @@ import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
 
+// Long text is cut, not refused: a too-long field is paperwork, not a reason to lose a job.
+const trimmed = (max: number) => z.string().trim().transform((s) => (s.length > max ? `${s.slice(0, max - 1)}…` : s));
+
 const claimSchema = z.object({
-  claim: z.string().trim().min(3).max(400),
-  evidence: z.string().trim().min(3).max(400),
+  claim: trimmed(400),
+  evidence: trimmed(400),
 });
 
 // Text that's merely too long is trimmed rather than costing the whole job.
-const trimmed = (max: number) => z.string().trim().transform((s) => (s.length > max ? `${s.slice(0, max - 1)}…` : s));
-
 const jobSchema = z.object({
   url: z.url({ protocol: /^https?$/ }),
-  title: z.string().trim().min(2).max(200),
-  company: z.string().trim().min(1).max(200),
-  city: z.string().trim().max(120).optional(),
-  country: z.string().trim().max(120).optional(),
+  title: trimmed(200).pipe(z.string().min(2)),
+  company: trimmed(200).pipe(z.string().min(1)),
+  city: trimmed(120).optional(),
+  country: trimmed(120).optional(),
   workSetting: z.enum(["onsite", "hybrid", "remote"]),
-  jobType: z.string().trim().max(60).optional(),
-  level: z.string().trim().max(60).optional(),
+  jobType: trimmed(60).optional(),
+  level: trimmed(60).optional(),
   salary: trimmed(120).optional(),
-  postedAt: z.string().trim().max(40).optional(),
-  matchScore: z.number().min(0).max(100),
-  whyFit: z.string().trim().min(10).max(1200),
-  gaps: z.array(z.string().trim().max(300)).max(10).default([]),
-  companyNotes: z.string().trim().max(1500).optional(),
+  postedAt: trimmed(40).optional(),
+  matchScore: z.number().min(0).max(100).catch(50),
+  whyFit: trimmed(1200).optional(), // falls back to the summary
+  gaps: z.array(trimmed(300)).max(10).default([]),
+  companyNotes: trimmed(1500).optional(),
   // For the job card. The website gives us the company's logo.
-  companyWebsite: z.string().trim().min(3).max(200),
-  companyStage: z.string().trim().max(60).optional(),
-  companySize: z.string().trim().max(60).optional(),
-  industry: z.string().trim().max(80).optional(),
-  perks: z.array(z.string().trim().min(2).max(60)).max(6).optional(),
+  companyWebsite: trimmed(200).optional(),
+  companyStage: trimmed(60).optional(),
+  companySize: trimmed(60).optional(),
+  industry: trimmed(80).optional(),
+  perks: z.array(trimmed(60)).max(6).optional(),
   // Shown before the company is revealed; when missing, the card falls back to whyFit.
   highlights: z.array(trimmed(160)).max(3).optional(),
-  summary: z.string().trim().min(10).max(200).optional(), // "what you'd do", one line
+  summary: trimmed(200).optional(), // "what you'd do", one line
   salaryEstimated: z.boolean().optional(),
   // Evidence the Mind must bring from the posting itself.
-  locationText: z.string().trim().min(3).max(400),
+  locationText: trimmed(400).pipe(z.string().min(3)), // the one field we insist on: it's the eligibility evidence
   mustHaves: z
-    .array(z.object({ requirement: z.string().trim().min(3).max(300), met: z.boolean() }))
-    .min(1)
-    .max(12),
-  verifiedOpenAt: z.string().trim().min(8).max(40),
+    .array(z.object({ requirement: trimmed(300), met: z.boolean() }))
+    .max(12)
+    .default([]),
+  verifiedOpenAt: trimmed(40).optional(),
   // The questions on the job's application form, so the personal Mind can answer them.
   formQuestions: z
     .array(
@@ -63,13 +64,13 @@ const jobSchema = z.object({
     .optional()
     .transform((qs) => qs?.filter((q) => q.question.length >= 3).slice(0, 40)),
   pack: z.object({
-    coverLetter: z.string().trim().min(80).max(6000),
-    aboutMe: z.string().trim().min(20).max(1500),
+    coverLetter: trimmed(6000).pipe(z.string().min(40)),
+    aboutMe: trimmed(1500).pipe(z.string().min(10)),
     answers: z
-      .array(z.object({ question: z.string().trim().min(3).max(500), answer: z.string().trim().min(1).max(3000) }))
+      .array(z.object({ question: trimmed(500), answer: trimmed(3000) }))
       .max(20)
       .default([]),
-    claims: z.array(claimSchema).min(1).max(40),
+    claims: z.array(claimSchema).max(40).default([]),
   }),
 });
 
@@ -135,28 +136,16 @@ function runsOf(text: string) {
 
 const sameCountry = (a?: string, b?: string) => !!a && !!b && norm(a) === norm(b);
 
-const MAX_UNVERIFIED_DAYS = 3;
-const MAX_PER_COMPANY_PER_DAY = 2;
 const MAX_SCORE_WITH_GAPS = 55;
 
 function checkJob(job: JobPush, profile: Profile): Rejection | null {
   const prefs = profile.preferences!;
-  const resume = norm(profile.resumeText ?? "");
 
   if (isAggregator(job.url)) {
     return {
       url: job.url,
       code: "not_employer_link",
       hint: `${hostOf(job.url)} copies postings and keeps them after they close. Find this job on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workday…) and send that link, or skip it.`,
-    };
-  }
-
-  const seen = Date.parse(job.verifiedOpenAt);
-  if (Number.isNaN(seen) || Date.now() - seen > MAX_UNVERIFIED_DAYS * 86_400_000 || seen - Date.now() > 86_400_000) {
-    return {
-      url: job.url,
-      code: "not_verified",
-      hint: `Open the posting today, confirm it still accepts applications, and send "verifiedOpenAt" as today's date.`,
     };
   }
 
@@ -219,20 +208,15 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
     }
   }
 
-  const runs = runsOf(resume);
-  const unsupported = job.pack.claims.filter((c) => !inResume(c.evidence, resume, runs));
-  if (unsupported.length) {
-    return {
-      url: job.url,
-      code: "claim_not_in_resume",
-      hint:
-        `Every claim needs "evidence" copied word for word from the resume. Not found: ` +
-        unsupported.map((c) => `"${c.evidence.slice(0, 80)}"`).join("; ") +
-        `. Remove the claim from the pack or quote the resume exactly.`,
-    };
-  }
-
   return null;
+}
+
+// Claims whose "evidence" isn't in the resume. The job is still accepted; these are dropped
+// from the pack so nothing invented reaches an application.
+function unsupportedClaims(job: JobPush, profile: Profile) {
+  const resume = norm(profile.resumeText ?? "");
+  const runs = runsOf(resume);
+  return job.pack.claims.filter((c) => !inResume(c.evidence, resume, runs));
 }
 
 // Job links come from the Mind, so never let the check reach private or internal addresses.
@@ -327,9 +311,8 @@ async function checkAndSave(
     };
   }
 
-  // The quota is per search; the per-company limit looks at the last day.
-  const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
-  const searchStart = profile.searchStartedAt ?? since;
+  // The quota is per search.
+  const searchStart = profile.searchStartedAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000);
   const [{ n }] = await db
     .select({ n: count() })
     .from(schema.jobs)
@@ -347,7 +330,6 @@ async function checkAndSave(
 
   const rejected: Rejection[] = [];
   const adjusted: { url: string; note: string }[] = [];
-  const sentToday = new Map<string, number>(); // company -> accepted in this push
   let accepted = 0;
 
   for (const raw of parsed.data.jobs) {
@@ -409,19 +391,6 @@ async function checkAndSave(
       continue;
     }
 
-    const sameCompany = await db
-      .select({ n: count() })
-      .from(schema.jobs)
-      .where(and(eq(schema.jobs.profileId, profile.id), eq(schema.jobs.company, job.company), gte(schema.jobs.createdAt, since)));
-    if (sameCompany[0].n + (sentToday.get(job.company.toLowerCase()) ?? 0) >= MAX_PER_COMPANY_PER_DAY) {
-      rejected.push({
-        url: job.url,
-        code: "company_limit",
-        hint: `Already ${MAX_PER_COMPANY_PER_DAY} jobs from ${job.company} today. Pick the single best-fitting role there and look at other companies.`,
-      });
-      continue;
-    }
-
     if (!opts.demo && (await checkPosting(job.url, isPublicHttpUrl)) === "closed") {
       rejected.push({
         url: job.url,
@@ -437,7 +406,14 @@ async function checkAndSave(
       adjusted.push({ url: job.url, note: `matchScore capped at ${MAX_SCORE_WITH_GAPS} because a must-have is not met.` });
       job.matchScore = MAX_SCORE_WITH_GAPS;
     }
-    sentToday.set(job.company.toLowerCase(), (sentToday.get(job.company.toLowerCase()) ?? 0) + 1);
+    const unsupported = unsupportedClaims(job, profile);
+    if (unsupported.length) {
+      job.pack.claims = job.pack.claims.filter((c) => !unsupported.includes(c));
+      adjusted.push({
+        url: job.url,
+        note: `Dropped ${unsupported.length} claim(s) whose evidence isn't in the resume word for word: ${unsupported.map((c) => `"${c.evidence.slice(0, 60)}"`).join("; ")}. Quote the resume exactly next time.`,
+      });
+    }
 
     // Questions about the job or the fit are the Mind's to answer, in the form's own words,
     // so the extension can fill them. Accept the job, but point out any it skipped.
@@ -471,10 +447,10 @@ async function checkAndSave(
       salary: job.salary,
       postedAt: job.postedAt,
       matchScore: job.matchScore,
-      whyFit: job.whyFit,
+      whyFit: job.whyFit || job.summary || "See the posting for what the role involves.",
       gaps: job.gaps,
       companyNotes: job.companyNotes,
-      companyDomain: companyDomain(job.companyWebsite),
+      companyDomain: job.companyWebsite ? companyDomain(job.companyWebsite) : null,
       companyStage: job.companyStage,
       companySize: job.companySize,
       industry: job.industry,
@@ -485,7 +461,7 @@ async function checkAndSave(
       salaryEstimated: !!job.salary && !!job.salaryEstimated,
       locationText: job.locationText,
       mustHaves: job.mustHaves,
-      verifiedAt: new Date(Date.parse(job.verifiedOpenAt)),
+      verifiedAt: job.verifiedOpenAt && !Number.isNaN(Date.parse(job.verifiedOpenAt)) ? new Date(Date.parse(job.verifiedOpenAt)) : new Date(),
       lastCheckedAt: new Date(),
       demo: !!opts.demo,
     });
