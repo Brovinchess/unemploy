@@ -68,8 +68,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   );
 
   // With nothing new to swipe: every job kept so far, by stage.
+  // The pipeline shows on every state of this page, so load it whenever there's history.
   const kept =
-    fresh.length === 0 && everDelivered
+    everDelivered
       ? await db.query.jobs.findMany({
           where: and(
             inArray(schema.jobs.profileId, profiles.map((p) => p.id)),
@@ -111,6 +112,11 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             </div>
           </div>
         )}
+        {searching && fresh.length === 0 && kept.length > 0 && (
+          <div className="mx-auto max-w-[820px]">
+            <Pipeline jobs={kept} labels={labels} detailsComplete={detailsComplete(user.applicant)} />
+          </div>
+        )}
 
         {/* Cards to swipe, with the search status and the apply queue alongside. */}
         {fresh.length > 0 && (
@@ -142,6 +148,12 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
                 <div className="mt-4">{applyAll}</div>
               </section>
             </aside>
+          </div>
+        )}
+        {/* Everything kept or dismissed stays in view under the cards. */}
+        {fresh.length > 0 && kept.length > 0 && (
+          <div className="mx-auto mt-12 max-w-[820px]">
+            <Pipeline jobs={kept} labels={labels} detailsComplete={detailsComplete(user.applicant)} />
           </div>
         )}
 
