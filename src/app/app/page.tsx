@@ -7,7 +7,6 @@ import { Ninja } from "@/components/brand";
 import { CompanyLogo } from "@/components/company-logo";
 import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
 import { Pipeline } from "@/components/pipeline";
-import { HuntProgress } from "@/components/hunt-progress";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
 import { SwipeDeck } from "@/components/swipe-deck";
@@ -102,15 +101,15 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {/* While a search runs with nothing to swipe yet: one compact progress bar. */}
+        {/* While a search runs with nothing to swipe yet: the sidebar shows progress; here, one quiet line. */}
         {searching && fresh.length === 0 && (
-          <HuntProgress
-            profileId={current.id}
-            mindName={current.mindName ?? "Your headhunter"}
-            jobsPerDay={perSearch}
-            startedAt={current.searchStartedAt?.toISOString() ?? null}
-            live
-          />
+          <div className="mb-8 flex items-center gap-4 rounded-3xl bg-surface px-6 py-5">
+            <Ninja mood="searching" className="size-12 shrink-0" />
+            <div>
+              <p className="text-white">Your headhunter is searching.</p>
+              <p className="text-sm text-white/50">New jobs appear here the moment it finds them. You can leave and come back.</p>
+            </div>
+          </div>
         )}
 
         {/* Cards to swipe, with the search status and the apply queue alongside. */}
@@ -118,16 +117,6 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_330px]">
             <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={<>{applyAll}{searchButton(true)}</>} />
             <aside className="space-y-4 xl:sticky xl:top-8 xl:self-start">
-              {searching && (
-                <HuntProgress
-                  profileId={current.id}
-                  mindName={current.mindName ?? "Your headhunter"}
-                  jobsPerDay={perSearch}
-                  startedAt={current.searchStartedAt?.toISOString() ?? null}
-                  live
-                  panel
-                />
-              )}
               <section className="rounded-3xl bg-surface p-5" aria-label="To apply">
                 <h2 className="font-display flex items-baseline justify-between text-sm font-medium text-white/70">
                   To apply <span className="text-white/35">{toApply || ""}</span>
@@ -156,10 +145,6 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-
-        {fresh.length === 0 && searching && (
-          <p className="py-10 text-center text-sm text-white/40">New jobs appear here as your headhunter sends them.</p>
-        )}
 
         {fresh.length === 0 && !searching && !everDelivered && (
           <section className="flex flex-col items-center rounded-3xl bg-surface px-8 py-16 text-center">
