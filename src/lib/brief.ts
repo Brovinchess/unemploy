@@ -93,10 +93,10 @@ JOB fields
   salary        required when the posting shows pay; as posted, with currency and period, e.g. "MYR 6,000–8,000 a month"
   postedAt      ISO date from the posting; required when shown. Older than the user's posting age limit (${MAX_POSTING_AGE_DAYS} days unless the brief or search request says otherwise) is refused
   matchScore    required  0–100, how well the user fits; 55 or lower if any must-have is not met
-  whyFit        required  2–3 plain sentences
+  whyFit        wanted    2–3 plain sentences (falls back to summary)
   gaps          optional  list of honest shortfalls
   companyNotes  optional  2–3 sentences from the posting or the company's own site
-  companyWebsite required the company's own website, e.g. "acme.com" (used for its logo)
+  companyWebsite wanted   the company's own website, e.g. "acme.com" (used for its logo)
   companyStage  optional  e.g. "Series B", "Public", "Profitable, bootstrapped"
   companySize   optional  e.g. "~200 people"
   industry      optional  e.g. "Fintech · Payments"
@@ -106,9 +106,9 @@ JOB fields
                           e.g. "Own the onboarding flow for a payments app used by 2M people"
   salaryEstimated optional true when "salary" is your estimate rather than the posting's
   locationText  required  the posting's location/eligibility line, copied word for word
-  mustHaves     required  [{"requirement":"5+ years of product management","met":false}, ...]
+  mustHaves     wanted    [{"requirement":"5+ years of product management","met":false}, ...]
                           the posting's hard requirements, checked against the resume
-  verifiedOpenAt required ISO date you last saw the posting open (today)
+  verifiedOpenAt wanted   ISO date you last saw the posting open (today)
   formQuestions optional  every question on the job's application form, exactly as worded:
                           [{"question":"Are you willing to relocate?","options":["Yes","No"],"required":true}, ...]
                           open the "Apply" form to read them; include "options" for choices.
@@ -118,7 +118,7 @@ JOB fields
     aboutMe     required  2–3 sentences for "tell us about yourself"
     answers     required when the form asks about the job, company or fit: one entry per such
                           question, "question" copied exactly from the form; facts only from the resume
-    claims      required  [{"claim":"...","evidence":"<exact words from the resume>"}]
+    claims      wanted    [{"claim":"...","evidence":"<exact words from the resume>"}]; a claim without exact evidence is dropped
                           one entry per fact about the user used in the pack
 
 REPLY
