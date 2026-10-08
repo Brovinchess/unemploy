@@ -32,6 +32,8 @@ export const users = pgTable("users", {
   email: text("email"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   emailOnSearchDone: boolean("email_on_search_done").notNull().default(true),
+  // The search coach's pop-up before a search, after a slow one. Off when the person ticked "don't remind me".
+  coachReminders: boolean("coach_reminders").notNull().default(true),
   // What the Chrome extension types into application forms.
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
   // Answers the person typed into application forms, reused on later forms.

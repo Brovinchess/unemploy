@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Search, Square, X } from "lucide-react";
 import { requestSearch, stopSearch } from "@/app/actions";
+import { setCoachReminders } from "@/app/notify-actions";
+import Link from "next/link";
 import { estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
 import { JobsSlider, type LastSearch } from "./jobs-slider";
@@ -21,6 +23,7 @@ export function SearchButton({
   big = false,
   perJob,
   last = null,
+  coach = null,
 }: {
   profileId: string;
   searching: boolean;
@@ -32,13 +35,25 @@ export function SearchButton({
   big?: boolean;
   perJob?: number;
   last?: LastSearch;
+  // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
+  coach?: { summary: string; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
   const [open, setOpen] = useState(big);
   const [jobs, setJobs] = useState(defaultJobs);
   const [focus, setFocus] = useState("");
+  const [coachOpen, setCoachOpen] = useState(false);
+  const [mute, setMute] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
+  // "Ask for fewer" is moot once the slider is already at 5 or under.
+  const tips = coach?.suggestions.filter((s) => s.kind !== "fewer" || jobs > 5) ?? [];
+  const begin = () =>
+    start(async () => {
+      const r = await requestSearch(profileId, jobs, focus);
+      setError(r?.error);
+      if (!r?.error) setOpen(big);
+    });
   // Live values win over what the page was rendered with.
   const live = useLive();
   const mine = live?.profile.id === profileId ? live.profile : null;
@@ -99,13 +114,7 @@ export function SearchButton({
       <button
         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose disabled:opacity-50"
         disabled={pending || tooExpensive}
-        onClick={() =>
-          start(async () => {
-            const r = await requestSearch(profileId, jobs, focus);
-            setError(r?.error);
-            if (!r?.error) setOpen(big);
-          })
-        }
+        onClick={() => (tips.length ? setCoachOpen(true) : begin())}
       >
         <Search className="size-4" aria-hidden /> {pending ? "Starting…" : `Find ${jobs} ${jobs === 1 ? "job" : "jobs"}`}
       </button>
@@ -122,6 +131,40 @@ export function SearchButton({
         )}
       </p>
       {error && <p className="mt-3 text-sm text-rose">{error}</p>}
+
+      {coachOpen && coach && (
+        <div className="mt-4 rounded-2xl border border-coral/25 bg-coral/10 p-5 text-left">
+          <p className="font-medium text-white">Before you search again</p>
+          <p className="mt-1 text-sm text-white/65">{coach.summary}</p>
+          <ul className="mt-3 space-y-2.5">
+            {tips.map((s) => (
+              <li key={s.text} className="text-sm">
+                <p className="text-white">{s.text}</p>
+                <p className="text-xs text-white/45">{s.evidence}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <Link href={coach.modifyHref} className="btn btn-accent btn-sm">
+              Modify
+            </Link>
+            <button
+              className="btn btn-ghost btn-sm"
+              disabled={pending}
+              onClick={async () => {
+                if (mute) await setCoachReminders(false);
+                setCoachOpen(false);
+                begin();
+              }}
+            >
+              Keep my search
+            </button>
+            <label className="ml-auto flex items-center gap-2 text-xs text-white/50">
+              <input type="checkbox" checked={mute} onChange={(e) => setMute(e.target.checked)} /> Don&rsquo;t remind me
+            </label>
+          </div>
+        </div>
+      )}
     </div>
   );
 

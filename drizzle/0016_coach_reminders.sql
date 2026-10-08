@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "coach_reminders" boolean DEFAULT true NOT NULL;

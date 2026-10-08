@@ -5,6 +5,7 @@ import { ExtensionSetup } from "@/components/extension-ui";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { detailsComplete } from "@/lib/extension";
 import { DeleteAccount } from "./delete-account";
+import { CoachSwitch } from "./coach-switch";
 import { EmailUpdates } from "./email-updates";
 
 function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
@@ -39,6 +40,10 @@ export default async function Settings() {
               for you to press Submit. Works on Greenhouse, Lever and Ashby, in Chrome, Edge and Brave on a computer.
             </p>
             <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
+          </Section>
+
+          <Section title="Search coach" id="coach">
+            <CoachSwitch on={user.coachReminders} />
           </Section>
 
           <Section title="Email updates" id="email">

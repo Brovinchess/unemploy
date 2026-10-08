@@ -80,6 +80,12 @@ export async function setSearchEmails(on: boolean) {
   revalidatePath("/app", "layout");
 }
 
+export async function setCoachReminders(on: boolean) {
+  const user = await requireUser();
+  await db.update(schema.users).set({ coachReminders: on }).where(eq(schema.users.id, user.id));
+  revalidatePath("/app", "layout");
+}
+
 export async function removeEmail() {
   const user = await requireUser();
   await db.update(schema.users).set({ email: null, emailVerifiedAt: null }).where(eq(schema.users.id, user.id));

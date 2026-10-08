@@ -13,6 +13,7 @@ import { SearchButton } from "@/components/search-button";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
+import { coachFor } from "@/lib/coach-ui";
 import { costModel } from "@/lib/cost";
 import { detailsComplete } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
@@ -36,6 +37,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
     db.$count(schema.jobs, and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
   ]);
   const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
+  const coach = user.coachReminders ? await coachFor(current) : null;
   // The queue shown beside the cards while swiping.
   const queue = fresh.length
     ? await db.query.jobs.findMany({
@@ -62,6 +64,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       big={big}
       perJob={cost.perJob}
       last={cost.last}
+      coach={coach}
     />
   );
 

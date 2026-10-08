@@ -13,6 +13,9 @@ import { PreferencesChat } from "@/components/preferences-chat";
 import { SearchButton } from "@/components/search-button";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { mindsConfig } from "@/lib/minds/config";
+import { coachFor } from "@/lib/coach-ui";
+import { searchPace } from "@/lib/coach";
+import { Coach } from "@/components/coach";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
@@ -35,6 +38,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   ]);
   const searching = isSearching(current);
   const paused = current.status === "paused";
+  const coach = user.coachReminders ? await coachFor(current) : null;
+  const pace = await searchPace(current.id);
   const perSearch = current.preferences?.jobsPerDay ?? 5;
   const perSearchCost = estimateSearchCost(perSearch, cost.perJob).cognition;
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearchCost)) : null;
@@ -71,6 +76,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
               perJob={cost.perJob}
               last={cost.last}
+              coach={coach}
             />
           </div>
         </section>
@@ -132,7 +138,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
 
         {/* What it looks for */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-          <section className="rounded-3xl bg-surface p-6">
+          <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
+            <Coach pace={pace} suggestions={coach?.suggestions ?? []} />
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
             <p className="mt-1 mb-5 text-sm text-white/50">Change anything and it gets an updated brief.</p>
             <PreferencesChat
