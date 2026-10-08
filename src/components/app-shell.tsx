@@ -10,7 +10,7 @@ import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
-import { SidebarSearch } from "./sidebar-search";
+import { RowStatus, SidebarSearch } from "./sidebar-search";
 import { TitleBadge } from "./title-badge";
 
 type Tab = "jobs" | "you" | "settings" | "headhunter";
@@ -121,7 +121,7 @@ export async function AppShell({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm ${active ? "text-white" : "text-white/70"}`}>{p.label}</span>
-                    <span className="block truncate font-mono text-[11px] text-white/35">{p.mindName}</span>
+                    <RowStatus profileId={p.id} mindName={p.mindName ?? ""} jobsPerDay={p.preferences?.jobsPerDay ?? 5} searching={isSearching(p)} />
                   </span>
                   {profiles.length > 1 && !!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
                 </Link>
@@ -148,7 +148,6 @@ export async function AppShell({
             </Link>
           </li>
         </ul>
-        <SidebarSearch profileId={current.id} label={current.label} jobsPerDay={perSearchJobs} />
 
         <div className="mt-auto space-y-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
@@ -214,7 +213,7 @@ export async function AppShell({
               <span className="sr-only">Settings</span>
             </Link>
           </div>
-          <SidebarSearch profileId={current.id} label={current.label} jobsPerDay={perSearchJobs} compact />
+          <SidebarSearch profileId={current.id} jobsPerDay={perSearchJobs} />
           {profiles.length > 0 && (
             <div className="flex gap-2 overflow-x-auto px-4 pb-3">
               {profiles.map((p) => (
