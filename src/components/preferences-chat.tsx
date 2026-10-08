@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Lightbulb } from "lucide-react";
 import { savePreferences } from "@/app/actions";
 import { Ninja } from "@/components/brand";
 import { JobsSlider } from "@/components/jobs-slider";
@@ -87,11 +87,13 @@ export function PreferencesChat({
   mode,
   initial,
   seed,
+  tips = [],
 }: {
   profileId: string;
   mode: "setup" | "edit";
   initial?: Preferences;
   seed?: Draft; // answers from another headhunter, pre-filled but still asked
+  tips?: { target: string; text: string }[]; // coach tips, shown beside the row they're about
 }) {
   const [draft, setDraft] = useState<Draft>(initial ?? { ...DEFAULTS, ...seed });
   const [step, setStep] = useState(initial ? QUESTIONS.length : 0); // QUESTIONS.length = summary
@@ -99,6 +101,23 @@ export function PreferencesChat({
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
   const bottom = useRef<HTMLDivElement>(null);
+
+  // Arriving from a coach tip (#pref-<key>): scroll to that row and light it up.
+  useEffect(() => {
+    if (mode !== "edit") return;
+    const key = window.location.hash.match(/^#pref-(\w+)$/)?.[1];
+    if (!key || !QUESTIONS.some((q) => q.key === key)) return;
+    const el = () => document.getElementById(`pref-${key}`);
+    const t = setTimeout(() => {
+      el()?.scrollIntoView({ behavior: "smooth", block: "center" });
+      el()?.classList.add("spotlight");
+    }, 80);
+    const off = setTimeout(() => el()?.classList.remove("spotlight"), 4000);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(off);
+    };
+  }, [mode]);
 
   const visible = QUESTIONS.filter((q) => !q.skip?.(draft));
   const current = visible.find((q) => QUESTIONS.indexOf(q) === step);
@@ -159,21 +178,27 @@ export function PreferencesChat({
                 "targetRoles", "country", "workSettings", "jobTypes", "levels", "minSalary", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
               ];
               const key = keys[i];
+              const tip = tips.find((t) => t.target === key);
               return (
-                <div key={row.label} className="flex items-start justify-between gap-4 px-5 py-4">
-                  <div>
+                <div key={row.label} id={`pref-${key}`} className={`relative flex items-start justify-between gap-4 px-5 py-4 transition-shadow ${tip ? "bg-coral/[0.07]" : ""}`}>
+                  <div className="min-w-0">
                     <p className="text-sm text-muted">{row.label}</p>
                     <p className="mt-0.5 font-medium text-ink">{row.value}</p>
+                    {tip && (
+                      <p className="mt-1.5 flex items-center gap-1.5 text-sm text-coral">
+                        <Lightbulb className="size-3.5 shrink-0" aria-hidden /> {tip.text}
+                      </p>
+                    )}
                   </div>
                   <button
-                    className="mt-1 text-muted hover:text-navy"
+                    className={`mt-1 ${tip ? "rounded-full bg-coral px-3 py-1.5 text-xs font-medium text-white hover:bg-rose" : "text-muted hover:text-navy"}`}
                     aria-label={`Change ${row.label.toLowerCase()}`}
                     onClick={() => {
                       setEditing(true);
                       setStep(QUESTIONS.findIndex((q) => q.key === key));
                     }}
                   >
-                    <Pencil className="size-4" aria-hidden />
+                    {tip ? "Change" : <Pencil className="size-4" aria-hidden />}
                   </button>
                 </div>
               );

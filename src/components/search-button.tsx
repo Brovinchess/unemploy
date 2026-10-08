@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
-import { Lightbulb, Search, Square, X } from "lucide-react";
+import { ChevronRight, Lightbulb, Search, Square, X } from "lucide-react";
 import { requestSearch, stopSearch } from "@/app/actions";
 import { setCoachReminders } from "@/app/notify-actions";
 import Link from "next/link";
@@ -38,7 +38,7 @@ export function SearchButton({
   perJob?: number;
   last?: LastSearch;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
-  coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
+  coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string; href: string | null }[] } | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -50,6 +50,16 @@ export function SearchButton({
   const panel = useRef<HTMLDivElement>(null);
   // "Ask for fewer" is moot once the slider is already at 5 or under.
   const tips = coach?.suggestions.filter((s) => s.kind !== "fewer" || jobs > 5) ?? [];
+  const focusField = useRef<HTMLInputElement>(null);
+  // A tip without a link is about the focus field right here: close the pop-up and put the cursor in it.
+  const goFocus = () => {
+    setCoachOpen(false);
+    setOpen(true);
+    setTimeout(() => {
+      focusField.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      focusField.current?.focus();
+    }, 50);
+  };
   const begin = () =>
     start(async () => {
       const r = await requestSearch(profileId, jobs, focus);
@@ -133,22 +143,45 @@ export function SearchButton({
               </div>
 
               <ul className="mt-5 space-y-2 px-6">
-                {tips.map((s) => (
-                  <li key={s.text} className="flex gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-4 py-3">
-                    <Lightbulb className="mt-0.5 size-4 shrink-0 text-coral" aria-hidden />
-                    <span className="min-w-0">
-                      <span className="block font-medium text-white">{s.text}</span>
-                      <span className="mt-0.5 block text-xs leading-relaxed text-white/50">{s.evidence}</span>
-                    </span>
-                  </li>
-                ))}
+                {tips.map((s) => {
+                  const body = (
+                    <>
+                      <Lightbulb className="mt-0.5 size-4 shrink-0 text-coral" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="block font-medium text-white">{s.text}</span>
+                        <span className="mt-0.5 block text-xs leading-relaxed text-white/50">{s.evidence}</span>
+                      </span>
+                      <ChevronRight className="mt-1 size-4 shrink-0 text-white/30" aria-hidden />
+                    </>
+                  );
+                  const cls = "flex w-full gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-4 py-3 text-left transition-colors hover:bg-coral/[0.14]";
+                  return (
+                    <li key={s.text}>
+                      {s.href ? (
+                        <Link href={s.href} className={cls} onClick={() => setCoachOpen(false)}>
+                          {body}
+                        </Link>
+                      ) : (
+                        <button type="button" className={cls} onClick={goFocus}>
+                          {body}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
 
               <div className="mt-5 px-6 pb-6">
                 <div className="grid grid-cols-2 gap-3">
-                  <Link href={coach.modifyHref} className="btn btn-accent justify-center" onClick={() => setCoachOpen(false)}>
-                    Change settings
-                  </Link>
+                  {tips[0]?.href ? (
+                    <Link href={tips[0].href} className="btn btn-accent justify-center" onClick={() => setCoachOpen(false)}>
+                      Change settings
+                    </Link>
+                  ) : (
+                    <button type="button" className="btn btn-accent justify-center" onClick={goFocus}>
+                      Add a focus
+                    </button>
+                  )}
                   <button
                     className="btn btn-ghost justify-center"
                     disabled={pending}
@@ -179,6 +212,7 @@ export function SearchButton({
       </label>
       <input
         id={`focus-${profileId}`}
+        ref={focusField}
         className="field mt-2 h-11"
         placeholder="e.g. fintech only, or companies in Singapore"
         maxLength={200}

@@ -62,6 +62,10 @@ body {
 }
 
 @layer components {
+  /* A short glow that says "here": used when a coach tip lands someone on the thing to change. */
+  .spotlight {
+    box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--coral) 80%, transparent), inset 0 0 40px color-mix(in oklab, var(--coral) 18%, transparent);
+  }
   .float {
     animation: float 7s ease-in-out infinite;
     transform: rotate(var(--r, 0deg));

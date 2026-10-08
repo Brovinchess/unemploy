@@ -39,7 +39,9 @@ export async function searchPace(profileId: string): Promise<Pace | null> {
   return { searchId: s.id, startedAt: s.startedAt, endedAt: s.endedAt, jobs: arrivals.length, minutes: last, perJob, arrivals, tooSlow, wanted: s.jobsWanted, endReason: s.endReason };
 }
 
-export type Suggestion = { kind: "settings" | "resume" | "where" | "fewer"; text: string; evidence: string };
+// Where a tip is acted on: a row of the brief editor, the resume box, or the focus field on the search form.
+export type Target = "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobsPerDay" | "resume" | "focus";
+export type Suggestion = { kind: "settings" | "resume" | "where" | "fewer"; target: Target; text: string; evidence: string };
 
 // Short, plain tips. Each one names a change the person can make on the headhunter page,
 // with one line on why, taken from what the last search dropped.
@@ -56,19 +58,19 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
   const age = postingAgeDays(prefs);
 
   if (total && share("not_eligible") >= 0.4) {
-    if (remoteOnly) out.push({ kind: "settings", text: `Add hybrid or on-site jobs in ${city}.`, evidence: `${n("not_eligible")} of ${total} jobs it found were remote but only for other countries.` });
-    out.push({ kind: "where", text: `Add a focus like "companies with an office in ${prefs.country}".`, evidence: `Most remote jobs it found were for the US or Europe only.` });
+    if (remoteOnly) out.push({ kind: "settings", target: "workSettings", text: `Add hybrid or on-site jobs in ${city}.`, evidence: `${n("not_eligible")} of ${total} jobs it found were remote but only for other countries.` });
+    out.push({ kind: "where", target: "focus", text: `Add a focus like "companies with an office in ${prefs.country}".`, evidence: `Most remote jobs it found were for the US or Europe only.` });
   }
   if (total && share("too_old") >= 0.3 && age < 90) {
     const next = age < 60 ? 60 : 90;
-    out.push({ kind: "settings", text: `Allow postings up to ${next} days old.`, evidence: `${n("too_old")} of ${total} jobs it found were just over ${age} days old.` });
+    out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to ${next} days old.`, evidence: `${n("too_old")} of ${total} jobs it found were just over ${age} days old.` });
   }
-  if (total && share("pay") >= 0.3) out.push({ kind: "settings", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
+  if (total && share("pay") >= 0.3) out.push({ kind: "settings", target: "minSalary", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
   if (total && share("poor_fit") >= 0.3) {
     const notes = drops.filter((d) => d.reason === "poor_fit" && d.note).map((d) => d.note!).slice(0, 2);
-    out.push({ kind: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${n("poor_fit")} of ${total} jobs it found asked for things your resume doesn't show.` });
+    out.push({ kind: "resume", target: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${n("poor_fit")} of ${total} jobs it found asked for things your resume doesn't show.` });
   }
-  if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
-  if (!out.length && pace.tooSlow) out.push({ kind: "where", text: `Add a focus, like an industry or a few companies you like.`, evidence: `A narrower search is quicker. This one took ${pace.perJob ?? pace.minutes} minutes per job.` });
+  if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", target: "jobsPerDay", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
+  if (!out.length && pace.tooSlow) out.push({ kind: "where", target: "focus", text: `Add a focus, like an industry or a few companies you like.`, evidence: `A narrower search is quicker. This one took ${pace.perJob ?? pace.minutes} minutes per job.` });
   return out.slice(0, 3);
 }

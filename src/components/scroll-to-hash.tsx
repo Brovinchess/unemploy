@@ -6,8 +6,16 @@ import { useEffect } from "react";
 export function ScrollToHash({ id }: { id: string }) {
   useEffect(() => {
     if (window.location.hash !== `#${id}`) return;
-    const t = setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
-    return () => clearTimeout(t);
+    const el = () => document.getElementById(id);
+    const t = setTimeout(() => {
+      el()?.scrollIntoView({ behavior: "smooth", block: "start" });
+      el()?.classList.add("spotlight");
+    }, 50);
+    const off = setTimeout(() => el()?.classList.remove("spotlight"), 3500);
+    return () => {
+      clearTimeout(t);
+      clearTimeout(off);
+    };
   }, [id]);
   return null;
 }

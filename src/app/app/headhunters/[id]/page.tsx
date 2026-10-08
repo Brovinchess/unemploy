@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, Lightbulb } from "lucide-react";
 import { db, schema } from "@/db";
 import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
@@ -141,10 +141,11 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
             <ScrollToHash id="looks-for" />
-            <Coach pace={pace} suggestions={coach?.suggestions ?? []} />
+            <Coach pace={pace} suggestions={(coach?.suggestions ?? []).filter((s) => s.target === "focus")} />
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
             <p className="mt-1 mb-5 text-sm text-white/50">Change anything and it gets an updated brief.</p>
             <PreferencesChat
+              tips={(coach?.suggestions ?? []).filter((s) => s.target !== "resume" && s.target !== "focus").map((s) => ({ target: s.target, text: s.text }))}
               key={current.id + (current.briefedAt?.getTime() ?? 0)}
               profileId={current.id}
               mode="edit"
@@ -152,8 +153,14 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             />
           </section>
           <div className="space-y-6">
-            <section className="rounded-3xl bg-surface p-6">
+            <section id="resume" className="scroll-mt-8 rounded-3xl bg-surface p-6">
+              <ScrollToHash id="resume" />
               <h2 className="font-display text-lg font-medium text-white">Resume</h2>
+              {coach?.suggestions.some((s) => s.target === "resume") && (
+                <p className="mt-2 flex items-start gap-1.5 text-sm text-coral">
+                  <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {coach.suggestions.find((s) => s.target === "resume")!.text}
+                </p>
+              )}
               <p className="mt-1 mb-5 text-sm text-white/55">
                 Current: <span className="text-white">{current.resumeFileName}</span>
               </p>
