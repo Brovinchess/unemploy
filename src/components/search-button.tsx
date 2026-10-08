@@ -38,7 +38,7 @@ export function SearchButton({
   perJob?: number;
   last?: LastSearch;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
-  coach?: { summary: string; stats: { label: string; value: string }[]; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
+  coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string }[]; modifyHref: string } | null;
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -125,25 +125,14 @@ export function SearchButton({
                   <X className="size-4" />
                 </button>
                 {/* Mochi reacts to how the last search went: sad when it came back empty, thinking when it was just slow. */}
-                <Ninja mood={coach.stats[0]?.value === "0" ? "sad" : "thinking"} className="float mx-auto size-24" />
+                <Ninja mood={coach.empty ? "sad" : "thinking"} className="float mx-auto size-24" />
                 <h2 id="coach-title" className="font-display mt-4 text-xl font-medium text-white">
-                  {coach.stats[0]?.value === "0" ? "That one came back empty" : "Quick tip before you search"}
+                  {coach.empty ? "That one came back empty" : "Quick tip before you search"}
                 </h2>
-                <p className="mt-1 text-sm text-white/60">
-                  {coach.stats[0]?.value === "0" ? "Let's change something so the next one lands." : "Last time was slow. A small change could speed things up."}
-                </p>
+                <p className="mt-1 text-sm text-white/60">{coach.summary}</p>
               </div>
 
-              <div className="mx-6 mt-4 grid grid-cols-3 divide-x divide-white/[0.06] rounded-2xl bg-white/[0.04]">
-                {coach.stats.map((st) => (
-                  <div key={st.label} className="px-3 py-3 text-center">
-                    <p className="font-display text-lg font-medium text-white">{st.value}</p>
-                    <p className="text-[11px] uppercase tracking-[0.08em] text-white/40">{st.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <ul className="mt-4 space-y-2 px-6">
+              <ul className="mt-5 space-y-2 px-6">
                 {tips.map((s) => (
                   <li key={s.text} className="flex gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-4 py-3">
                     <Lightbulb className="mt-0.5 size-4 shrink-0 text-coral" aria-hidden />
