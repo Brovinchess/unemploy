@@ -141,11 +141,11 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
           <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
             <ScrollToHash id="looks-for" />
-            <Coach pace={pace} suggestions={(coach?.suggestions ?? []).filter((s) => s.target === "focus")} />
+            <Coach pace={pace} />
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
             <p className="mt-1 mb-5 text-sm text-white/50">Changes apply from your next search.</p>
             <PreferencesChat
-              tips={(coach?.suggestions ?? []).filter((s) => s.target !== "resume" && s.target !== "focus").map((s) => ({ target: s.target, text: s.text }))}
+              tips={(coach?.suggestions ?? []).filter((s) => s.target !== "resume").map((s) => ({ target: s.target, text: s.text }))}
               key={current.id + (current.briefedAt?.getTime() ?? 0)}
               profileId={current.id}
               mode="edit"

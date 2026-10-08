@@ -40,7 +40,7 @@ export async function searchPace(profileId: string): Promise<Pace | null> {
 }
 
 // Where a tip is acted on: a row of the brief editor, the resume box, or the focus field on the search form.
-export type Target = "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobsPerDay" | "resume" | "focus";
+export type Target = "targetRoles" | "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobsPerDay" | "resume";
 export type Suggestion = { kind: "settings" | "resume" | "where" | "fewer"; target: Target; text: string; evidence: string };
 
 // Short, plain tips. Each one names a change the person can make on the headhunter page,
@@ -59,7 +59,6 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
 
   if (total && share("not_eligible") >= 0.4) {
     if (remoteOnly) out.push({ kind: "settings", target: "workSettings", text: `Add hybrid or on-site jobs in ${city}.`, evidence: `${n("not_eligible")} of ${total} jobs it found were remote but only for other countries.` });
-    out.push({ kind: "where", target: "focus", text: `Add a focus like "companies with an office in ${prefs.country}".`, evidence: `Most remote jobs it found were for the US or Europe only.` });
   }
   if (total && share("too_old") >= 0.3 && age < 90) {
     const next = age < 60 ? 60 : 90;
@@ -71,6 +70,6 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
     out.push({ kind: "resume", target: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${n("poor_fit")} of ${total} jobs it found asked for things your resume doesn't show.` });
   }
   if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", target: "jobsPerDay", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
-  if (!out.length && pace.tooSlow) out.push({ kind: "where", target: "focus", text: `Add a focus, like an industry or a few companies you like.`, evidence: `A narrower search is quicker. This one took ${pace.perJob ?? pace.minutes} minutes per job.` });
+  if (!out.length && pace.tooSlow) out.push({ kind: "where", target: "targetRoles", text: `Add a couple more job titles for it to search.`, evidence: `A wider net fills faster. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
   return out.slice(0, 3);
 }
