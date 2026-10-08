@@ -87,6 +87,22 @@ function describeWork(uses: ToolUse[]): string {
   return s[0].toUpperCase() + s.slice(1);
 }
 
+// What the headhunter said, as one short line. Its messages are long and technical; the
+// feed only needs the gist, like the progress steps do.
+function describeSaid(raw: string): string {
+  const t = plainText(raw).replace(/^\s*search request\s*#?\d*[^:]*:\s*/i, "").toLowerCase();
+  if (/can'?t reach|couldn'?t reach|unreachable|not reachable|failed to reach/.test(t)) return "Couldn't reach Career Ninja";
+  if (/search closed|"final"\s*:\s*true|final push|finished|done for now|stopping here|nothing else cleared/.test(t)) return "Finished searching";
+  if (/dry[- ]?run/.test(t)) return "Tested the job format";
+  if (/(posted|sent|pushed|delivered)\b.*\b(job|role|pack)/.test(t) || /\baccepted\s*[1-9]/.test(t)) return "Sent you jobs";
+  if (/application form|form question|formquestions/.test(t)) return "Reading application forms";
+  if (/ruled out|dropped|rejected|fail(ed)? (the|my|your) check|didn'?t pass|not eligible/.test(t)) return "Checked leads, some ruled out";
+  if (/sweep|searching|scanning|looking (for|at)|checking|verif/.test(t)) return "Searching job sites";
+  if (/resume|brief/.test(t) && /read|saved|got/.test(t)) return "Read your brief and resume";
+  if (/question/.test(t)) return "Answered questions";
+  return "Sent an update";
+}
+
 function describeOwnMessage(text: string, first: boolean) {
   if (text.startsWith("SEARCH REQUEST")) return "You asked for a new search";
   if (text.startsWith("This replaces my earlier brief")) return "Your updated preferences were sent";
@@ -125,7 +141,7 @@ export async function buildActivity(
     if (m.at < since || !m.text.trim()) return;
     items.push(
       m.fromMind
-        ? { id: `c${i}`, at: m.at.toISOString(), kind: "said", title: `${profile.mindName ?? "Your headhunter"} said`, detail: plainText(m.text).slice(0, 400) }
+        ? { id: `c${i}`, at: m.at.toISOString(), kind: "said", title: describeSaid(m.text) }
         : { id: `c${i}`, at: m.at.toISOString(), kind: "brief", title: describeOwnMessage(m.text, m === oldestOwn) },
     );
   });
