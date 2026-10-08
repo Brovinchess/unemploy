@@ -1,0 +1,1 @@
+ALTER TABLE "profiles" ADD COLUMN "prefs_changed_at" timestamp with time zone;

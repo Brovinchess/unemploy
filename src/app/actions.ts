@@ -281,32 +281,18 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
   const parsed = preferencesSchema.safeParse(input);
   if (!parsed.success) return { error: "Some answers are missing. Please check each step." };
   const prefs = parsed.data;
-  const api = minds(user);
 
   try {
     if (profile.status === "hunting" || profile.status === "paused") {
-      // Name what is replaced so the old preferences don't linger as a standing rule.
-      const brief = buildBrief({
-        ownerName: user.username!,
-        profileLabel: profile.label,
-        prefs,
-        timezone: user.timezone ?? "UTC",
-        appUrl: mindsConfig.ingestUrl,
-        ingestKey: "(the same key as before)",
-      });
-      await api.sendMessage(
-        profile.conversationAlias!,
-        `This replaces my earlier brief from ${profile.briefedAt?.toISOString().slice(0, 10)} in full.\n\n${brief}`,
-      );
+      // Just save. Waking the Mind to re-brief it would cost cognition for nothing: the next
+      // search request carries the new brief (see requestSearch), one message, one wake.
       await db
         .update(schema.profiles)
-        .set({ preferences: prefs, briefedAt: new Date() })
+        .set({ preferences: prefs, prefsChangedAt: new Date() })
         .where(eq(schema.profiles.id, profile.id));
-      if (!isSearching(profile)) switchOffLater(profile.id);
       revalidatePath("/app", "layout");
       return;
     }
-
   } catch (e) {
     return { error: friendly(e) };
   }
@@ -372,7 +358,21 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
       .where(eq(schema.profiles.id, profile.id));
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
     await api.setEnabled(profile.mindId, true);
-    await api.sendMessage(profile.conversationAlias, searchRequestText(
+    // Preferences changed since the last brief: send the new brief in the same message as the request.
+    const rebrief =
+      profile.preferences && profile.prefsChangedAt && (!profile.briefedAt || profile.prefsChangedAt > profile.briefedAt)
+        ? `This replaces my earlier brief from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full. Read it, then do the search request below it.\n\n` +
+          buildBrief({
+            ownerName: user.username!,
+            profileLabel: profile.label,
+            prefs: { ...profile.preferences, jobsPerDay: wanted },
+            timezone: user.timezone ?? "UTC",
+            appUrl: mindsConfig.ingestUrl,
+            ingestKey: "(the same key as before)",
+          }) +
+          "\n\n---\n\n"
+        : "";
+    await api.sendMessage(profile.conversationAlias, rebrief + searchRequestText(
         user.username!,
         wanted,
         n + 1,
@@ -384,6 +384,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         profile.preferences ? postingAgeDays(profile.preferences) : undefined,
       ),
     );
+    if (rebrief) await db.update(schema.profiles).set({ briefedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   } catch (e) {
     await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     return { error: friendly(e) };

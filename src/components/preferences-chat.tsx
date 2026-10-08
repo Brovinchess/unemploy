@@ -210,7 +210,7 @@ export function PreferencesChat({
           </p>
           <FormError message={error} />
           <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending ? "Saving…" : mode === "setup" ? "Looks good, continue" : "Save and brief my headhunter"}
+            {pending ? "Saving…" : mode === "setup" ? "Looks good, continue" : "Save"}
           </button>
         </div>
       )}

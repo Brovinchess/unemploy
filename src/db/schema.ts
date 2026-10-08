@@ -123,6 +123,7 @@ export const profiles = pgTable(
     resumeText: text("resume_text"),
     preferences: jsonb("preferences").$type<Preferences>(),
     briefedAt: timestamp("briefed_at", { withTimezone: true }),
+    prefsChangedAt: timestamp("prefs_changed_at", { withTimezone: true }),
     lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
     // Searches run only when the user asks. A search is active while started and not ended;
     // the Mind is switched off between searches.

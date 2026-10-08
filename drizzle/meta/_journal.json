@@ -120,6 +120,13 @@
       "when": 1791425895633,
       "tag": "0016_coach_reminders",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1791430372090,
+      "tag": "0017_prefs_changed_at",
+      "breakpoints": true
     }
   ]
 }

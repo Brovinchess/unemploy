@@ -143,7 +143,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             <ScrollToHash id="looks-for" />
             <Coach pace={pace} suggestions={(coach?.suggestions ?? []).filter((s) => s.target === "focus")} />
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
-            <p className="mt-1 mb-5 text-sm text-white/50">Change anything and it gets an updated brief.</p>
+            <p className="mt-1 mb-5 text-sm text-white/50">Changes apply from your next search.</p>
             <PreferencesChat
               tips={(coach?.suggestions ?? []).filter((s) => s.target !== "resume" && s.target !== "focus").map((s) => ({ target: s.target, text: s.text }))}
               key={current.id + (current.briefedAt?.getTime() ?? 0)}
