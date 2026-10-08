@@ -102,16 +102,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {/* While a search runs with nothing to swipe yet: the sidebar shows progress; here, one quiet line. */}
-        {searching && fresh.length === 0 && (
-          <div className="mb-8 flex items-center gap-4 rounded-3xl bg-surface px-6 py-5">
-            <Ninja mood="searching" className="size-12 shrink-0" />
-            <div>
-              <p className="text-white">Your headhunter is searching.</p>
-              <p className="text-sm text-white/50">New jobs appear here the moment it finds them. You can leave and come back.</p>
-            </div>
-          </div>
-        )}
+        {/* While a search runs with nothing to swipe yet: the sidebar row shows progress; here, just the pipeline. */}
         {searching && fresh.length === 0 && kept.length > 0 && (
           <div className="mx-auto max-w-[820px]">
             <Pipeline jobs={kept} labels={labels} detailsComplete={detailsComplete(user.applicant)} />
