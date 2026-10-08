@@ -17,9 +17,11 @@ const LABELS: Record<DropReason, string> = {
 function advice(counts: Map<DropReason, number>, total: number, country: string, remoteOnly: boolean) {
   const share = (r: DropReason) => (counts.get(r) ?? 0) / Math.max(1, total);
   if (share("not_eligible") >= 0.5) {
-    return `Most of what it found was only open to other countries. ${remoteOnly ? "Adding hybrid or on-site roles near you" : "A focus on companies that hire in APAC"} would widen the pool; so would a focus like "companies with a ${country} office".`;
+    return remoteOnly
+      ? `Most of what it found was only open to other countries. Adding hybrid or on-site roles in ${country} would widen the pool.`
+      : `Most of what it found was only open to other countries. Adding more job titles under "Looking for" gives it more to choose from.`;
   }
-  if (share("too_old") >= 0.4) return "Many postings were just over the 45-day limit. If you'd accept slightly older postings, say so and the limit can move to 60 days.";
+  if (share("too_old") >= 0.4) return "Many postings were just over your posting age limit. Raising \"Posted within\" to 60 days would let them through.";
   if (share("poor_fit") >= 0.4) return "Most leads asked for things your resume doesn't show. Adding those skills to your resume, if you have them, would let more jobs through.";
   if (share("pay") >= 0.4) return "Many jobs paid below your floor. Lowering it a little would widen the pool.";
   return null;

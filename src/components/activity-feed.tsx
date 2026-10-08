@@ -141,8 +141,8 @@ export function ActivityPanel({ profileId, live }: { profileId: string; live: bo
         {live && <LiveDot />} Activity
       </h2>
       <p className="mt-1 text-sm text-white/50">{live ? "Live while it searches." : "What it did in recent searches."}</p>
-      <div className="mt-6">
-        <ActivityList items={data?.items ?? null} />
+      <div className="scroll-fade mt-5 max-h-[400px] overflow-y-auto pr-2">
+        <ActivityList items={data?.items ?? null} compact />
       </div>
       {data?.partial && <p className="mt-6 text-xs text-white/40">Some updates from Hello Minds couldn&rsquo;t be loaded just now.</p>}
     </section>

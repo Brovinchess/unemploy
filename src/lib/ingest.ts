@@ -83,7 +83,7 @@ const droppedSchema = z.object({
 });
 
 export const pushSchema = z
-  .object({ jobs: z.array(z.unknown()).max(50), final: z.boolean().optional(), dropped: z.array(droppedSchema).max(100).optional() })
+  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(droppedSchema).max(100).optional() })
   .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0, { message: "Send at least one job, an empty list with final: true, or a dropped list." });
 
 export type JobPush = z.infer<typeof jobSchema>;
@@ -319,7 +319,7 @@ async function checkAndSave(
       rejected: [
         {
           code: "bad_body",
-          hint: 'Body must be {"jobs":[ ... ], "final": true|false} with up to 50 jobs. See GET /api/ingest?brief=1.',
+          hint: 'Body must be a JSON object: {"jobs":[ ... ], "dropped":[ ... ], "final": true|false}. Each key is optional; up to 50 jobs, up to 100 dropped leads with a valid "reason". See GET /api/ingest?brief=1.',
         },
       ],
       remaining: 0,

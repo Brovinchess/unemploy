@@ -3,7 +3,8 @@ import { paceLine } from "@/lib/coach-ui";
 
 // On the headhunter page, above the preferences: how the last search went. Tips sit beside the rows they are about.
 export function Coach({ pace }: { pace: Pace | null }) {
-  if (!pace) return null;
+  // Nothing to say about a quick empty run (a stopped or failed start); slow or productive searches get the line.
+  if (!pace || (!pace.jobs && !pace.tooSlow)) return null;
   return (
     <div className="mb-6 rounded-2xl bg-night-2 p-4">
       <p className="text-sm text-white/70">

@@ -1,5 +1,5 @@
 import { desc, eq } from "drizzle-orm";
-import { ExternalLink, Lightbulb } from "lucide-react";
+import { Lightbulb } from "lucide-react";
 import { db, schema } from "@/db";
 import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
@@ -12,13 +12,11 @@ import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { SearchButton } from "@/components/search-button";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { mindsConfig } from "@/lib/minds/config";
 import { coachFor } from "@/lib/coach-ui";
 import { searchPace } from "@/lib/coach";
 import { Coach } from "@/components/coach";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { costModel } from "@/lib/cost";
-import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
 function when(d: Date) {
@@ -35,15 +33,13 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   const [balance, cost, history] = await Promise.all([
     balanceFor(user, current),
     costModel(current.id),
-    db.query.searches.findMany({ where: eq(schema.searches.profileId, current.id), orderBy: desc(schema.searches.startedAt), limit: 12 }),
+    db.query.searches.findMany({ where: eq(schema.searches.profileId, current.id), orderBy: desc(schema.searches.startedAt), limit: 6 }),
   ]);
   const searching = isSearching(current);
   const paused = current.status === "paused";
   const coach = user.coachReminders ? await coachFor(current) : null;
   const pace = await searchPace(current.id);
   const perSearch = current.preferences?.jobsPerDay ?? 5;
-  const perSearchCost = estimateSearchCost(perSearch, cost.perJob).cognition;
-  const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearchCost)) : null;
 
   return (
     <AppShell tab="headhunter" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -82,51 +78,32 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
           </div>
         </section>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        {/* What it has been doing: live activity on the left; searches and what it looked at on the right. */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <ActivityPanel profileId={current.id} live={searching} />
-
           <div className="space-y-6">
-            {/* Cognition */}
             <section className="rounded-3xl bg-surface p-6">
-              <h2 className="font-display text-lg font-medium text-white">Cognition</h2>
-              <p className="font-display mt-4 text-4xl font-medium text-white">{balance == null ? "–" : Math.round(balance)}</p>
-              <p className="mt-1 text-sm text-white/55">
-                {searchesLeft == null
-                  ? "Balance unavailable right now"
-                  : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearch} jobs (~${perSearchCost} each)`}
-              </p>
-              <a href={mindsConfig.topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-5">
-                Top up <ExternalLink className="size-4" aria-hidden />
-              </a>
-            </section>
-
-            <Considered
-              profileId={current.id}
-              country={current.preferences?.country ?? "your country"}
-              remoteOnly={(current.preferences?.workSettings ?? []).every((w) => w === "remote")}
-            />
-
-            {/* Past searches */}
-            <section className="rounded-3xl bg-surface p-6">
-              <h2 className="font-display text-lg font-medium text-white">Past searches</h2>
+              <h2 className="font-display text-lg font-medium text-white">Searches</h2>
               {history.length === 0 ? (
-                <p className="mt-3 text-sm text-white/45">No searches yet. They&rsquo;ll show here with jobs found and cognition used.</p>
+                <p className="mt-3 text-sm text-white/45">None yet. Each one shows here with jobs found and cognition used.</p>
               ) : (
                 <ul className="mt-3 divide-y divide-white/[0.06]">
                   {history.map((s) => {
                     const used = s.cognitionUsed ?? (s.balanceStart != null && s.balanceEnd != null ? Math.max(0, Math.round(s.balanceStart - s.balanceEnd)) : null);
+                    const mins = s.endedAt ? Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 60_000) : null;
                     return (
-                      <li key={s.id} className="flex items-start justify-between gap-4 py-3 text-sm">
+                      <li key={s.id} className="flex items-center justify-between gap-4 py-2.5 text-sm">
                         <div className="min-w-0">
                           <p className="text-white">{when(s.startedAt)}</p>
-                          <p className="mt-0.5 truncate text-white/45">
-                            {s.endedAt ? ENDED[s.endReason ?? "finished"] : "In progress"} · asked for {s.jobsWanted}
-                            {s.focus ? ` · “${s.focus}”` : ""}
+                          <p className="mt-0.5 truncate text-xs text-white/45">
+                            {s.endedAt ? ENDED[s.endReason ?? "finished"] : "In progress"}
+                            {mins != null ? ` · ${mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`}` : ""}
+                            {` · asked for ${s.jobsWanted}`}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
                           <p className="text-white">{s.jobsAdded ?? "–"} jobs</p>
-                          <p className="mt-0.5 text-white/45">{used != null ? `${used} cognition` : ""}</p>
+                          {used != null && <p className="mt-0.5 text-xs text-white/45">{used} cognition</p>}
                         </div>
                       </li>
                     );
@@ -134,11 +111,16 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                 </ul>
               )}
             </section>
+            <Considered
+              profileId={current.id}
+              country={current.preferences?.country ?? "your country"}
+              remoteOnly={(current.preferences?.workSettings ?? []).every((w) => w === "remote")}
+            />
           </div>
         </div>
 
-        {/* What it looks for */}
-        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+        {/* What it works from: the brief on the left, the resume on the right. */}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
             <ScrollToHash id="looks-for" />
             <Coach pace={pace} />
@@ -166,14 +148,11 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               </p>
               <ResumeStep profileId={current.id} submitLabel="Replace resume" />
             </section>
-            <section className="rounded-3xl bg-surface p-6">
-              <h2 className="font-display text-lg font-medium text-white">Pause or remove</h2>
-              <p className="mt-1 mb-4 text-sm text-white/50">Paused, it keeps its memory and uses no cognition.</p>
-              <div className="mb-5"><PauseToggle profileId={current.id} paused={paused} /></div>
-              <div className="mt-4">
-                <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
-              </div>
-            </section>
+            {/* Rarely needed, so small: pause keeps its memory and costs nothing; remove is final. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-sm">
+              <PauseToggle profileId={current.id} paused={paused} />
+              <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
+            </div>
           </div>
         </div>
       </main>
