@@ -18,8 +18,13 @@ const state = (g.__unemployMock ??= { balances: new Map(), conversations: new Ma
 state.chats ??= new Map();
 state.usage ??= new Map();
 
-function say(alias: string, fromMind: boolean, text: string) {
+function say(alias: string, fromMind: boolean, text: string, attachments = 0) {
   state.chats.set(alias, [...(state.chats.get(alias) ?? []), { fromMind, text, at: new Date() }]);
+  // Dev only: what the app sent, so the message a real Mind would get can be checked.
+  if (!fromMind) {
+    const flags = [text.includes("CHANGES SINCE LAST TIME") && "changes", /\n---\n/.test(text) && "brief", attachments && `${attachments} attachment(s)`].filter(Boolean).join(", ");
+    console.log(`[mock] → ${alias} (${text.length} chars${flags ? `; ${flags}` : ""}): ${text.replace(/\s+/g, " ").slice(0, 120)}…`);
+  }
 }
 function spend(alias: string, tool: string, calls: number, cognition: number) {
   const mindId = state.conversations.get(alias);
@@ -46,10 +51,10 @@ export const mockMinds: MindsApi = {
   async createConversation(alias, mindId) {
     state.conversations.set(alias, mindId);
   },
-  async sendMessage(alias, text) {
-    say(alias, false, text);
+  async sendMessage(alias, text, attachments) {
+    say(alias, false, text, attachments?.length ?? 0);
     if (text.includes("/api/ingest")) say(alias, true, "Got your brief and read your resume. I'll search when you ask.");
-    if (text.startsWith("SEARCH REQUEST")) scheduleHunt(alias);
+    if (text.includes("SEARCH REQUEST #")) scheduleHunt(alias);
     if (text.includes("You are my personal Mind")) say(alias, true, "Got it. I'll answer form questions about you, and say when I don't know.");
     if (text.includes("QUESTIONS from job application forms")) scheduleAnswers(alias);
   },

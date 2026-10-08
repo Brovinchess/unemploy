@@ -54,7 +54,11 @@ export function searchRequestText(
   discovery?: { targetRoles: string; country: string },
   ruledOut: string[] = [],
   maxAgeDays?: number,
+  resumeChanged = false,
 ) {
+  const resume = resumeChanged
+    ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
+    : "Use the copy of my resume you already saved; don't re-read the file (I'll tell you if it changes).";
   const age = maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old is fine (this replaces the number in your brief). ` : "";
   const skipRuled = ruledOut.length ? `Already ruled out on earlier searches, don't re-check unless the posting changed: ${ruledOut.join("; ")}. ` : "";
   const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country) + " " : "";
@@ -65,7 +69,7 @@ export function searchRequestText(
     ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `
     : "";
   return (
-    `SEARCH REQUEST #${n} from ${username}. Use the copy of my resume you already saved; don't re-read the file (I'll tell you if it changes). Find up to ${jobs} jobs now, following every check in your brief, ` +
+    `SEARCH REQUEST #${n} from ${username}. ${resume} Find up to ${jobs} jobs now, following every check in your brief, ` +
     `in the current format from GET ${mindsConfig.ingestUrl}/api/ingest?brief=1 (read it first; it may have new fields), ` +
     `and POST them to ${mindsConfig.ingestUrl}/api/ingest (use this address even if your brief says another; it can change). For each job, open its application form and list its questions in "formQuestions". ` +
     `Send each job AS SOON AS it passes every check, one job per POST is fine: I see it straight away and can start swiping while you keep searching. Don't hold jobs back for one big batch at the end. ` +

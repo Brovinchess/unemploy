@@ -211,24 +211,12 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
   const r = await readResume(formData);
   if ("error" in r) return { error: r.error };
 
+  // Replacing: just save. The next search request attaches the new resume (see requestSearch),
+  // so the Mind isn't woken, and charged, only to read a file.
   const replacing = profile.status === "hunting" || profile.status === "paused";
-  if (replacing && profile.conversationAlias) {
-    try {
-      await minds(user).sendMessage(
-        profile.conversationAlias,
-        `${user.username} here. I've updated my resume (attached). This replaces the resume I sent before: read it once now, ` +
-          `replace the copy saved in your memory with its full text, and from now on quote only this one as evidence. ` +
-          `Same endpoint and key as before. Reply with one line when you've read it.`,
-        [resumeAttachment(r.values)],
-      );
-    } catch (e) {
-      return { error: friendly(e) };
-    }
-  }
-
   await db
     .update(schema.profiles)
-    .set({ ...r.values, status: replacing ? profile.status : "needs_preferences" })
+    .set({ ...r.values, status: replacing ? profile.status : "needs_preferences", ...(replacing ? { resumeChangedAt: new Date() } : {}) })
     .where(eq(schema.profiles.id, profile.id));
 
   if (replacing) {
@@ -358,21 +346,32 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
       .where(eq(schema.profiles.id, profile.id));
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
     await api.setEnabled(profile.mindId, true);
-    // Preferences changed since the last brief: send the new brief in the same message as the request.
-    const rebrief =
-      profile.preferences && profile.prefsChangedAt && (!profile.briefedAt || profile.prefsChangedAt > profile.briefedAt)
-        ? `This replaces my earlier brief from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full. Read it, then do the search request below it.\n\n` +
+    // Anything changed since the Mind last heard from us goes in this same message: a new brief
+    // after the request, a new resume as an attachment. One message, one wake.
+    const synced = profile.briefedAt?.getTime() ?? 0;
+    const newBrief = !!profile.preferences && (profile.prefsChangedAt?.getTime() ?? 0) > synced;
+    const newResume = (profile.resumeChangedAt?.getTime() ?? 0) > synced && !!profile.resumeData;
+    const notes = [
+      newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full` : "",
+      newResume ? `my resume changed; the new file is attached (see the first line above)` : "",
+    ].filter(Boolean);
+    const changes =
+      (notes.length ? `\n\nCHANGES SINCE LAST TIME, read before you start: ${notes.join(". ")}.` : "") +
+      (newBrief
+        ? "\n\n---\n\n" +
           buildBrief({
             ownerName: user.username!,
             profileLabel: profile.label,
-            prefs: { ...profile.preferences, jobsPerDay: wanted },
+            prefs: { ...profile.preferences!, jobsPerDay: wanted },
             timezone: user.timezone ?? "UTC",
             appUrl: mindsConfig.ingestUrl,
             ingestKey: "(the same key as before)",
-          }) +
-          "\n\n---\n\n"
-        : "";
-    await api.sendMessage(profile.conversationAlias, rebrief + searchRequestText(
+            resumeAttached: newResume,
+          })
+        : "");
+    await api.sendMessage(
+      profile.conversationAlias,
+      searchRequestText(
         user.username!,
         wanted,
         n + 1,
@@ -382,9 +381,12 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country } : undefined,
         await ruledOutList(profile.id),
         profile.preferences ? postingAgeDays(profile.preferences) : undefined,
-      ),
+        newResume,
+      ) + changes,
+      newResume ? [resumeAttachment(profile)] : undefined,
     );
-    if (rebrief) await db.update(schema.profiles).set({ briefedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    // The Mind is now up to date with everything saved before this moment.
+    if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   } catch (e) {
     await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     return { error: friendly(e) };

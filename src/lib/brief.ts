@@ -9,17 +9,21 @@ export function buildBrief(args: {
   ownerName: string;
   profileLabel: string;
   prefs: Preferences;
+  resumeAttached?: boolean; // false when re-briefing without a new resume
   timezone: string;
   appUrl: string;
   ingestKey: string;
 }) {
-  const { ownerName, profileLabel, prefs, appUrl, ingestKey } = args;
+  const { ownerName, profileLabel, prefs, appUrl, ingestKey, resumeAttached = true } = args;
+  const resumeLine = resumeAttached
+    ? "My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume."
+    : "You already have my resume saved in your memory; keep working from that copy.";
   const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
   const remote = prefs.workSettings.includes("remote")
     ? `Remote jobs: ${REMOTE_SCOPES.find((r) => r.value === prefs.remoteScope)?.label.toLowerCase()}.`
     : "No remote jobs.";
 
-  return `${ownerName} here. You are my headhunter for "${profileLabel}" jobs. My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume.
+  return `${ownerName} here. You are my headhunter for "${profileLabel}" jobs. ${resumeLine}
 
 HOW WE WORK
 - You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.

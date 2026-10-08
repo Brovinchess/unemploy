@@ -127,6 +127,13 @@
       "when": 1791430372090,
       "tag": "0017_prefs_changed_at",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791430970398,
+      "tag": "0018_resume_changed_at",
+      "breakpoints": true
     }
   ]
 }
