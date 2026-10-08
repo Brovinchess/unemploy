@@ -120,15 +120,18 @@ export function SearchButton({
               className="w-full max-w-md overflow-hidden rounded-3xl border border-white/[0.08] bg-night-2 text-left shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="relative px-6 pt-6">
+              <div className="relative px-6 pt-8 text-center">
                 <button className="absolute right-5 top-5 text-white/40 hover:text-white" onClick={() => setCoachOpen(false)} aria-label="Close">
                   <X className="size-4" />
                 </button>
-                <Ninja mood="thinking" className="size-14" />
-                <h2 id="coach-title" className="font-display mt-3 text-xl font-medium text-white">
-                  Quick tip before you search
+                {/* Mochi reacts to how the last search went: sad when it came back empty, thinking when it was just slow. */}
+                <Ninja mood={coach.stats[0]?.value === "0" ? "sad" : "thinking"} className="float mx-auto size-24" />
+                <h2 id="coach-title" className="font-display mt-4 text-xl font-medium text-white">
+                  {coach.stats[0]?.value === "0" ? "That one came back empty" : "Quick tip before you search"}
                 </h2>
-                <p className="mt-1 text-sm text-white/60">Last time was slow. A small change could speed things up.</p>
+                <p className="mt-1 text-sm text-white/60">
+                  {coach.stats[0]?.value === "0" ? "Let's change something so the next one lands." : "Last time was slow. A small change could speed things up."}
+                </p>
               </div>
 
               <div className="mx-6 mt-4 grid grid-cols-3 divide-x divide-white/[0.06] rounded-2xl bg-white/[0.04]">
