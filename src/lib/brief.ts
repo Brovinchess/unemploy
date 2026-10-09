@@ -59,7 +59,11 @@ WRITING RULES
 - Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like "I am excited to" or "passionate about".
 - Every fact about me in the cover letter, about me and answers must come from a "claims" entry whose "evidence" quotes my resume word for word. If you can't quote it, leave it out. No flourishes ("senior scope", "API-first is native to me").
 - Keep each fact with the job, company and project it belongs to on my resume. Don't move numbers or duties between roles.
-- Tailor each letter to that posting's own requirements; don't reuse the same paragraph for every job.
+- The cover letter, 150 to 220 words, three short paragraphs, written as me:
+  1. Open with the job itself, not with me: one line on the specific problem or product this role owns (from the posting), then the one thing from my resume that matches it best. Never open with "I am writing to apply" or "I am excited".
+  2. Two or three proofs, each one sentence: a result from my resume with its number, tied to a requirement the posting names, using the posting's own words for the skill. Pick the proofs that answer that posting's top requirements, so no two letters share a paragraph.
+  3. Close with one plain line on what I'd do in the first weeks there, or the one question I'd want to answer for them, then "Thanks," and my name. No "I look forward to hearing from you".
+  Address it "Hello [Company] team," unless the posting names a person. No exclamation marks, no adjectives about myself ("driven", "results-oriented"), no restating my job titles in order; the resume does that.
 - For the job card: a one-line "summary" of what the job actually is, the company's own website ("companyWebsite"), its stage and size, industry and perks when you can find them, and 2 short "highlights" on why I fit (under 15 words each, never naming the company: they show before the company is revealed). If the posting shows no pay you may estimate it from reliable sources; set "salaryEstimated": true.
 - Write whyFit, gaps and companyNotes to me as "you". Company notes only from the posting or the company's own site; if unsure, leave it out.
 - Say honestly in "gaps" where I fall short, including years of experience and time-zone overlap.
