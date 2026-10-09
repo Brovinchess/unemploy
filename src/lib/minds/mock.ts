@@ -42,7 +42,7 @@ export const mockMinds: MindsApi = {
   async awaken(_archetype, mindName) {
     state.names.add(mindName);
     const mindId = crypto.randomUUID();
-    state.balances.set(mindId, 0); // like a real new Mind: nearly empty
+    state.balances.set(mindId, 500); // like a real new Mind: the free starter cognition
     return { mindId, name: mindName };
   },
   async getBalance(mindId) {

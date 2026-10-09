@@ -80,10 +80,14 @@ async function pickMindName(user: User, profile: Profile) {
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
-export async function launchMind(profileId: string): Promise<FormState> {
+export type ActivationState = FormState & { balance?: number; started?: boolean };
+
+// Creates the Mind and, since new Minds come with free cognition, briefs it straight away.
+// Only if the free cognition hasn't landed yet does setup fall back to waiting for it.
+export async function launchMind(profileId: string): Promise<ActivationState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  if (profile.mindId) return;
+  if (profile.mindId) return checkActivation(profileId, true);
   try {
     const name = await pickMindName(user, profile);
     const mind = await minds(user).awaken(mindsConfig.archetype, name);
@@ -95,9 +99,8 @@ export async function launchMind(profileId: string): Promise<FormState> {
     return { error: friendly(e) };
   }
   revalidatePath(`/profiles/${profileId}/setup`);
+  return checkActivation(profileId, true);
 }
-
-export type ActivationState = FormState & { balance?: number; started?: boolean };
 
 // Called on a timer while the user tops up. Once the Mind has cognition, it gets its
 // brief and the hunt starts, so there's no separate "start" step.
@@ -108,7 +111,9 @@ export async function checkActivation(profileId: string, quiet = false): Promise
   if (!profile.mindId) return { error: "This headhunter hasn't been created yet." };
   try {
     const balance = await minds(user).getBalance(profile.mindId);
-    if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. Top-ups can take a minute to arrive." };
+    // Keep the cached balance in step so the app shows the real number from the first screen.
+    await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. It can take a minute to arrive." };
     const r = await startHunting(user, profile);
     if (r?.error) return { balance, error: r.error };
     return { balance, started: true };

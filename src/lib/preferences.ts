@@ -34,6 +34,9 @@ export function avoidList(raw: string | undefined): string[] {
     .filter((c) => c.length > 1 && !NOTHING.has(c.toLowerCase()));
 }
 
+// Every new Mind on Hello Minds starts with this much cognition, so setup never asks for a top-up.
+export const FREE_COGNITION = 500;
+
 // Postings older than this are likely filled or "ghost" listings. The default; each
 // headhunter can be told to accept older ones (the coach suggests it when fresh leads run out).
 export const MAX_POSTING_AGE_DAYS = 45;

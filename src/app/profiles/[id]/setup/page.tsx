@@ -5,7 +5,7 @@ import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { ownedProfile } from "@/lib/owned";
-import { estimateSearchCost } from "@/lib/preferences";
+import { estimateSearchCost, FREE_COGNITION } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { ResumeStep } from "./resume-step";
@@ -75,12 +75,13 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
   }
 
   const cost = estimateSearchCost(profile.preferences.jobsPerDay);
+  const freeSearches = Math.max(1, Math.floor(FREE_COGNITION / cost.cognition));
   return (
     <OnboardingShell step={2} exitHref={exitHref}>
-      <StepHeading eyebrow="Last step" title={profile.mindName ? `Switch on ${profile.mindName}` : "Meet your headhunter"}>
+      <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Meet your headhunter"}>
         {profile.mindName
-          ? "Your headhunter runs on cognition, the credit Hello Minds agents use to think and search. Add some and it starts right away."
-          : "We'll create your own AI agent on Hello Minds. It works only for you, and you can pause it any time."}
+          ? "Waiting for its free starter cognition to land. This usually takes a few seconds."
+          : `We'll create your own AI agent on Hello Minds. It comes with ${FREE_COGNITION} free cognition, enough for about ${freeSearches} ${freeSearches === 1 ? "search" : "searches"} of ${profile.preferences.jobsPerDay} jobs. It works only for you, and you can pause it any time.`}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}
