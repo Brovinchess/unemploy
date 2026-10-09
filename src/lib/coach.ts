@@ -67,7 +67,8 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
   if (total && share("pay") >= 0.3) out.push({ kind: "settings", target: "minSalary", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
   // "Poor fit" because the job was a different role altogether is the headhunter's miss, not a
   // gap in the resume; only drops that name a real missing skill count toward this tip.
-  const wrongRole = /different role|not (a|an) [\w ]*(role|job|position)|wrong (role|title)|instead of|is not (a|an) /i;
+  // Notes about the role itself ("sales leadership role, not product management") rather than a skill ("needs 5 years of SQL").
+  const wrongRole = /\b(role|position|title|job scope)\b|different|instead of|unrelated|not (a |an )?(product|design|engineering|data|marketing|sales)\b|\bnot .*management\b/i;
   const skillGaps = drops.filter((d) => d.reason === "poor_fit" && !(d.note && wrongRole.test(d.note)));
   if (total && skillGaps.length / total >= 0.3) {
     const notes = skillGaps.filter((d) => d.note).map((d) => d.note!.replace(/[.;]+$/, "")).slice(0, 2);
