@@ -80,7 +80,7 @@ export function searchRequestText(
     age +
     skipRuled +
     `Report every lead you drop in the "dropped" list of your next POST (reason + short note), instead of describing it in chat. ` +
-    `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". ` +
+    `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". Cover letter as in your brief: 150 to 220 words, open with the job's own problem and my best matching result, two or three proofs with numbers in the posting's words, one line on what I'd do first, then Thanks and my name. ` +
     pay +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
