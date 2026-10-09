@@ -378,7 +378,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         note || undefined,
         await alreadySentList(user.id),
         profile.preferences && floorOf(profile.preferences) ? salaryLabel(floorOf(profile.preferences)!) : undefined,
-        profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country } : undefined,
+        profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country, city: profile.preferences.city } : undefined,
         await ruledOutList(profile.id),
         profile.preferences ? postingAgeDays(profile.preferences) : undefined,
         newResume,

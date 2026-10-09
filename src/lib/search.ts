@@ -51,7 +51,7 @@ export function searchRequestText(
   focus?: string,
   alreadySent: string[] = [],
   payFloor?: string,
-  discovery?: { targetRoles: string; country: string },
+  discovery?: { targetRoles: string; country: string; city?: string },
   ruledOut: string[] = [],
   maxAgeDays?: number,
   resumeChanged = false,
@@ -61,7 +61,7 @@ export function searchRequestText(
     : "Use the copy of my resume you already saved; don't re-read the file (I'll tell you if it changes).";
   const age = maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old is fine (this replaces the number in your brief). ` : "";
   const skipRuled = ruledOut.length ? `Already ruled out on earlier searches, don't re-check unless the posting changed: ${ruledOut.join("; ")}. ` : "";
-  const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country) + " " : "";
+  const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country, discovery.city) + " " : "";
   const pay = payFloor
     ? `Pay floor: ${payFloor}. A posted range passes if its top reaches it; skip jobs whose whole posted range is below it; jobs without posted pay are fine. `
     : "";
