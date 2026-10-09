@@ -77,7 +77,7 @@ export function ActivateStep({
             })
           }
         >
-          {pending ? "Creating your headhunter…" : "Create my headhunter"}
+          {pending ? "Creating your headhunter…" : "Create it and start"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">

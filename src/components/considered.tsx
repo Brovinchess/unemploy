@@ -39,10 +39,9 @@ export async function Considered({ profileId, country, remoteOnly }: { profileId
   if (!rows.length) {
     return (
       <section className="rounded-3xl bg-surface p-6">
-        <h2 className="font-display text-lg font-medium text-white">What it looked at</h2>
+        <h2 className="font-display text-lg font-medium text-white">Why jobs were dropped</h2>
         <p className="mt-3 text-sm text-white/45">
-          From its next search on, every lead it checks and drops is listed here with the reason, so you can see why a search came
-          back light and tune your preferences.
+          After its next search, every job it checked and dropped shows here with the reason.
         </p>
       </section>
     );
@@ -54,7 +53,7 @@ export async function Considered({ profileId, country, remoteOnly }: { profileId
 
   return (
     <section className="rounded-3xl bg-surface p-6">
-      <h2 className="font-display text-lg font-medium text-white">What it looked at</h2>
+      <h2 className="font-display text-lg font-medium text-white">Why jobs were dropped</h2>
       <p className="mt-1 text-sm text-white/50">
         Latest search: checked <b className="text-white">{rows.length + sent}</b>, sent <b className="text-white">{sent}</b>, dropped{" "}
         <b className="text-white">{rows.length}</b>.

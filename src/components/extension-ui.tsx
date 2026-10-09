@@ -73,7 +73,7 @@ export function ExtensionPrompt({ show = true }: { show?: boolean }) {
       <Puzzle className="size-6 shrink-0 text-rose" />
       <div className="min-w-0 flex-1">
         <p className="font-medium text-white">{status.installed ? "Connect the Chrome extension" : "Get the Chrome extension"}</p>
-        <p className="text-sm text-white/60">It fills in each application for you and can apply to all your To-apply jobs in one go.</p>
+        <p className="text-sm text-white/60">Fills in every application. One click applies to all your To-apply jobs.</p>
       </div>
       <Link href="/app/settings#extension" className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose">
         {status.installed ? "Connect" : "Install"}
@@ -167,7 +167,7 @@ export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: 
         <p className="mt-1 text-sm text-white/55">
           {toApply
             ? `You have ${toApply} ${toApply === 1 ? "job" : "jobs"} to apply to. The extension opens each one, fills it in and waits for you to check and submit.`
-            : "Swipe right on jobs in your shortlist, then come back here."}
+            : "Swipe right on a few jobs first, then come back here."}
         </p>
         <div className="mt-3">
           <ApplyAllButton count={toApply} detailsComplete={detailsComplete} />

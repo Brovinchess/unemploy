@@ -31,8 +31,8 @@ export default async function YouPage() {
         <p className="text-sm text-white/45">About you</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">You</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-white/55">
-          Everything applications ask about you, in one place. Your personal Mind answers the questions your headhunter finds
-          on application forms; check each answer once and the extension fills it in from then on.
+          Everything forms ask about you, answered once. Your personal Mind drafts answers from your resume and details; you
+          check each one once, and the extension fills it in from then on.
         </p>
 
         <div className="mt-8 space-y-4">
@@ -50,7 +50,7 @@ export default async function YouPage() {
             <h2 className="font-display font-medium text-white">
               Needs you <span className="text-white/35">{counts.needs_you || ""}</span>
             </h2>
-            <p className="mt-1 text-sm text-white/50">Your personal Mind didn&rsquo;t know these. Answer once and it remembers.</p>
+            <p className="mt-1 text-sm text-white/50">Only you know these. Answer once and it remembers.</p>
             <QuestionList items={pick("needs_you")} mode="answer" empty="Nothing to answer right now." />
           </section>
 
@@ -58,7 +58,7 @@ export default async function YouPage() {
             <h2 className="font-display font-medium text-white">
               Check these <span className="text-white/35">{counts.review || ""}</span>
             </h2>
-            <p className="mt-1 text-sm text-white/50">Your personal Mind&rsquo;s answers. Approve or fix each one; you won&rsquo;t be asked again.</p>
+            <p className="mt-1 text-sm text-white/50">Drafted for you. Approve or fix each one, and you won&rsquo;t be asked again.</p>
             <QuestionList items={pick("review")} mode="review" empty="Nothing to check." />
           </section>
 

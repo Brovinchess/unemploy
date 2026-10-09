@@ -35,7 +35,7 @@ const LOGIN_ERRORS: Record<string, string> = {
   config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
-const PHRASES = ["finds jobs you'd win", "writes your applications", "fills in the forms", "never makes things up"];
+const PHRASES = ["finds jobs you'd actually get", "writes every application", "fills in the forms", "never makes things up"];
 
 // Everything below is true of the product today; numbers come from the same code the app uses.
 
@@ -43,12 +43,12 @@ const PHRASES = ["finds jobs you'd win", "writes your applications", "fills in t
 const SHOW_WAITLIST_FROM = 50;
 
 const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in with Hello Minds", body: "One click creates your own headhunter agent. It belongs to you, not to us, and only runs when you ask." },
-  { icon: FileText, mood: "thinking", title: "Resume and preferences", body: "Upload your resume and answer a few questions: roles, country, remote or not, level, the least you'd accept." },
-  { icon: Search, mood: "searching", title: "Search when you want", body: "Press Find jobs and watch it work. Each job arrives the moment it passes every check, so you can start while it keeps looking." },
-  { icon: ShieldCheck, mood: "excited", title: "Every job is checked", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, pay not below your floor, and a real fit for your resume.` },
-  { icon: Hand, mood: "surprised", title: "Reveal and swipe", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up in your pipeline from To apply to Offer." },
-  { icon: Puzzle, mood: "love", title: "Apply with one click", body: "The Chrome extension opens each form, fills in your details, cover letter and answers, and waits for you to press Submit." },
+  { icon: UserRound, mood: "happy", title: "Sign in, get your headhunter", body: "One click creates an agent that works only for you. It belongs to you, not to us, and runs only when you ask." },
+  { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer a few questions: roles, where, remote or not, level, the least you'd accept." },
+  { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
+  { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, pay not below your floor, and a real fit for your resume.` },
+  { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up from To apply to Offer." },
+  { icon: Puzzle, mood: "love", title: "The form fills itself", body: "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit." },
 ];
 
 
@@ -105,28 +105,25 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <section className="relative flex min-h-svh flex-col items-center justify-center px-5 pt-15 pb-28 text-center">
         <Mark className="size-20 sm:size-24" />
         <h1 className="font-display mt-6 text-[2.6rem] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[4rem]">
-          Career Ninja
-          <span className="whitespace-nowrap">
-            <Ninja className="ml-2 inline-block size-[1.05em] translate-y-[0.16em] align-baseline sm:ml-3" />
-            , AI that
-          </span>
+          Stop scrolling job boards.
           <br />
+          <span className="text-white/70">Your own headhunter</span>{" "}
           <span className="text-coral">
             <RotatingPhrase phrases={PHRASES} />
           </span>
         </h1>
         <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/55">
-          Your own AI headhunter. It finds real, open jobs you&rsquo;d actually get, writes each application from your resume,
-          and fills in the forms. You approve every one.
+          It finds real, open jobs you&rsquo;d get, writes each application from your resume, and fills in the form. You read it
+          and press Submit.
         </p>
 
         <div className="mt-10 w-full">
           {open ? (
             <div className="mx-auto flex w-full max-w-[26rem] flex-col items-center gap-3">
               <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose">
-                Get your headhunter <ArrowRight className="size-4" aria-hidden />
+                Get my headhunter <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <span className="text-sm text-white/50">Sign in with your Hello Minds account.</span>
+              <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
             </div>
           ) : (
             <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
@@ -167,9 +164,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {/* How it works */}
         <section id="how" className="scroll-mt-15 bg-night-2 px-[6%] py-24 sm:py-32">
           <div className="mx-auto max-w-3xl text-center">
-            <H2>How it works</H2>
+            <H2>From resume to Submit</H2>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
-              Six steps, and you only do three of them: set it up, swipe, press Submit.
+              Six steps. You do three: set it up, swipe, press Submit.
             </p>
           </div>
           <ol className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -193,11 +190,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section id="cards" className="bg-night px-[6%] py-24 sm:py-32">
           <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
             <div>
-              <H2>Jobs arrive as cards, one at a time</H2>
+              <H2>One job at a time, face down</H2>
               <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
-                Each card arrives face down. Reveal it and you get what matters first: the title and company, the pay, whether you
-                can work it from where you live, and how many of the requirements you actually meet. Then why you fit, what to
-                watch out for, and what the job really is. Swipe right to keep it, left to pass.
+                Reveal a card and the big questions are answered first: what the job is, what it pays, whether you can work it
+                from where you live, and how many requirements you meet. Swipe right to keep it, left to pass.
               </p>
               <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
                 No match percentages pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
@@ -219,9 +215,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {/* Two agents */}
         <section id="agents" className="bg-night px-[6%] py-24 sm:py-32">
           <div className="mx-auto max-w-3xl text-center">
-            <H2>Two agents, each with one job</H2>
+            <H2>One finds jobs. One knows you.</H2>
             <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
-              They never talk to each other. The app sits in the middle and passes each one only what it needs.
+              Two agents that never talk to each other. The app sits in the middle and passes each one only what it needs.
             </p>
           </div>
           <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
@@ -235,7 +231,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <p className="font-display mt-5 text-2xl font-medium text-white">Your headhunter</p>
               <p className="mt-1 text-sm text-white/45">Knows the job market and your resume</p>
               <ul className="mt-5 space-y-2.5 text-white/70">
-                {["Searches the sites people in your country use, then verifies on the employer's own page", "Checks every rule before a job reaches you", "Writes the cover letter and the job-specific answers, quoting only your resume", "Copies the questions off each application form"].map((t) => (
+                {["Searches the web and employers' own job pages, then checks each posting is real and open", "Checks every rule before a job reaches you", "Writes the cover letter and the job-specific answers, quoting only your resume", "Copies the questions off each application form"].map((t) => (
                   <li key={t} className="flex gap-2.5">
                     <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
                   </li>
@@ -266,11 +262,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section id="extension" className="bg-night px-[6%] py-24 sm:py-32">
           <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
             <div>
-              <H2>One click fills the whole form</H2>
+              <H2>The form fills itself. You press Submit.</H2>
               <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
-                The Chrome extension opens each job you kept, on Greenhouse, Lever or Ashby, and fills in your details, your
-                resume, the cover letter, the headhunter&rsquo;s answers and your saved answers. Anything it doesn&rsquo;t know it
-                leaves highlighted for you, and learns what you type. You press Submit.
+                The Chrome extension opens each job you kept and fills in your details, resume, cover letter and answers.
+                Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and
+                Ashby.
               </p>
             </div>
             <div className="flex justify-center" aria-hidden>
@@ -283,7 +279,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {/* Straight answers */}
         <section id="faq" className="scroll-mt-15 bg-night px-[6%] py-28">
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display text-center text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Questions, answered</h2>
+            <h2 className="font-display text-center text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Is it really that simple?</h2>
             <div className="mt-12 divide-y divide-white/[0.08]">
               {FAQ.map((f) => (
                 <details key={f.q} className="group py-6">
@@ -302,13 +298,13 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section className="flex min-h-svh flex-col bg-night-2 px-[6%] pt-15">
           <div className="flex flex-1 flex-col items-center justify-center text-center">
             <Ninja mood="love" className="size-28" />
-            <h2 className="font-display mt-6 text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Stop scrolling job boards.</h2>
-            <p className="mt-3 text-lg text-white/55">Let your headhunter bring the right ones to you.</p>
+            <h2 className="font-display mt-6 text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Your next job is already posted somewhere.</h2>
+            <p className="mt-3 text-lg text-white/55">Let your headhunter go and find it.</p>
             <a
               href={action.href}
               className="mt-8 inline-flex h-12 w-64 items-center justify-center rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose"
             >
-              {open ? "Get your headhunter" : action.label}
+              {open ? "Get my headhunter" : action.label}
             </a>
           </div>
           <footer className="flex flex-col items-center gap-4 py-8 text-sm text-white/45 sm:flex-row sm:justify-between">

@@ -46,9 +46,8 @@ export function PersonalMindCard({
           <>
             <h2 className="font-display text-xl font-medium text-white">Meet your personal Mind</h2>
             <p className="mt-2 max-w-xl leading-relaxed text-white/60">
-              A second Mind that only learns about you: your resume, your details and every answer you give. After each
-              search it answers the new form questions your headhunter found. It sleeps between batches, so it only uses
-              cognition when there&rsquo;s something to answer.
+              A second Mind that only knows you: your resume, your details and every answer you give. After each search it
+              answers the form questions your headhunter found, then goes back to sleep.
             </p>
             <button className="btn btn-accent mt-5" disabled={pending} onClick={() => run(createPersonalMind)}>
               {pending ? "Creating…" : "Create my personal Mind"}

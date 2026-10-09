@@ -45,7 +45,7 @@ export function JobsSlider({
         <span>{MIN_JOBS_PER_SEARCH}</span>
         <span>{MAX_JOBS_PER_SEARCH}</span>
       </div>
-      <p className="mt-2 text-xs text-white/40">Fewer jobs means each one is checked more carefully.</p>
+      <p className="mt-2 text-xs text-white/40">Fewer jobs, better checked.</p>
       <p className={`mt-4 text-sm ${short ? "text-rose" : "text-white/60"}`}>
         Roughly <span className={short ? "" : "text-white"}>{cost.cognition} cognition</span> (~${cost.usd.toFixed(2)})
         {balance != null &&

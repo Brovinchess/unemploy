@@ -284,8 +284,8 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
           <Sparkles className="absolute bottom-10 right-5 size-4 text-white/40" strokeWidth={1.6} aria-hidden />
           <Ninja mood="surprised" className="float relative size-32" />
         </div>
-        <p className="font-display mt-6 text-[22px] font-medium tracking-tight">Your headhunter found one</p>
-        <p className="mt-1.5 text-sm text-white/50">Checked, open, and written up for you.</p>
+        <p className="font-display mt-6 text-[22px] font-medium tracking-tight">Found one for you</p>
+        <p className="mt-1.5 text-sm text-white/50">Open, checked, application written.</p>
       </div>
       <div className="relative px-6 pb-6">
         <button
@@ -438,7 +438,7 @@ function Summary({
     <div className="w-full max-w-[820px]">
       <div className="text-center">
         <Ninja mood={toApply.length ? "excited" : "sad"} className="mx-auto size-[72px]" />
-        <h2 className="font-display mt-3.5 text-[30px] font-medium tracking-tight">That&rsquo;s this search done</h2>
+        <h2 className="font-display mt-3.5 text-[30px] font-medium tracking-tight">All sorted</h2>
         <p className="mt-1.5 text-white/55">Here&rsquo;s what you decided. You can change your mind any time.</p>
         <div className="mt-5 flex justify-center gap-3">
           <Stat n={toApply.length} label="to apply" accent />

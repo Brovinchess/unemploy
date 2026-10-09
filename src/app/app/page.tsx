@@ -104,8 +104,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
               <span className="font-mono text-[0.85em]">{current.mindName}</span> is ready
             </h2>
             <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
-              It has your resume and preferences, and it only searches when you ask. Each job comes back as a card: reveal it,
-              then swipe right to apply or left to pass.
+              It has your resume and knows what you want. Ask for jobs and they come back as cards: reveal one, swipe right to
+              apply, left to pass.
             </p>
             <div className="mt-8 w-full max-w-md">{searchButton(true)}</div>
           </section>
