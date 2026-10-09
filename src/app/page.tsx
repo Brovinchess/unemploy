@@ -15,7 +15,7 @@ import {
   ShieldCheck,
   UserRound,
 } from "lucide-react";
-import { Mark, Ninja, type Mood } from "@/components/brand";
+import { Ninja, type Mood } from "@/components/brand";
 import { CardMock, ExtensionMock, FrontMock } from "@/components/landing-art";
 import { LandingHeader } from "@/components/landing-header";
 import { RotatingPhrase } from "@/components/rotating-phrase";
@@ -103,7 +103,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
       {/* First screen */}
       <section className="relative flex min-h-svh flex-col items-center justify-center px-5 pt-15 pb-28 text-center">
-        <Mark className="size-20 sm:size-24" />
+        <Ninja mood="happy" className="float size-24 sm:size-28" />
         <h1 className="font-display mt-6 text-[2.6rem] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[4rem]">
           Stop scrolling job boards.
           <br />

@@ -197,9 +197,9 @@ function Initials({ name }: { name: string }) {
 
 export function ShortlistPanels() {
   const jobs = [
-    { t: "Senior Product Designer", c: "Northwind Labs", m: "Hybrid · Kuala Lumpur", s: 94 },
+    { t: "Senior Product Designer", c: "Northwind Labs", m: "Hybrid · New York", s: 94 },
     { t: "Product Designer, Payments", c: "Fernhill Bank", m: "On-site · Full-time", s: 89 },
-    { t: "UX Designer", c: "Kitefly", m: "Remote · Malaysia", s: 83 },
+    { t: "UX Designer", c: "Kitefly", m: "Remote · US", s: 83 },
   ];
   return (
     <div className="relative mx-auto w-full max-w-[520px]">
@@ -335,10 +335,10 @@ export function CardMock() {
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-full bg-coral/15 px-3 py-1.5 text-[13px] font-semibold text-rose ring-1 ring-coral/30">
-          <Banknote className="size-4" /> MYR 14,000–18,000 a month
+          <Banknote className="size-4" /> $120,000–150,000 a year
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 text-[13px] font-medium text-white/85 ring-1 ring-white/10">
-          <MapPin className="size-4 text-coral" /> Remote · open to Malaysia
+          <MapPin className="size-4 text-coral" /> Remote · worldwide
         </span>
       </div>
       <div className="mt-4">

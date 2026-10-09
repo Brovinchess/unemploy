@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Mark, Wordmark } from "./brand";
+import { Ninja, Wordmark } from "./brand";
 
 // Muse-style header: wordmark left, a small product mark in the centre once the hero
 // has scrolled away, one pill action on the right.
@@ -27,7 +27,7 @@ export function LandingHeader({ action }: { action: { label: string; href: strin
           aria-label="Back to top"
           className={`absolute left-1/2 -translate-x-1/2 transition-opacity duration-300 ${scrolled ? "opacity-100" : "pointer-events-none opacity-0"}`}
         >
-          <Mark className="size-8" />
+          <Ninja className="size-8" />
         </a>
         <a href={action.href} className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose">
           {action.label}
