@@ -40,8 +40,9 @@ export async function searchPace(profileId: string): Promise<Pace | null> {
 }
 
 // Where a tip is acted on: a row of the brief editor, the resume box, or the focus field on the search form.
-export type Target = "targetRoles" | "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobsPerDay" | "resume";
-export type Suggestion = { kind: "settings" | "resume" | "where" | "fewer"; target: Target; text: string; evidence: string };
+// Only settings the person chooses: never their role, skills or resume.
+export type Target = "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobTypes" | "jobsPerDay";
+export type Suggestion = { kind: "settings" | "fewer"; target: Target; text: string; evidence: string };
 
 // Short, plain tips. Each one names a change the person can make on the headhunter page,
 // with one line on why, taken from what the last search dropped.
@@ -65,16 +66,16 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
     out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to ${next} days old.`, evidence: `${n("too_old")} of ${total} jobs it found were just over ${age} days old.` });
   }
   if (total && share("pay") >= 0.3) out.push({ kind: "settings", target: "minSalary", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
-  // "Poor fit" because the job was a different role altogether is the headhunter's miss, not a
-  // gap in the resume; only drops that name a real missing skill count toward this tip.
-  // Notes about the role itself ("sales leadership role, not product management") rather than a skill ("needs 5 years of SQL").
-  const wrongRole = /\b(role|position|title|job scope)\b|different|instead of|unrelated|not (a |an )?(product|design|engineering|data|marketing|sales)\b|\bnot .*management\b/i;
-  const skillGaps = drops.filter((d) => d.reason === "poor_fit" && !(d.note && wrongRole.test(d.note)));
-  if (total && skillGaps.length / total >= 0.3) {
-    const notes = skillGaps.filter((d) => d.note).map((d) => d.note!.replace(/[.;]+$/, "")).slice(0, 2);
-    out.push({ kind: "resume", target: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${skillGaps.length} of ${total} jobs it found asked for things your resume doesn't show.` });
+  if (total && share("work_setting") >= 0.3) {
+    const missing = (["remote", "hybrid", "onsite"] as const).filter((w) => !prefs.workSettings.includes(w));
+    if (missing.length) out.push({ kind: "settings", target: "workSettings", text: `Also allow ${missing.map((w) => (w === "onsite" ? "on-site" : w)).join(" or ")} jobs.`, evidence: `${n("work_setting")} of ${total} jobs it found were the wrong work setting.` });
   }
   if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", target: "jobsPerDay", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
-  if (!out.length && pace.tooSlow) out.push({ kind: "where", target: "targetRoles", text: `Add a couple more job titles for it to search.`, evidence: `A wider net fills faster. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
+  // Nothing specific to point at: the widest settings-only levers, in order of how much they usually help.
+  if (!out.length && pace.tooSlow) {
+    if (remoteOnly) out.push({ kind: "settings", target: "workSettings", text: `Also allow hybrid or on-site jobs in ${city}.`, evidence: `Remote-only is the narrowest pool. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
+    else if (age < 60) out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to 60 days old.`, evidence: `More postings to pick from. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
+    else if (prefs.jobTypes.length === 1 && prefs.jobTypes[0] === "Full-time") out.push({ kind: "settings", target: "jobTypes", text: `Also allow contract roles.`, evidence: `Many companies hire contractors first. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
+  }
   return out.slice(0, 3);
 }

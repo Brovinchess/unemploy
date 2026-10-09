@@ -1,5 +1,4 @@
 import { desc, eq } from "drizzle-orm";
-import { Lightbulb } from "lucide-react";
 import { db, schema } from "@/db";
 import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
@@ -127,7 +126,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             <h2 className="font-display text-lg font-medium text-white">What it looks for</h2>
             <p className="mt-1 mb-5 text-sm text-white/50">Changes apply from your next search.</p>
             <PreferencesChat
-              tips={(coach?.suggestions ?? []).filter((s) => s.target !== "resume").map((s) => ({ target: s.target, text: s.text }))}
+              tips={(coach?.suggestions ?? []).map((s) => ({ target: s.target, text: s.text }))}
               key={current.id + (current.briefedAt?.getTime() ?? 0)}
               profileId={current.id}
               mode="edit"
@@ -138,11 +137,6 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             <section id="resume" className="scroll-mt-8 rounded-3xl bg-surface p-6">
               <ScrollToHash id="resume" />
               <h2 className="font-display text-lg font-medium text-white">Resume</h2>
-              {coach?.suggestions.some((s) => s.target === "resume") && (
-                <p className="mt-2 flex items-start gap-1.5 text-sm text-coral">
-                  <Lightbulb className="mt-0.5 size-3.5 shrink-0" aria-hidden /> {coach.suggestions.find((s) => s.target === "resume")!.text}
-                </p>
-              )}
               <p className="mt-1 mb-5 text-sm text-white/55">
                 Current: <span className="text-white">{current.resumeFileName}</span>
               </p>

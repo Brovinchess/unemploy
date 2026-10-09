@@ -3,7 +3,7 @@ import type { Profile } from "@/db/schema";
 import { coachSuggestions, searchPace, type Target } from "./coach";
 
 // The link for a tip: the brief editor row, the resume box, or nothing (the focus field is on the search form itself).
-export const targetHref = (profileId: string, t: Target) => (t === "resume" ? `/app/headhunters/${profileId}#resume` : `/app/headhunters/${profileId}#pref-${t}`);
+export const targetHref = (profileId: string, t: Target) => `/app/headhunters/${profileId}#pref-${t}`;
 
 export function paceLine(p: { jobs: number; minutes: number; perJob: number | null }) {
   const dur = p.minutes >= 60 ? `${Math.floor(p.minutes / 60)} h ${p.minutes % 60} min` : `${p.minutes} min`;
