@@ -284,8 +284,8 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
           <Sparkles className="absolute bottom-10 right-5 size-4 text-white/40" strokeWidth={1.6} aria-hidden />
           <Ninja mood="surprised" className="float relative size-32" />
         </div>
-        <p className="font-display mt-6 text-[22px] font-medium tracking-tight">A job picked for you</p>
-        <p className="mt-1.5 text-sm text-white/50">Reveal it to see what your headhunter found.</p>
+        <p className="font-display mt-6 text-[22px] font-medium tracking-tight">Your headhunter found one</p>
+        <p className="mt-1.5 text-sm text-white/50">Checked, open, and written up for you.</p>
       </div>
       <div className="relative px-6 pb-6">
         <button
@@ -324,7 +324,7 @@ function Back({ job }: { job: CardJob }) {
         <div className="mt-4 flex flex-wrap gap-2">
           <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${job.salary ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/50"}`}>
             <Banknote className="size-4" aria-hidden />
-            {job.salary ?? "Pay not listed"}
+            {job.salary ?? "Pay not shown"}
             {job.salary && job.salaryEstimated && <span className="font-normal text-rose/70">· est.</span>}
           </span>
           <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 text-[13px] font-medium text-white/85 ring-1 ring-white/10">
@@ -336,12 +336,9 @@ function Back({ job }: { job: CardJob }) {
         {/* Can I get it? */}
         {job.mustHaves.length > 0 && (
           <div className="mt-4">
-            <div className="flex items-baseline justify-between text-[13px]">
-              <span className="text-white/85">
-                You meet <b className="font-semibold text-white">{met} of {job.mustHaves.length}</b> requirements
-              </span>
-              <span className="text-[11px] text-white/35">{Math.round(job.match)}% match</span>
-            </div>
+            <p className="text-[13px] text-white/85">
+              You meet <b className="font-semibold text-white">{met} of {job.mustHaves.length}</b> requirements
+            </p>
             <div className="mt-1.5 flex gap-1" aria-hidden>
               {job.mustHaves.map((m, i) => (
                 <span key={i} className={`h-1.5 flex-1 rounded-full ${m.met ? "bg-coral" : "bg-white/10"}`} />
@@ -353,12 +350,14 @@ function Back({ job }: { job: CardJob }) {
         {/* Quick facts */}
         <div className="mt-3.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/50">
           {[job.level, job.jobType].filter(Boolean).length > 0 && <span>{[job.level, job.jobType].filter(Boolean).join(" · ")}</span>}
-          <span className="inline-flex items-center gap-1">
-            <Clock className="size-3.5" aria-hidden /> {job.posted ? `Posted ${job.posted}` : "Post date not shown"}
-          </span>
+          {job.posted && (
+            <span className="inline-flex items-center gap-1">
+              <Clock className="size-3.5" aria-hidden /> Posted {job.posted}
+            </span>
+          )}
           {job.verified && (
             <span className="inline-flex items-center gap-1 text-white/70">
-              <BadgeCheck className="size-3.5 text-coral" aria-hidden /> Checked open
+              <BadgeCheck className="size-3.5 text-coral" aria-hidden /> Open today
             </span>
           )}
         </div>
@@ -366,20 +365,20 @@ function Back({ job }: { job: CardJob }) {
 
       <div className="no-scrollbar mt-1 flex-1 overflow-y-auto px-6">
         {job.summary && (
-          <Section title="What you'd do">
+          <Section title="The role">
             <p className="text-[13.5px] leading-relaxed text-white/80">{job.summary}</p>
           </Section>
         )}
-        <Section title="Why you">
+        <Section title="Why it fits you">
           <Reasons items={job.highlights} />
         </Section>
         {job.gaps.length > 0 && (
-          <Section title="Watch out">
-            <Reasons items={job.gaps.slice(0, 3)} bad />
+          <Section title="Where you fall short">
+            <Reasons items={job.gaps.slice(0, 2)} bad />
           </Section>
         )}
         {job.mustHaves.length > 0 && (
-          <Section title="They require">
+          <Section title="Requirements">
             <div className="flex flex-wrap gap-1.5">
               {job.mustHaves.map((m) => (
                 <span
@@ -396,19 +395,8 @@ function Back({ job }: { job: CardJob }) {
           </Section>
         )}
         {company.length > 0 && (
-          <Section title="The company">
+          <Section title="Company">
             <p className="text-[13px] text-white/70">{company.join(" · ")}</p>
-          </Section>
-        )}
-        {job.perks.length > 0 && (
-          <Section title="Perks">
-            <div className="flex flex-wrap gap-1.5">
-              {job.perks.map((p) => (
-                <span key={p} className="rounded-[10px] border border-white/[0.07] bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] text-white/80">
-                  {p}
-                </span>
-              ))}
-            </div>
           </Section>
         )}
         <div className="h-4" />
@@ -416,9 +404,7 @@ function Back({ job }: { job: CardJob }) {
 
       <div className="px-6 pb-6 pt-3">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-coral/25 bg-coral/10 px-4 py-3.5 text-[13px]">
-          <span>
-            Ready to apply: cover letter{job.questions ? ` and ${job.questions} form ${job.questions === 1 ? "question" : "questions"}` : " and answers"}
-          </span>
+          <span>Your application is written and ready.</span>
           <Link href={`/app/jobs/${job.id}`} className="inline-flex shrink-0 items-center gap-1 text-rose hover:text-white">
             Open <ArrowUpRight className="size-3.5" />
           </Link>
