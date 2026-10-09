@@ -65,9 +65,13 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
     out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to ${next} days old.`, evidence: `${n("too_old")} of ${total} jobs it found were just over ${age} days old.` });
   }
   if (total && share("pay") >= 0.3) out.push({ kind: "settings", target: "minSalary", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
-  if (total && share("poor_fit") >= 0.3) {
-    const notes = drops.filter((d) => d.reason === "poor_fit" && d.note).map((d) => d.note!).slice(0, 2);
-    out.push({ kind: "resume", target: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${n("poor_fit")} of ${total} jobs it found asked for things your resume doesn't show.` });
+  // "Poor fit" because the job was a different role altogether is the headhunter's miss, not a
+  // gap in the resume; only drops that name a real missing skill count toward this tip.
+  const wrongRole = /different role|not (a|an) [\w ]*(role|job|position)|wrong (role|title)|instead of|is not (a|an) /i;
+  const skillGaps = drops.filter((d) => d.reason === "poor_fit" && !(d.note && wrongRole.test(d.note)));
+  if (total && skillGaps.length / total >= 0.3) {
+    const notes = skillGaps.filter((d) => d.note).map((d) => d.note!.replace(/[.;]+$/, "")).slice(0, 2);
+    out.push({ kind: "resume", target: "resume", text: `Add missing skills to your resume and upload it again.`, evidence: notes.length ? `Jobs wanted: ${notes.join("; ")}.` : `${skillGaps.length} of ${total} jobs it found asked for things your resume doesn't show.` });
   }
   if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", target: "jobsPerDay", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
   if (!out.length && pace.tooSlow) out.push({ kind: "where", target: "targetRoles", text: `Add a couple more job titles for it to search.`, evidence: `A wider net fills faster. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });

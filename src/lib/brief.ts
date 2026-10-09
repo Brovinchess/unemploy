@@ -46,7 +46,7 @@ WHERE TO LOOK
 - ${discoveryText(prefs.targetRoles, prefs.country)}
 
 HOW TO SPEND MY COGNITION
-- Work cheaply: for each lead, check the posting date and the location line first (from the search result, the listing's summary or its JSON-LD) and drop it before opening the full posting or form if it fails. Only read the full posting and form for leads that pass those two. For a job you verified on an earlier search, just confirm the posting is still open; don't rebuild its pack. Stop rule: if 12 leads in a row fail, or 90 minutes pass without sending a job, stop, POST {"jobs":[],"final":true} and say so in one line.
+- Work cheaply: for each lead, check the title first: if it is not one of my target roles or a close variant (a product marketing or customer success job is not a product manager job), drop it straight away as poor_fit with the note "different role" and don't open it. Then check the posting date and the location line (from the search result, the listing's summary or its JSON-LD) and drop it before opening the full posting or form if it fails. Only read the full posting and form for leads that pass those two. For a job you verified on an earlier search, just confirm the posting is still open; don't rebuild its pack. Stop rule: if 12 leads in a row fail, or 90 minutes pass without sending a job, stop, POST {"jobs":[],"final":true} and say so in one line.
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
