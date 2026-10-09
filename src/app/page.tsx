@@ -24,7 +24,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { FREE_COGNITION, MAX_POSTING_AGE_DAYS } from "@/lib/preferences";
+import { MAX_POSTING_AGE_DAYS } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -43,7 +43,7 @@ const PHRASES = ["finds jobs you'd win", "writes your applications", "fills in t
 const SHOW_WAITLIST_FROM = 50;
 
 const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in with Hello Minds", body: `One click creates your own headhunter agent with ${FREE_COGNITION} free cognition to start. It belongs to you, not to us, and only runs when you ask.` },
+  { icon: UserRound, mood: "happy", title: "Sign in with Hello Minds", body: "One click creates your own headhunter agent. It belongs to you, not to us, and only runs when you ask." },
   { icon: FileText, mood: "thinking", title: "Resume and preferences", body: "Upload your resume and answer a few questions: roles, country, remote or not, level, the least you'd accept." },
   { icon: Search, mood: "searching", title: "Search when you want", body: "Press Find jobs and watch it work. Each job arrives the moment it passes every check, so you can start while it keeps looking." },
   { icon: ShieldCheck, mood: "excited", title: "Every job is checked", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, pay not below your floor, and a real fit for your resume.` },

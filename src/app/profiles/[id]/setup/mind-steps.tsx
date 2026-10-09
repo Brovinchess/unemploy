@@ -96,7 +96,7 @@ export function ActivateStep({
           <Step n={1} done>
             <span className="font-medium text-white">{mindName}</span> is created.
           </Step>
-          <Step n={2}>Its free starter cognition is on its way. As soon as it lands, it gets your brief and you&rsquo;re in.</Step>
+          <Step n={2}>As soon as its cognition lands, it gets your brief and you&rsquo;re in.</Step>
         </ol>
         <div className="mt-5 border-t border-white/[0.08] pt-4">{costLine}</div>
       </div>
