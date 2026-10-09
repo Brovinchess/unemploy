@@ -149,10 +149,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       <main>
-        {/* Who it's built with */}
+        {/* Partners */}
         <section className="border-y border-white/[0.06] bg-night px-[6%] py-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 sm:flex-row sm:gap-10">
-            <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">Built with</p>
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">In partnership with</p>
             <div className="flex items-center gap-8 sm:gap-12">
               <a href="https://hellominds.ai" target="_blank" rel="noopener noreferrer" className="opacity-80 transition-opacity hover:opacity-100" aria-label="Minds by Animoca Brands">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -332,7 +332,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </Link>
             </span>
             <span>
-              Built with <span className="font-medium text-white">Minds</span> by Animoca Brands
+              In partnership with <span className="font-medium text-white">Minds</span> by Animoca Brands
             </span>
           </footer>
         </section>
