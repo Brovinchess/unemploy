@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { count } from "drizzle-orm";
 import {
-  ArrowDown,
   ArrowRight,
   Brain,
   Briefcase,
@@ -84,13 +83,14 @@ const FAQ = [
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
 
 function H2({ children }: { children: React.ReactNode }) {
-  return <h2 className="font-display text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem] sm:leading-[1.15]">{children}</h2>;
+  return <h2 className="font-display text-[1.75rem] font-medium leading-[1.15] tracking-[-0.01em] sm:text-[2.25rem]">{children}</h2>;
 }
 
 export default async function Home({ searchParams }: PageProps<"/">) {
-  const user = await getCurrentUser();
-  if (user) redirect("/start");
   const sp = await searchParams;
+  const user = await getCurrentUser();
+  // Signed-in people go to the app, unless they want to look at the landing page itself.
+  if (user && !("preview" in sp)) redirect("/start");
   const error = LOGIN_ERRORS[one(sp.login_error) ?? ""];
   const deleted = sp.deleted === "1";
   const open = launchMode === "open";
@@ -102,58 +102,80 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       <LandingHeader action={action} />
 
       {/* First screen */}
-      <section className="relative flex min-h-svh flex-col items-center justify-center px-5 pt-15 pb-28 text-center">
-        <Ninja mood="happy" className="float size-24 sm:size-28" />
-        <h1 className="font-display mt-6 text-[2.6rem] font-medium leading-[1.1] tracking-[-0.01em] sm:text-[4rem]">
-          Stop scrolling job boards.
-          <br />
-          <span className="text-white/70">Your own headhunter</span>{" "}
-          <span className="text-coral">
-            <RotatingPhrase phrases={PHRASES} />
-          </span>
-        </h1>
-        <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white/55">
-          It finds real, open jobs you&rsquo;d get, writes each application from your resume, and fills in the form. You read it
-          and press Submit.
-        </p>
+      <section className="relative px-[6%] pb-16 pt-24 sm:pb-20 sm:pt-28">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 md:grid-cols-[1.1fr_0.9fr] md:gap-16">
+          <div className="text-center md:text-left">
+            <Ninja mood="happy" className="float mx-auto size-20 md:mx-0" />
+            <h1 className="font-display mt-6 text-[2.4rem] font-medium leading-[1.08] tracking-[-0.01em] sm:text-[3.5rem]">
+              Stop scrolling job boards.
+              <br />
+              <span className="text-white/70">Your own headhunter</span>{" "}
+              <span className="text-coral">
+                <RotatingPhrase phrases={PHRASES} />
+              </span>
+            </h1>
+            <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-white/55 md:mx-0">
+              It finds real, open jobs you&rsquo;d get, writes each application from your resume, and fills in the form. You read
+              it and press Submit.
+            </p>
 
-        <div className="mt-10 w-full">
-          {open ? (
-            <div className="mx-auto flex w-full max-w-[26rem] flex-col items-center gap-3">
-              <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose">
-                Get my headhunter <ArrowRight className="size-4" aria-hidden />
-              </Link>
-              <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
+            <div className="mt-8">
+              {open ? (
+                <div className="flex w-full max-w-[26rem] flex-col items-center gap-3 max-md:mx-auto md:items-start">
+                  <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
+                    Get my headhunter <ArrowRight className="size-4" aria-hidden />
+                  </Link>
+                  <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
+                </div>
+              ) : (
+                <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
+              )}
             </div>
-          ) : (
-            <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
-          )}
+            {!open && waiting >= SHOW_WAITLIST_FROM && (
+              <p className="mt-5 text-sm text-white/45">{waiting.toLocaleString("en")} people are already waiting</p>
+            )}
+            {error && <p className="mt-6 rounded-xl bg-coral/15 px-4 py-3 text-sm text-coral">{error}</p>}
+            {deleted && <p className="mt-6 text-sm text-white/60">Your account and data have been deleted.</p>}
+          </div>
+          <div className="relative mx-auto hidden w-full max-w-[420px] md:block" aria-hidden>
+            <div className="absolute -left-8 top-8 hidden w-[300px] -rotate-6 opacity-40 lg:block">
+              <FrontMock />
+            </div>
+            <div className="relative">
+              <CardMock />
+            </div>
+          </div>
         </div>
-        {!open && waiting >= SHOW_WAITLIST_FROM && (
-          <p className="mt-5 text-sm text-white/45">{waiting.toLocaleString("en")} people are already waiting</p>
-        )}
-        {error && <p className="mt-6 rounded-xl bg-coral/15 px-4 py-3 text-sm text-coral">{error}</p>}
-        {deleted && <p className="mt-6 text-sm text-white/60">Your account and data have been deleted.</p>}
-
-        <a
-          href="#how"
-          className="absolute bottom-8 left-1/2 inline-flex -translate-x-1/2 items-center gap-2 rounded-full bg-white/[0.08] px-4 py-2.5 text-sm text-white/90 hover:bg-white/[0.14]"
-        >
-          How it works <ArrowDown className="size-4" aria-hidden />
-        </a>
       </section>
 
       <main>
+        {/* Who it's built with */}
+        <section className="border-y border-white/[0.06] bg-night px-[6%] py-8">
+          <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 sm:flex-row sm:gap-10">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">Built with</p>
+            <div className="flex items-center gap-8 sm:gap-12">
+              <a href="https://hellominds.ai" target="_blank" rel="noopener noreferrer" className="opacity-80 transition-opacity hover:opacity-100" aria-label="Minds by Animoca Brands">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/partners/minds.svg" alt="Minds" className="h-7 w-auto brightness-0 invert" />
+              </a>
+              <a href="https://www.animocabrands.com" target="_blank" rel="noopener noreferrer" className="opacity-80 transition-opacity hover:opacity-100" aria-label="Animoca Brands">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/partners/animoca.svg" alt="Animoca Brands" className="h-9 w-auto brightness-0 invert" />
+              </a>
+            </div>
+          </div>
+        </section>
+
         {/* The problem, and what changes */}
-        <section className="bg-night px-[6%] py-20 sm:py-24">
+        <section className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <H2>Job hunting is a second job. It shouldn&rsquo;t be.</H2>
           </div>
-          <ul className="mx-auto mt-12 grid max-w-6xl gap-6 md:grid-cols-3">
+          <ul className="mx-auto mt-10 grid max-w-6xl gap-5 md:grid-cols-3">
             {PAINS.map((p) => (
-              <li key={p.pain} className="rounded-3xl bg-surface p-7">
-                <p className="text-lg leading-relaxed text-white/50 line-through decoration-white/25">{p.pain}</p>
-                <p className="mt-4 flex gap-2.5 text-lg leading-relaxed text-white">
+              <li key={p.pain} className="rounded-3xl bg-surface p-6">
+                <p className="text-base leading-relaxed text-white/50 line-through decoration-white/25">{p.pain}</p>
+                <p className="mt-4 flex gap-2.5 text-base leading-relaxed text-white">
                   <CheckCircle2 className="mt-1 size-5 shrink-0 text-coral" aria-hidden /> {p.gain}
                 </p>
               </li>
@@ -162,75 +184,70 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* How it works */}
-        <section id="how" className="scroll-mt-15 bg-night-2 px-[6%] py-24 sm:py-32">
+        <section id="how" className="scroll-mt-15 bg-night-2 px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <H2>From resume to Submit</H2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
+            <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
               Six steps. You do three: set it up, swipe, press Submit.
             </p>
           </div>
-          <ol className="mx-auto mt-16 grid max-w-6xl gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <ol className="mx-auto mt-12 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {STEPS.map((st, i) => (
-              <li key={st.title} className="relative rounded-3xl bg-surface p-7">
+              <li key={st.title} className="relative rounded-3xl bg-surface p-5 sm:p-6">
                 <div className="flex items-start justify-between">
-                  <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
-                    <st.icon className="size-5" aria-hidden />
+                  <span className="flex size-10 items-center justify-center rounded-xl bg-coral/15 text-rose">
+                    <st.icon className="size-[18px]" aria-hidden />
                   </span>
-                  <Ninja mood={st.mood} className="size-14 -mt-2 -mr-1" />
+                  <Ninja mood={st.mood} className="-mt-1 hidden size-11 sm:block" />
                 </div>
-                <p className="font-display mt-5 text-sm font-medium text-coral">0{i + 1}</p>
-                <p className="font-display mt-1 text-xl font-medium text-white">{st.title}</p>
-                <p className="mt-2 leading-relaxed text-white/55">{st.body}</p>
+                <p className="font-display mt-3 text-xs font-medium text-coral sm:mt-4">0{i + 1}</p>
+                <p className="font-display mt-1 text-lg font-medium text-white">{st.title}</p>
+                <p className="mt-1.5 text-[15px] leading-relaxed text-white/55">{st.body}</p>
               </li>
             ))}
           </ol>
         </section>
 
         {/* The cards */}
-        <section id="cards" className="bg-night px-[6%] py-24 sm:py-32">
-          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+        <section id="cards" className="bg-night px-[6%] py-16 sm:py-20">
+          <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
               <H2>One job at a time, face down</H2>
-              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+              <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
                 Reveal a card and the big questions are answered first: what the job is, what it pays, whether you can work it
                 from where you live, and how many requirements you meet. Swipe right to keep it, left to pass.
               </p>
-              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+              <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
                 No match percentages pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
                 requirements against your resume.
               </p>
             </div>
-            <div className="relative mx-auto w-full max-w-[460px]" aria-hidden>
-              <div className="absolute -left-10 top-10 hidden w-[320px] -rotate-6 opacity-50 lg:block">
-                <FrontMock />
-              </div>
-              <div className="relative">
-                <CardMock />
-              </div>
+            <div className="mx-auto w-full max-w-[360px]" aria-hidden>
+              <FrontMock />
             </div>
           </div>
         </section>
 
         {/* Live search */}
         {/* Two agents */}
-        <section id="agents" className="bg-night px-[6%] py-24 sm:py-32">
+        <section id="agents" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <H2>One finds jobs. One knows you.</H2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg leading-relaxed text-white/55">
+            <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
               Two agents that never talk to each other. The app sits in the middle and passes each one only what it needs.
             </p>
           </div>
-          <div className="mx-auto mt-14 grid max-w-5xl gap-6 md:grid-cols-2">
-            <div className="rounded-3xl bg-surface p-8">
+          <div className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-2">
+            <div className="rounded-3xl bg-surface p-6 sm:p-7">
               <div className="flex items-center justify-between">
                 <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
                   <Briefcase className="size-5" aria-hidden />
                 </span>
                 <Ninja mood="searching" className="size-16" />
               </div>
-              <p className="font-display mt-5 text-2xl font-medium text-white">Your headhunter</p>
+              <p className="font-display mt-4 text-xl font-medium text-white">Your headhunter</p>
               <p className="mt-1 text-sm text-white/45">Knows the job market and your resume</p>
-              <ul className="mt-5 space-y-2.5 text-white/70">
+              <ul className="mt-4 space-y-2 text-[15px] text-white/70">
                 {["Searches the web and employers' own job pages, then checks each posting is real and open", "Checks every rule before a job reaches you", "Writes the cover letter and the job-specific answers, quoting only your resume", "Copies the questions off each application form"].map((t) => (
                   <li key={t} className="flex gap-2.5">
                     <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
@@ -238,16 +255,16 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 ))}
               </ul>
             </div>
-            <div className="rounded-3xl bg-surface p-8">
+            <div className="rounded-3xl bg-surface p-6 sm:p-7">
               <div className="flex items-center justify-between">
                 <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
                   <Brain className="size-5" aria-hidden />
                 </span>
                 <Ninja mood="thinking" className="size-16" />
               </div>
-              <p className="font-display mt-5 text-2xl font-medium text-white">Your personal agent</p>
+              <p className="font-display mt-4 text-xl font-medium text-white">Your personal agent</p>
               <p className="mt-1 text-sm text-white/45">Knows you, and nothing else</p>
-              <ul className="mt-5 space-y-2.5 text-white/70">
+              <ul className="mt-4 space-y-2 text-[15px] text-white/70">
                 {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your resume, your details and what you've told it; never a guess", "Says \"I don't know\" and hands the question to you when it has nothing to go on", "Learns every answer you give, so fewer questions reach you each time"].map((t) => (
                   <li key={t} className="flex gap-2.5">
                     <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
@@ -259,11 +276,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* Answers */}
-        <section id="extension" className="bg-night px-[6%] py-24 sm:py-32">
-          <div className="mx-auto grid max-w-6xl items-center gap-14 md:grid-cols-2 md:gap-16">
+        <section id="extension" className="bg-night px-[6%] py-16 sm:py-20">
+          <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
               <H2>The form fills itself. You press Submit.</H2>
-              <p className="mt-4 max-w-[36rem] text-lg leading-relaxed text-white/55">
+              <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
                 The Chrome extension opens each job you kept and fills in your details, resume, cover letter and answers.
                 Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and
                 Ashby.
@@ -277,12 +294,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
         {/* Rules */}
         {/* Straight answers */}
-        <section id="faq" className="scroll-mt-15 bg-night px-[6%] py-28">
+        <section id="faq" className="scroll-mt-15 bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display text-center text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Is it really that simple?</h2>
-            <div className="mt-12 divide-y divide-white/[0.08]">
+            <h2 className="font-display text-center text-[1.75rem] font-medium tracking-[-0.01em] sm:text-[2.25rem]">Is it really that simple?</h2>
+            <div className="mt-8 divide-y divide-white/[0.08]">
               {FAQ.map((f) => (
-                <details key={f.q} className="group py-6">
+                <details key={f.q} className="group py-5">
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-medium text-white">
                     {f.q}
                     <ChevronRight className="size-5 shrink-0 text-white/40 transition-transform group-open:rotate-90" aria-hidden />
@@ -295,11 +312,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* Last screen, with the footer at its foot */}
-        <section className="flex min-h-svh flex-col bg-night-2 px-[6%] pt-15">
-          <div className="flex flex-1 flex-col items-center justify-center text-center">
-            <Ninja mood="love" className="size-28" />
-            <h2 className="font-display mt-6 text-3xl font-medium tracking-[-0.01em] sm:text-[2.5rem]">Your next job is already posted somewhere.</h2>
-            <p className="mt-3 text-lg text-white/55">Let your headhunter go and find it.</p>
+        <section className="flex flex-col bg-night-2 px-[6%] pt-20">
+          <div className="flex flex-1 flex-col items-center justify-center pb-16 text-center">
+            <Ninja mood="love" className="size-24" />
+            <h2 className="font-display mt-5 text-[1.75rem] font-medium tracking-[-0.01em] sm:text-[2.25rem]">Your next job is already posted somewhere.</h2>
+            <p className="mt-3 text-base text-white/55">Let your headhunter go and find it.</p>
             <a
               href={action.href}
               className="mt-8 inline-flex h-12 w-64 items-center justify-center rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose"
@@ -315,7 +332,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </Link>
             </span>
             <span>
-              powered by <span className="font-medium text-white">Hello Minds</span>
+              Built with <span className="font-medium text-white">Minds</span> by Animoca Brands
             </span>
           </footer>
         </section>

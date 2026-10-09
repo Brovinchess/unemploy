@@ -346,7 +346,6 @@ export function CardMock() {
           <span className="text-white/85">
             You meet <b className="font-semibold text-white">3 of 4</b> requirements
           </span>
-          <span className="text-[11px] text-white/35">82% match</span>
         </div>
         <div className="mt-1.5 flex gap-1">
           {must.map(([r, ok]) => (
@@ -360,12 +359,12 @@ export function CardMock() {
           <Clock className="size-3.5" /> Posted 3 days ago
         </span>
         <span className="inline-flex items-center gap-1 text-white/70">
-          <BadgeCheck className="size-3.5 text-coral" /> Checked open
+          <BadgeCheck className="size-3.5 text-coral" /> Open today
         </span>
       </div>
-      <h4 className="mt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">What you&rsquo;d do</h4>
+      <h4 className="mt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">The role</h4>
       <p className="mt-2 text-[13.5px] leading-relaxed text-white/80">Own the merchant onboarding flow for a payments app used by 2M people across Southeast Asia.</p>
-      <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">Why you</h4>
+      <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">Why it fits you</h4>
       <ul className="mt-2 space-y-2 text-[13.5px] leading-relaxed text-white/80">
         <li className="flex gap-2.5">
           <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> You launched a payments product used by thousands of merchants
@@ -374,7 +373,7 @@ export function CardMock() {
           <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> Six years in B2B SaaS, the level they ask for
         </li>
       </ul>
-      <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">They require</h4>
+      <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">Requirements</h4>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {must.map(([r, ok]) => (
           <span
@@ -387,7 +386,7 @@ export function CardMock() {
         ))}
       </div>
       <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-coral/25 bg-coral/10 px-4 py-3.5 text-[13px]">
-        <span>Ready to apply: cover letter and 4 form questions</span>
+        <span>Your application is written and ready.</span>
         <span className="text-rose">Open ↗</span>
       </div>
     </div>
