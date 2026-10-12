@@ -13,6 +13,7 @@ import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
+import { queueQuestions } from "@/lib/personal";
 import { costModel } from "@/lib/cost";
 import { floorOf } from "@/lib/pay";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
@@ -432,11 +433,17 @@ const STATUSES: JobStatus[] = ["new", "saved", "applied", "heard_back", "intervi
 export async function setJobStatus(jobId: string, status: JobStatus, skipReason?: string) {
   if (!STATUSES.includes(status)) return;
   const user = await requireUser();
-  await ownedJob(user, jobId);
+  const { job } = await ownedJob(user, jobId);
   await db
     .update(schema.jobs)
     .set({ status, skipReason: status === "skipped" ? (skipReason ?? null) : null, statusChangedAt: new Date() })
     .where(eq(schema.jobs.id, jobId));
+  // Form questions only matter once the person wants the job: a swipe right (or a restore) queues
+  // them for the personal Mind. Jobs still face down or dismissed never reach "Needs you".
+  if (status === "saved" && job.status !== "saved" && job.formQuestions?.length) {
+    const pack = await db.query.packs.findFirst({ where: eq(schema.packs.jobId, jobId) });
+    await queueQuestions(user.id, job.company, job.formQuestions, pack?.answers ?? []).catch((e) => console.error("[jobs] queue questions failed", jobId, e));
+  }
   revalidatePath("/app", "layout");
 }
 

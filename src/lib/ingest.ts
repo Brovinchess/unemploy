@@ -6,7 +6,7 @@ import type { Profile } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { clearlyBelow, floorOf } from "./pay";
 import { avoidList, postingAgeDays, salaryLabel } from "./preferences";
-import { isAboutTheJob, queueQuestions, similarity } from "./personal";
+import { isAboutTheJob, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching } from "./search";
@@ -472,11 +472,6 @@ async function checkAndSave(
       aboutMe: humanise(job.pack.aboutMe),
       answers: job.pack.answers.map((a) => ({ ...a, answer: humanise(a.answer) })),
     });
-    if (job.formQuestions?.length) {
-      await queueQuestions(profile.userId, job.company, job.formQuestions, job.pack.answers).catch((e) =>
-        console.error("[ingest] queue questions failed", profile.id, e),
-      );
-    }
   }
 
   await db.insert(schema.ingestLog).values({
