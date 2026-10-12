@@ -25,7 +25,7 @@ const COUNTRIES = [
   "United States", "United Kingdom", "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
   "South Korea", "China", "India", "Pakistan", "Bangladesh", "Australia", "New Zealand", "United Arab Emirates",
   "Saudi Arabia", "Qatar", "Bahrain", "United Kingdom", "Ireland", "Germany", "France", "Netherlands", "Spain",
-  "Italy", "Portugal", "Sweden", "Denmark", "Norway", "Finland", "Poland", "Switzerland", "United States",
+  "Italy", "Portugal", "Sweden", "Denmark", "Norway", "Finland", "Poland", "Switzerland",
   "Canada", "Mexico", "Brazil", "Argentina", "Chile", "Colombia", "South Africa", "Nigeria", "Kenya", "Egypt",
 ];
 
