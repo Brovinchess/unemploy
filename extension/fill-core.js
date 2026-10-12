@@ -244,7 +244,8 @@
         ok = el.tagName === "SELECT" ? chooseOption(el, ans) : isCombo(el) ? await chooseFromList(el, ans) : (setValue(el, ans), true);
       }
       const name = label.slice(0, 60);
-      runInfo.push({ el, auto: ok });
+      // Remember what we put there: if the person changes it before submitting, that's the answer to keep.
+      runInfo.push({ el, auto: ok, was: ok && typeof ans === "string" ? ans.trim() : null });
       if (ok) filled.push(name);
       else if (required) {
         missing.push(name);
@@ -259,7 +260,8 @@
     return { filled, missing: [...new Set(missing)], captcha: captchaPresent(), canSubmit: !!submitButton() };
   }
 
-  // Fields the extension left for the person, and what they typed there.
+  // Fields the extension left for the person and what they typed there, plus prefilled fields
+  // they corrected before submitting. Both become saved answers.
   let runInfo = [];
   function currentValue(el) {
     if (el.tagName === "SELECT") return el.selectedOptions[0]?.text?.trim() || "";
@@ -272,11 +274,13 @@
   }
   function learned() {
     const out = [];
-    for (const { el, auto } of runInfo) {
-      if (auto || el.type === "file" || !el.isConnected) continue;
+    for (const { el, auto, was } of runInfo) {
+      if (el.type === "file" || !el.isConnected) continue;
       const question = questionText(el);
       const answer = currentValue(el);
       if (!question || question.length < 3 || !answer || SENSITIVE.test(question)) continue;
+      // Prefilled and left alone: nothing new to learn. Prefilled and changed: learn the correction.
+      if (auto && (was == null || answer === was)) continue;
       if (el.tagName === "TEXTAREA" && answer.length > 400) continue; // job-specific essays
       out.push({ question, answer });
     }
