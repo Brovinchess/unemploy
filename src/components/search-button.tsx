@@ -185,7 +185,7 @@ export function SearchButton({
 
   const form = (
     <div className={big ? "w-full max-w-md text-left" : ""}>
-      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} last={last} />
+      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} />
       <button
         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose disabled:opacity-50"
         disabled={pending || tooExpensive}

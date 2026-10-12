@@ -207,7 +207,7 @@ export async function AppShell({
               ))}
             </nav>
             <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>
-              <LiveCognitionShort />
+              <LiveCognitionShort perSearchJobs={perSearchJobs} perJob={perJob} />
             </span>
             <Link href="/app/settings" className={`flex size-8 items-center justify-center rounded-full ${tab === "settings" ? "text-white" : "text-white/50"}`} title="Settings">
               <Settings className="size-4" aria-hidden />

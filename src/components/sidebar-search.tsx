@@ -28,6 +28,21 @@ export function RowStatus({ profileId, mindName, jobsPerDay, searching }: { prof
   );
 }
 
+// On the Jobs page header: a chip that says the headhunter is at work right now.
+export function SearchingChip({ profileId, jobsPerDay }: { profileId: string; jobsPerDay: number }) {
+  const live = useLive();
+  const now = useNow();
+  const p = live?.profile.id === profileId ? live.profile : null;
+  if (!p?.searching) return null;
+  const mins = p.startedAt ? minutesSince(p.startedAt, now) : 0;
+  return (
+    <Link href={`/app/headhunters/${profileId}`} className="inline-flex items-center gap-2 rounded-full bg-coral/15 px-4 py-2 text-sm text-white ring-1 ring-coral/30 hover:bg-coral/25">
+      <span className="size-2 animate-pulse rounded-full bg-coral" aria-hidden />
+      Your headhunter is searching · {mins} min · {p.jobsFound} of {jobsPerDay} found
+    </Link>
+  );
+}
+
 // A running search on small screens: one thin line under the top bar.
 export function SidebarSearch({ profileId, jobsPerDay }: { profileId: string; jobsPerDay: number }) {
   const live = useLive();

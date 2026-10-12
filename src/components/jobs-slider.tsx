@@ -10,17 +10,16 @@ export function JobsSlider({
   onChange,
   balance,
   perJob,
-  last = null,
 }: {
   value: number;
   onChange: (n: number) => void;
   balance?: number | null;
   perJob?: number; // cognition per job, learnt from past searches
-  last?: LastSearch;
 }) {
   const cost = estimateSearchCost(value, perJob);
   const pct = ((value - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
   const short = balance != null && cost.cognition > balance;
+  const left = balance != null ? Math.max(0, Math.floor((balance - cost.cognition) / cost.cognition)) : null;
   return (
     <div>
       <div className="flex items-baseline justify-between">
@@ -46,18 +45,11 @@ export function JobsSlider({
         <span>{MAX_JOBS_PER_SEARCH}</span>
       </div>
       <p className="mt-2 text-xs text-white/40">Fewer jobs, better checked.</p>
-      <p className={`mt-4 text-sm ${short ? "text-rose" : "text-white/60"}`}>
-        Roughly <span className={short ? "" : "text-white"}>{cost.cognition} cognition</span> (~${cost.usd.toFixed(2)})
-        {balance != null &&
-          (short
-            ? ` · only ${Math.round(balance)} left, pick fewer or top up`
-            : ` · about ${Math.round(balance - cost.cognition)} left after`)}
-      </p>
-      <p className="mt-1 text-xs text-white/35">
-        {last
-          ? `An estimate, based on your searches so far. Last one: ${last.used} cognition for ${last.jobs} ${last.jobs === 1 ? "job" : "jobs"}.`
-          : "An estimate. It gets more accurate after your first search."}
-      </p>
+      {short ? (
+        <p className="mt-3 text-sm text-rose">Not enough left for this search. Pick fewer jobs or top up.</p>
+      ) : left != null && left <= 2 ? (
+        <p className="mt-3 text-sm text-white/50">About {left} {left === 1 ? "search" : "searches"} left after this one.</p>
+      ) : null}
     </div>
   );
 }

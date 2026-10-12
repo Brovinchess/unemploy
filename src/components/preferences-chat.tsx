@@ -8,7 +8,6 @@ import { JobsSlider } from "@/components/jobs-slider";
 import { FormError } from "@/components/onboarding-shell";
 import {
   currencyFor,
-  estimateSearchCost,
   formatAmount,
   SALARY_CURRENCIES,
   salaryLabel,
@@ -223,10 +222,6 @@ export function PreferencesChat({
               );
             })}
           </div>
-          <p className="mt-4 text-sm text-muted">
-            Estimated cost: about {estimateSearchCost(draft.jobsPerDay ?? 5).cognition} cognition per search (~$
-            {estimateSearchCost(draft.jobsPerDay ?? 5).usd.toFixed(2)}).
-          </p>
           <FormError message={error} />
           <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
             {pending ? "Saving…" : mode === "setup" ? "Save and meet my headhunter" : "Save"}

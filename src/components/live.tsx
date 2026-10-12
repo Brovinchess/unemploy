@@ -111,28 +111,29 @@ export function LiveCognition({ perSearchJobs, perJob }: { perSearchJobs: number
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearch)) : null;
   const low = balance != null && (balance <= 0 || searchesLeft === 0);
   const fill = searchesLeft == null ? 0 : Math.min(100, (searchesLeft / 10) * 100);
+  // People think in searches, not credits: the credit figure stays on the Settings page.
   return (
     <>
       <p className="flex items-baseline justify-between text-sm">
-        <span className="text-white/60">Cognition</span>
-        <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
+        <span className="text-white/60">Searches left</span>
+        <span className={low ? "text-rose" : "text-white"}>{searchesLeft == null ? "–" : `about ${searchesLeft}`}</span>
       </p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
         <div className={`h-full rounded-full transition-[width] duration-700 ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
       </div>
       <p className="mt-2 text-xs text-white/45">
-        {balance == null
-          ? "Balance unavailable"
-          : `Enough for about ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearchJobs} jobs`}
+        {balance == null ? "Balance unavailable" : low ? "Not enough for another search. Top up to keep going." : `Each search brings up to ${perSearchJobs} jobs`}
       </p>
     </>
   );
 }
 
-export function LiveCognitionShort() {
+export function LiveCognitionShort({ perSearchJobs = 5, perJob }: { perSearchJobs?: number; perJob?: number }) {
   const live = useLive();
   const balance = live?.profile.balance ?? null;
-  return <>{balance == null ? "" : `${Math.round(balance)} cog`}</>;
+  if (balance == null) return null;
+  const n = Math.max(0, Math.floor(balance / estimateSearchCost(perSearchJobs, perJob).cognition));
+  return <>{`${n} ${n === 1 ? "search" : "searches"} left`}</>;
 }
 
 export function LiveBadge({ kind }: { kind: "new" | "answers" }) {

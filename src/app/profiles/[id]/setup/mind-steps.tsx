@@ -54,10 +54,11 @@ export function ActivateStep({
     };
   }, [waiting, profileId, done]);
 
+  const starterSearches = Math.max(1, Math.floor(500 / cost.cognition));
   const costLine = (
     <p className="text-sm text-white/55">
-      It only searches when you ask. A search for {jobsPerDay} jobs uses about <span className="text-white">{cost.cognition} cognition</span>.
-      Between searches it&rsquo;s switched off and spends nothing.
+      It only searches when you ask, and it&rsquo;s switched off in between. Your starter balance covers about {starterSearches}{" "}
+      {starterSearches === 1 ? "search" : "searches"} of {jobsPerDay} jobs.
     </p>
   );
 

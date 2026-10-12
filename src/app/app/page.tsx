@@ -8,6 +8,7 @@ import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
 import { JobsBoard } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
+import { SearchingChip } from "@/components/sidebar-search";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
@@ -75,8 +76,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Jobs</h1>
             <p className="mt-1 text-sm text-white/40">{summary || (current.lastDeliveryAt ? `Last search ${ago(current.lastDeliveryAt)}` : "Nothing yet")}</p>
           </div>
-          {/* One way to ask for more. While a search runs, the sidebar row shows it. */}
-          {everDelivered && !searching && searchButton()}
+          {/* One way to ask for more; while a search runs, say so where people look first. */}
+          {searching ? <SearchingChip profileId={current.id} jobsPerDay={perSearch} /> : everDelivered && searchButton()}
         </div>
 
         <ExtensionPrompt show={toApply > 0} />
