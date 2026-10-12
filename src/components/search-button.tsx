@@ -9,7 +9,7 @@ import Link from "next/link";
 import { estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
 import { Ninja } from "./brand";
-import { JobsSlider, type LastSearch } from "./jobs-slider";
+import { JobsSlider } from "./jobs-slider";
 import { minutesSince, useLive, useNow } from "./live";
 
 // The only way a search starts: the user asks, choosing how many jobs (and optionally a
@@ -24,7 +24,6 @@ export function SearchButton({
   notifyEmail,
   big = false,
   perJob,
-  last = null,
   coach = null,
 }: {
   profileId: string;
@@ -36,7 +35,6 @@ export function SearchButton({
   notifyEmail: string | null; // where the "search finished" email goes, if on
   big?: boolean;
   perJob?: number;
-  last?: LastSearch;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
   coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string; href: string }[] } | null;
 }) {

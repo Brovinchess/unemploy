@@ -71,8 +71,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
               disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
               perJob={cost.perJob}
-              last={cost.last}
-              coach={coach}
+                      coach={coach}
             />
           </div>
         </section>

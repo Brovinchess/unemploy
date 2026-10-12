@@ -54,7 +54,6 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
       big={big}
       perJob={cost.perJob}
-      last={cost.last}
       coach={coach}
     />
   );
