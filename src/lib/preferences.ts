@@ -53,7 +53,7 @@ export function estimateSearchCost(jobsPerDay: number, perJob = DEFAULT_COGNITIO
 }
 
 // ---------- Pay ----------
-// A floor, not an exact figure: "at least MYR 5,000 a month".
+// A floor, not an exact figure: "at least USD 5,000 a month".
 
 export type SalaryPeriod = "month" | "year";
 export type SalaryFloor = { currency: string; min: number; period: SalaryPeriod };

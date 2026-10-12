@@ -9,14 +9,14 @@ const FIELDS: { name: keyof ApplicantDetails; label: string; placeholder: string
   { name: "lastName", label: "Last name", placeholder: "Tan", required: true },
   { name: "email", label: "Email for applications", placeholder: "you@example.com", required: true, type: "email" },
   { name: "phone", label: "Phone", placeholder: "+60 12-345 6789", required: true, type: "tel" },
-  { name: "location", label: "Where you live", placeholder: "Kuala Lumpur, Malaysia", required: true },
+  { name: "location", label: "Where you live", placeholder: "New York, United States", required: true },
   { name: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…" },
   { name: "website", label: "Website or portfolio", placeholder: "https://…" },
   { name: "currentCompany", label: "Current company", placeholder: "Acme" },
   { name: "currentTitle", label: "Current title", placeholder: "Product Manager" },
-  { name: "workAuthorization", label: "Right to work", placeholder: "Malaysian citizen, no sponsorship needed" },
+  { name: "workAuthorization", label: "Right to work", placeholder: "US citizen, no sponsorship needed" },
   { name: "noticePeriod", label: "Notice period", placeholder: "1 month" },
-  { name: "salaryExpectation", label: "Salary expectation", placeholder: "MYR 20,000 a month" },
+  { name: "salaryExpectation", label: "Salary expectation", placeholder: "USD 120,000 a year" },
 ];
 
 // What the Chrome extension types into application forms.

@@ -22,7 +22,7 @@ import {
   type Preferences, MAX_POSTING_AGE_DAYS, POSTING_AGE_OPTIONS } from "@/lib/preferences";
 
 const COUNTRIES = [
-  "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
+  "United States", "United Kingdom", "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
   "South Korea", "China", "India", "Pakistan", "Bangladesh", "Australia", "New Zealand", "United Arab Emirates",
   "Saudi Arabia", "Qatar", "Bahrain", "United Kingdom", "Ireland", "Germany", "France", "Netherlands", "Spain",
   "Italy", "Portugal", "Sweden", "Denmark", "Norway", "Finland", "Poland", "Switzerland", "United States",
@@ -40,7 +40,7 @@ type Question = {
 
 const QUESTIONS: Question[] = [
   { key: "targetRoles", ask: () => "Which roles should I look for? I've guessed from your resume; change it if you want something else." },
-  { key: "country", ask: () => "Where do you live? City and country, like Kuala Lumpur, Malaysia." },
+  { key: "country", ask: () => "Where do you live? City and country, like New York, United States." },
   { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.`, defaulted: true },
   { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want." },
   {
@@ -266,8 +266,8 @@ function AnswerInput({
         placeholder={
           {
             targetRoles: "e.g. Product manager, Product owner",
-            country: "e.g. Kuala Lumpur, Malaysia",
-            city: "e.g. Kuala Lumpur",
+            country: "e.g. New York, United States",
+            city: "e.g. New York",
             avoidCompanies: "e.g. Acme, Globex",
           }[key]
         }
