@@ -17,9 +17,7 @@ const LABELS: Record<DropReason, string> = {
 function advice(counts: Map<DropReason, number>, total: number, country: string, remoteOnly: boolean) {
   const share = (r: DropReason) => (counts.get(r) ?? 0) / Math.max(1, total);
   if (share("not_eligible") >= 0.5) {
-    return remoteOnly
-      ? `Most of what it found was only open to other countries. Adding hybrid or on-site roles in ${country} would widen the pool.`
-      : `Most of what it found was only open to other countries. Adding more job titles under "Looking for" gives it more to choose from.`;
+    return remoteOnly ? `Most of what it found was only open to other countries. Adding hybrid or on-site roles in ${country} would widen the pool.` : null;
   }
   if (share("too_old") >= 0.4) return "Many postings were just over your posting age limit. Raising \"Posted within\" to 60 days would let them through.";
   if (share("pay") >= 0.4) return "Many jobs paid below your floor. Lowering it a little would widen the pool.";

@@ -5,9 +5,11 @@ import { coachSuggestions, searchPace, type Target } from "./coach";
 // The link for a tip: the brief editor row, the resume box, or nothing (the focus field is on the search form itself).
 export const targetHref = (profileId: string, t: Target) => `/app/headhunters/${profileId}#pref-${t}`;
 
-export function paceLine(p: { jobs: number; minutes: number; perJob: number | null }) {
+export function paceLine(p: { jobs: number; minutes: number; perJob: number | null; tooSlow?: boolean }) {
   const dur = p.minutes >= 60 ? `${Math.floor(p.minutes / 60)} h ${p.minutes % 60} min` : `${p.minutes} min`;
-  return p.jobs ? `Last time: ${p.jobs} ${p.jobs === 1 ? "job" : "jobs"} in ${dur}. A small change could speed things up.` : `Last time: ${dur} and nothing found. Let's change something.`;
+  if (!p.jobs) return `Last time: ${dur} and nothing found. Let's change something.`;
+  const base = `Last time: ${p.jobs} ${p.jobs === 1 ? "job" : "jobs"} in ${dur}.`;
+  return p.tooSlow ? `${base} A small change could speed things up.` : base;
 }
 
 // What the search button shows before the next search, when the last one was slow.
