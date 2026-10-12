@@ -14,6 +14,21 @@ const VARIANTS: [RegExp, string[]][] = [
   [/project manager|program manager|delivery/i, ["Project Manager", "Program Manager", "Delivery Manager", "Technical Program Manager", "Scrum Master"]],
 ];
 
+// The region a country belongs to, for the "near me first" search order.
+const REGIONS: [RegExp, string][] = [
+  [/malaysia|singapore|indonesia|thailand|vietnam|philippines|cambodia|myanmar|brunei|laos/i, "Southeast Asia, then the wider APAC region"],
+  [/hong kong|taiwan|china|macau/i, "Greater China, then the wider APAC region"],
+  [/japan|korea/i, "East Asia, then the wider APAC region"],
+  [/australia|new zealand/i, "Australia and New Zealand, then the wider APAC region"],
+  [/india|pakistan|bangladesh|sri lanka|nepal/i, "South Asia, then the wider APAC region"],
+  [/united arab emirates|saudi|qatar|bahrain|kuwait|oman|egypt|jordan|israel/i, "the Middle East"],
+  [/united kingdom|ireland|germany|france|netherlands|spain|italy|portugal|sweden|denmark|norway|finland|poland|switzerland|austria|belgium/i, "Europe"],
+  [/united states|canada|mexico/i, "North America"],
+  [/brazil|argentina|chile|colombia|peru/i, "Latin America"],
+  [/south africa|nigeria|kenya|ghana/i, "Africa"],
+];
+export const regionFor = (country: string) => REGIONS.find(([re]) => re.test(country))?.[1] ?? "its region";
+
 export function discoveryHints(targetRoles: string) {
   const titles = new Set(targetRoles.split(/,|\/| or /i).map((r) => r.trim()).filter(Boolean));
   for (const [re, list] of VARIANTS) if (re.test(targetRoles)) list.forEach((t) => titles.add(t));
@@ -24,6 +39,7 @@ export function discoveryText(targetRoles: string, country: string, city = "") {
   const { titles } = discoveryHints(targetRoles);
   const place = [city, country].filter(Boolean).join(", ");
   return (
+    `SEARCH NEAR ME FIRST, THEN WIDEN. Order: employers in ${place} first (on-site, hybrid, and remote companies based there), then ${regionFor(country)}, then remote jobs from anywhere. Send jobs as you find them, so the nearer ones reach me first. ` +
     `SEARCH WIDELY. Titles to search for (all of them, not just one): ${titles.join("; ")}. ` +
     `Main method: plain web searches that combine a title with the place or "remote" (e.g. "Senior Product Manager" ${place} careers; "Product Owner" remote APAC "apply"), which land on employers' own job pages. ` +
     `Also search the job systems directly: site:jobs.lever.co, site:boards.greenhouse.io, site:jobs.ashbyhq.com, site:apply.workable.com, site:myworkdayjobs.com, site:jobs.smartrecruiters.com, each with "${country}", "remote" or the region. ` +

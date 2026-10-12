@@ -38,7 +38,7 @@ HOW WE WORK
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
 - I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
-- Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.join(", ")}.
+- Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
 - Pay: ${floorOf(prefs) ? `at least ${salaryLabel(floorOf(prefs)!)}. It's a floor, not a target: a posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Skip jobs whose whole posted range is below it. Jobs that don't show pay are fine.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
 

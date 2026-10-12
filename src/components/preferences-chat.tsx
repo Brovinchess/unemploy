@@ -36,28 +36,43 @@ type Question = {
   key: keyof Preferences;
   ask: (d: Draft) => string;
   skip?: (d: Draft) => boolean;
+  defaulted?: boolean; // starts wide and isn't asked during setup; editable from the summary
 };
 
 const QUESTIONS: Question[] = [
-  { key: "targetRoles", ask: () => "Which roles should I look for?" },
-  { key: "country", ask: () => "Which country do you want to work in?" },
-  { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.` },
-  { key: "workSettings", ask: () => "How do you want to work? Pick all that suit you." },
+  { key: "targetRoles", ask: () => "Which roles should I look for? I've guessed from your resume; change it if you want something else." },
+  { key: "country", ask: () => "Where do you live? City and country, like Kuala Lumpur, Malaysia." },
+  { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.`, defaulted: true },
+  { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want." },
   {
     key: "remoteScope",
     ask: () => "For remote jobs, where can the company be based?",
     skip: (d) => !d.workSettings?.includes("remote"),
+    defaulted: true,
   },
-  { key: "jobTypes", ask: () => "What type of job?" },
-  { key: "levels", ask: () => "What level are you at?" },
-  { key: "minSalary", ask: () => "What's the least you'd want to earn? Pick a range; I'll bring jobs that pay at least that, and ones that don't show pay." },
-  { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas." },
-  { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?" },
-  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition." },
-  { key: "maxPostingAgeDays", ask: () => "How recent should a posting be? Older ones are more often filled already, but allowing more gives me more to choose from." },
+  { key: "jobTypes", ask: () => "What type of job?", defaulted: true },
+  { key: "levels", ask: () => "What level are you at?", defaulted: true },
+  { key: "minSalary", ask: () => "What's the least you'd want to earn? Pick a range, or Any pay to see everything; jobs that don't show pay always come through." },
+  { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas.", defaulted: true },
+  { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?", defaulted: true },
+  { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition.", defaulted: true },
+  { key: "maxPostingAgeDays", ask: () => "How recent should a posting be? Older ones are more often filled already, but allowing more gives me more to choose from.", defaulted: true },
 ];
 
-const DEFAULTS: Draft = { city: "", minSalary: "", avoidCompanies: "", remoteScope: "country", maxPostingAgeDays: MAX_POSTING_AGE_DAYS };
+// Setup asks four things. Everything else starts as wide as sensible, so the first search casts
+// a broad net and comes back faster; each default has a pencil in the summary.
+const DEFAULTS: Draft = {
+  city: "",
+  minSalary: "",
+  avoidCompanies: "",
+  workSettings: ["onsite", "hybrid", "remote"],
+  remoteScope: "anywhere",
+  jobTypes: ["Full-time", "Contract"],
+  levels: [], // match the resume
+  needsVisa: false,
+  jobsPerDay: RECOMMENDED_JOBS_PER_SEARCH,
+  maxPostingAgeDays: 60,
+};
 
 function answerText(key: keyof Preferences, d: Draft): string {
   const v = d[key];
@@ -67,8 +82,11 @@ function answerText(key: keyof Preferences, d: Draft): string {
     case "remoteScope":
       return REMOTE_SCOPES.find((r) => r.value === v)?.label ?? "";
     case "jobTypes":
-    case "levels":
       return (v as string[]).join(", ");
+    case "levels":
+      return (v as string[]).length ? (v as string[]).join(", ") : "Match my resume";
+    case "country":
+      return [d.city, d.country].filter(Boolean).join(", ");
     case "needsVisa":
       return v ? "Yes, I need sponsorship" : "No";
     case "minSalary":
@@ -95,7 +113,7 @@ export function PreferencesChat({
   seed?: Draft; // answers from another headhunter, pre-filled but still asked
   tips?: { target: string; text: string }[]; // coach tips, shown beside the row they're about
 }) {
-  const [draft, setDraft] = useState<Draft>(initial ?? { ...DEFAULTS, ...seed });
+  const [draft, setDraft] = useState<Draft>(initial ?? { ...DEFAULTS, ...Object.fromEntries(Object.entries(seed ?? {}).filter(([, v]) => v !== undefined && v !== "")) });
   const [step, setStep] = useState(initial ? QUESTIONS.length : 0); // QUESTIONS.length = summary
   const [editing, setEditing] = useState(false); // came from summary to fix one answer
   const [pending, start] = useTransition();
@@ -119,7 +137,8 @@ export function PreferencesChat({
     };
   }, [mode]);
 
-  const visible = QUESTIONS.filter((q) => !q.skip?.(draft));
+  // During setup the defaulted questions stay hidden; editing from the summary shows any of them.
+  const visible = QUESTIONS.filter((q) => !q.skip?.(draft) && (editing || mode === "edit" || !q.defaulted));
   const current = visible.find((q) => QUESTIONS.indexOf(q) === step);
 
   useEffect(() => {
@@ -135,7 +154,7 @@ export function PreferencesChat({
       return;
     }
     let i = step + 1;
-    while (i < QUESTIONS.length && QUESTIONS[i].skip?.(next)) i++;
+    while (i < QUESTIONS.length && (QUESTIONS[i].skip?.(next) || (mode === "setup" && QUESTIONS[i].defaulted))) i++;
     setStep(i);
   }
 
@@ -246,18 +265,25 @@ function AnswerInput({
     const required = key === "targetRoles" || key === "country";
     return (
       <TextAnswer
-        initial={(draft[key] as string) ?? ""}
+        initial={key === "country" ? [draft.city, draft.country].filter(Boolean).join(", ") : ((draft[key] as string) ?? "")}
         required={required}
         list={key === "country" ? COUNTRIES : undefined}
         placeholder={
           {
-            targetRoles: "e.g. Product designer, UX designer",
-            country: "e.g. Malaysia",
+            targetRoles: "e.g. Product manager, Product owner",
+            country: "e.g. Kuala Lumpur, Malaysia",
             city: "e.g. Kuala Lumpur",
             avoidCompanies: "e.g. Acme, Globex",
           }[key]
         }
-        onSubmit={(v) => onAnswer({ [key]: v })}
+        onSubmit={(v) => {
+          // "City, Country" in one go: the last part is the country, the rest the city.
+          if (key === "country" && v.includes(",")) {
+            const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
+            return onAnswer({ country: parts.pop(), city: parts.join(", ") });
+          }
+          onAnswer({ [key]: v });
+        }}
       />
     );
   }
@@ -269,7 +295,14 @@ function AnswerInput({
     return <MultiChoice options={JOB_TYPES.map((v) => ({ value: v, label: v }))} initial={draft.jobTypes ?? ["Full-time"]} onSubmit={(v) => onAnswer({ jobTypes: v as Preferences["jobTypes"] })} />;
   }
   if (key === "levels") {
-    return <MultiChoice options={LEVELS.map((v) => ({ value: v, label: v }))} initial={draft.levels} onSubmit={(v) => onAnswer({ levels: v as Preferences["levels"] })} />;
+    return (
+      <div>
+        <MultiChoice options={LEVELS.map((v) => ({ value: v, label: v }))} initial={draft.levels} onSubmit={(v) => onAnswer({ levels: v as Preferences["levels"] })} />
+        <button type="button" className="mt-3 text-sm text-white/55 underline decoration-white/30 underline-offset-4 hover:text-white" onClick={() => onAnswer({ levels: [] })}>
+          Or let it match my resume
+        </button>
+      </div>
+    );
   }
   if (key === "remoteScope") {
     return (

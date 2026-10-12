@@ -10,6 +10,19 @@ import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { ResumeStep } from "./resume-step";
 
+// The most recent job title on the resume, as a starting answer for "which roles?".
+const TITLE = /\b(manager|engineer|designer|developer|analyst|lead|director|specialist|consultant|scientist|architect|marketer|accountant|recruiter|head of|officer|associate|coordinator|strategist|product owner)\b/i;
+function guessRole(resume: string | null | undefined) {
+  if (!resume) return undefined;
+  // Look at the first part of each line ("Senior Product Designer, PayLane (2022)" → "Senior Product Designer").
+  const heads = resume
+    .split(/\r?\n/)
+    .slice(0, 40)
+    .map((l) => l.split(/[|•·,(]/)[0].replace(/\s+(at|@)\s+.*$/i, "").trim())
+    .filter((h) => h && h.length <= 60 && !/@|http|\d/.test(h));
+  return heads.find((h) => TITLE.test(h)) || undefined;
+}
+
 // Setup is resume → preferences → activate. The step comes from what's filled in, so a
 // profile made before this order changed still lands on the right screen.
 export default async function Setup({ params }: PageProps<"/profiles/[id]/setup">) {
@@ -49,13 +62,14 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     return (
       <OnboardingShell step={1} wide exitHref={exitHref}>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
-          A few quick questions, like the filters on a job site. You can change any answer later.
+          Four quick questions. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
         <PreferencesChat
           profileId={profile.id}
           mode="setup"
-          seed={
-            prefsSource && {
+          seed={{
+            targetRoles: guessRole(profile.resumeText),
+            ...(prefsSource && {
               country: prefsSource.country,
               city: prefsSource.city,
               workSettings: prefsSource.workSettings,
@@ -67,8 +81,8 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
               avoidCompanies: prefsSource.avoidCompanies,
               needsVisa: prefsSource.needsVisa,
               jobsPerDay: prefsSource.jobsPerDay,
-            }
-          }
+            }),
+          }}
         />
       </OnboardingShell>
     );
@@ -80,7 +94,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
       <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Meet your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."
-          : "We'll create your own AI agent on Hello Minds. It works only for you, and you can pause it any time."}
+          : "We'll create your own AI agent on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}

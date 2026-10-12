@@ -100,7 +100,7 @@ export const preferencesSchema = z.object({
   workSettings: z.array(z.enum(["onsite", "hybrid", "remote"])).min(1),
   remoteScope: z.enum(["country", "region", "anywhere"]).default("country"),
   jobTypes: z.array(z.enum(JOB_TYPES)).min(1),
-  levels: z.array(z.enum(LEVELS)).min(1),
+  levels: z.array(z.enum(LEVELS)).default([]), // empty: match the resume
   minSalary: z.string().trim().max(60).optional().default(""), // readable; set from salary when chosen
   salary: z
     .object({ currency: z.string().trim().length(3), min: z.number().int().min(1).max(10_000_000_000), period: z.enum(["month", "year"]) })
@@ -112,6 +112,9 @@ export const preferencesSchema = z.object({
 });
 
 export type Preferences = z.infer<typeof preferencesSchema>;
+
+// Empty levels means "whatever my resume says": the level I'm at and one above.
+export const levelText = (p: { levels: string[] }) => (p.levels.length ? p.levels.join(", ") : "Match my resume");
 
 export function workSettingLabel(v: string) {
   return WORK_SETTINGS.find((w) => w.value === v)?.label ?? v;
@@ -127,7 +130,7 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Where", value: place },
     { label: "Work setting", value: p.workSettings.map(workSettingLabel).join(", ") + remote },
     { label: "Job type", value: p.jobTypes.join(", ") },
-    { label: "Level", value: p.levels.join(", ") },
+    { label: "Level", value: levelText(p) },
     { label: "Minimum salary", value: p.minSalary || "Not set" },
     { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },
     { label: "Visa sponsorship", value: p.needsVisa ? "Needed" : "Not needed" },

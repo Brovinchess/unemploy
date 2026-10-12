@@ -145,7 +145,7 @@ async function runMockHunt(alias: string) {
       country: prefs.country,
       workSetting: setting,
       jobType: prefs.jobTypes[0],
-      level: prefs.levels[0],
+      level: prefs.levels[0] ?? "Mid-Senior",
       salary: prefs.salary
         ? `${prefs.salary.currency} ${(prefs.salary.min + (i % 3) * 1000).toLocaleString("en-US")}–${(prefs.salary.min + 3000 + (i % 3) * 1000).toLocaleString("en-US")} a ${prefs.salary.period}`
         : undefined,

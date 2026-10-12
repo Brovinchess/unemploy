@@ -117,6 +117,8 @@ export async function checkActivation(profileId: string, quiet = false): Promise
     if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. It can take a minute to arrive." };
     const r = await startHunting(user, profile);
     if (r?.error) return { balance, error: r.error };
+    // First search starts by itself, so the next screen is the headhunter already working.
+    await requestSearch(profile.id, profile.preferences?.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH).catch((e) => console.error("[activate] first search", e));
     return { balance, started: true };
   } catch (e) {
     return { error: friendly(e) };
