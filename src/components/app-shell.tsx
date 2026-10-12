@@ -152,7 +152,7 @@ export async function AppShell({
 
         <div className="mt-auto space-y-3">
           <div className="rounded-2xl bg-white/[0.04] p-4">
-            <LiveCognition perSearchJobs={perSearchJobs} perJob={perJob} />
+            <LiveCognition perJob={perJob} />
             <a
               href={mindsConfig.topUpUrl}
               target="_blank"
@@ -207,7 +207,7 @@ export async function AppShell({
               ))}
             </nav>
             <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>
-              <LiveCognitionShort perSearchJobs={perSearchJobs} perJob={perJob} />
+              <LiveCognitionShort perJob={perJob} />
             </span>
             <Link href="/app/settings" className={`flex size-8 items-center justify-center rounded-full ${tab === "settings" ? "text-white" : "text-white/50"}`} title="Settings">
               <Settings className="size-4" aria-hidden />

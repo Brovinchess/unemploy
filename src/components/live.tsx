@@ -104,9 +104,14 @@ export function minutesSince(iso: string, now: number | null) {
 
 // ---------- Sidebar pieces ----------
 
-export function LiveCognition({ perSearchJobs, perJob }: { perSearchJobs: number; perJob?: number }) {
+// Counted in searches of 5 jobs, whatever the slider is set to: "0 left" when a 5-job search
+// would still fit reads as broken. The slider itself warns when a bigger search doesn't fit.
+const COUNT_IN = 5;
+
+export function LiveCognition({ perJob }: { perJob?: number }) {
   const live = useLive();
   const balance = live?.profile.balance ?? null;
+  const perSearchJobs = COUNT_IN;
   const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearch)) : null;
   const low = balance != null && (balance <= 0 || searchesLeft === 0);
@@ -128,11 +133,11 @@ export function LiveCognition({ perSearchJobs, perJob }: { perSearchJobs: number
   );
 }
 
-export function LiveCognitionShort({ perSearchJobs = 5, perJob }: { perSearchJobs?: number; perJob?: number }) {
+export function LiveCognitionShort({ perJob }: { perJob?: number }) {
   const live = useLive();
   const balance = live?.profile.balance ?? null;
   if (balance == null) return null;
-  const n = Math.max(0, Math.floor(balance / estimateSearchCost(perSearchJobs, perJob).cognition));
+  const n = Math.max(0, Math.floor(balance / estimateSearchCost(COUNT_IN, perJob).cognition));
   return <>{`${n} ${n === 1 ? "search" : "searches"} left`}</>;
 }
 
