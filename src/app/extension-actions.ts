@@ -26,6 +26,8 @@ const detailsSchema = z.object({
   workAuthorization: text(200).optional(),
   noticePeriod: text(100).optional(),
   salaryExpectation: text(100).optional(),
+  currentCompany: text(120).optional(),
+  currentTitle: text(120).optional(),
 });
 
 export type DetailsState = { ok?: boolean; error?: string } | undefined;

@@ -12,6 +12,8 @@ const FIELDS: { name: keyof ApplicantDetails; label: string; placeholder: string
   { name: "location", label: "Where you live", placeholder: "Kuala Lumpur, Malaysia", required: true },
   { name: "linkedin", label: "LinkedIn", placeholder: "https://linkedin.com/in/…" },
   { name: "website", label: "Website or portfolio", placeholder: "https://…" },
+  { name: "currentCompany", label: "Current company", placeholder: "Acme" },
+  { name: "currentTitle", label: "Current title", placeholder: "Product Manager" },
   { name: "workAuthorization", label: "Right to work", placeholder: "Malaysian citizen, no sponsorship needed" },
   { name: "noticePeriod", label: "Notice period", placeholder: "1 month" },
   { name: "salaryExpectation", label: "Salary expectation", placeholder: "MYR 20,000 a month" },

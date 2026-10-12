@@ -45,6 +45,8 @@ function coveredByDetails(q: string, user: User) {
   if (/sponsor|authori[sz]ed|right to work|eligible to work|work permit|visa/i.test(q)) return !!a.workAuthorization;
   if (/notice period|start date|when can you start|available to start/i.test(q)) return !!a.noticePeriod;
   if (/salary|compensation|pay expectation|expected pay|desired pay/i.test(q)) return !!a.salaryExpectation;
+  if (/current (company|employer)|(company|employer) (you )?(currently )?work|present employer|most recent (company|employer)/i.test(q)) return !!a.currentCompany;
+  if (/current (job )?title|current (role|position)|most recent (title|role|position)|job title/i.test(q)) return !!a.currentTitle;
   if (/where are you (based|located)|current (city|location)|country of residence/i.test(q)) return !!a.location;
   return false;
 }
@@ -90,6 +92,8 @@ export function personalBrief(args: { username: string; ingestUrl: string; key: 
         a.workAuthorization && `- Work authorisation: ${a.workAuthorization}`,
         a.noticePeriod && `- Notice period: ${a.noticePeriod}`,
         a.salaryExpectation && `- Salary expectation: ${a.salaryExpectation}`,
+        a.currentCompany && `- Current company (write it exactly like this): ${a.currentCompany}`,
+        a.currentTitle && `- Current title: ${a.currentTitle}`,
       ]
         .filter(Boolean)
         .join("\n")

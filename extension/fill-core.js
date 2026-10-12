@@ -128,7 +128,8 @@
       const s = similarity(label, qa.question);
       if (s > savedScore) (savedScore = s), (saved = qa.answer);
     }
-    const fromSaved = savedScore >= 0.7 ? saved : null;
+    // The person's own saved answers are authoritative: same bar as the headhunter's answers below.
+    const fromSaved = savedScore >= 0.5 ? saved : null;
     const pick = (v) => (v && String(v).trim() ? v : fromSaved);
 
     if (has(/first ?name|given name|fname|first_name/)) return a.firstName;
@@ -147,6 +148,8 @@
     if (has(/sponsor/)) return pick(a.workAuthorization && /no sponsorship|not need|don.?t need|without sponsorship/i.test(a.workAuthorization) ? "No" : a.workAuthorization);
     if (has(/authori[sz]ed|right to work|eligible to work|work permit|visa/)) return pick(a.workAuthorization);
     if (has(/notice period|start date|when can you start|available to start|availability/)) return pick(a.noticePeriod);
+    if (has(/current (company|employer)|(company|employer) name|employer|most recent company|where do you (currently )?work/) && !has(/previous|former|reference/)) return pick(a.currentCompany);
+    if (has(/current (job )?title|current (role|position)|job title|most recent (title|role)/) && !has(/desired|target|applying/)) return pick(a.currentTitle);
     if (has(/salary|compensation|pay expectation|expected pay|desired pay/)) return pick(a.salaryExpectation);
     // The headhunter's prepared answers, matched by question.
     if (fromSaved) return fromSaved;

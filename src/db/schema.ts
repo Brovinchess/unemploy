@@ -61,6 +61,8 @@ export type ApplicantDetails = {
   workAuthorization?: string; // e.g. "Malaysian citizen, no sponsorship needed"
   noticePeriod?: string;
   salaryExpectation?: string;
+  currentCompany?: string; // as it should appear on forms, e.g. "Animoca Brands"
+  currentTitle?: string;
 };
 
 // `field` is set when the answer was promoted into application details (it stays here so

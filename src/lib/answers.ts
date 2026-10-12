@@ -23,11 +23,13 @@ export function topicOf(question: string): Topic {
 }
 
 // Questions whose answer belongs in a details field rather than the list.
-export type DetailField = "workAuthorization" | "noticePeriod" | "salaryExpectation";
+export type DetailField = "workAuthorization" | "noticePeriod" | "salaryExpectation" | "currentCompany" | "currentTitle";
 
 export function detailFieldFor(question: string): DetailField | null {
   const q = question.toLowerCase();
   if (/notice period|how (much|long) notice/.test(q)) return "noticePeriod";
+  if (/current (company|employer)|(company|employer) (you )?(currently )?work(ing)? (for|at)|present employer|most recent (company|employer)/.test(q)) return "currentCompany";
+  if (/current (job )?title|current (role|position)|most recent (title|role|position)|job title/.test(q)) return "currentTitle";
   if (/(salary|compensation|pay) (expectation|requirement|range)|expected (salary|pay|compensation)|desired (salary|pay)/.test(q)) return "salaryExpectation";
   if (/sponsor|authori[sz]ed to work|right to work|eligible to work|work permit|legally (able|allowed) to work|citizen(ship)? status/.test(q)) return "workAuthorization";
   return null;
@@ -37,6 +39,8 @@ export const DETAIL_LABELS: Record<DetailField, string> = {
   workAuthorization: "Right to work",
   noticePeriod: "Notice period",
   salaryExpectation: "Salary expectation",
+  currentCompany: "Current company",
+  currentTitle: "Current title",
 };
 
 // A yes/no answer isn't a usable value for a details field ("Yes" is not a notice period);
