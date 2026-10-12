@@ -61,6 +61,11 @@ export function WelcomeForm() {
         Your headhunter will be called <span className="font-mono text-white">{mindName}</span>. You can add more later,
         one for each kind of job.
       </p>
+      <label htmlFor="ref" className="mt-8 block text-sm font-medium text-white">
+        Referral code <span className="font-normal text-white/45">(optional)</span>
+      </label>
+      <input id="ref" name="ref" className="field mt-2" placeholder="From a friend's invite link" maxLength={16} autoComplete="off" />
+      <p className="mt-2 text-xs text-white/45">If a friend sent you here, their code is already saved. Only add one if they gave it to you another way.</p>
       <input type="hidden" name="timezone" value={timezone} suppressHydrationWarning />
       <FormError message={state?.error} />
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || username.length < 3 || label.trim().length < 2}>

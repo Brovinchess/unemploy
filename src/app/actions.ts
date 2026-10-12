@@ -14,7 +14,7 @@ import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
-import { qualifyReferral } from "@/lib/referrals";
+import { qualifyReferral, recordReferral } from "@/lib/referrals";
 import { costModel } from "@/lib/cost";
 import { floorOf } from "@/lib/pay";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
@@ -49,6 +49,9 @@ export async function saveUsername(_: FormState, formData: FormData): Promise<Fo
   const taken = await db.query.users.findFirst({ where: eq(schema.users.username, parsed.data), columns: { id: true } });
   if (taken && taken.id !== user.id) return { error: "That username is taken. Try another one." };
   await db.update(schema.users).set({ username: parsed.data, timezone }).where(eq(schema.users.id, user.id));
+  // A code typed by hand counts the same as one from a link; unknown or own codes are ignored.
+  const ref = String(formData.get("ref") ?? "").trim();
+  if (ref && !user.referredBy) await recordReferral(user.id, ref).catch((e) => console.error("[referral] welcome", e));
   const id = crypto.randomUUID();
   await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
   redirect(`/profiles/${id}/setup`);

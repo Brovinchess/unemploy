@@ -13,7 +13,7 @@ import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live }
 import { RowStatus, SidebarSearch } from "./sidebar-search";
 import { TitleBadge } from "./title-badge";
 
-type Tab = "jobs" | "you" | "settings" | "headhunter";
+type Tab = "jobs" | "you" | "referral" | "settings" | "headhunter";
 
 // The signed-in frame: a sidebar with the user's headhunters, navigation, cognition and
 // account on large screens; a compact top bar on small ones.
@@ -51,6 +51,7 @@ export async function AppShell({
   const nav = [
     { id: "jobs" as const, label: "Jobs", href: "/app", icon: ListChecks, badge: "new" as const },
     { id: "you" as const, label: "You", href: "/app/you", icon: UserRound, badge: "answers" as const },
+    { id: "referral" as const, label: "Referral", href: "/app/referral", icon: Gift, badge: undefined },
   ];
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
@@ -150,9 +151,6 @@ export async function AppShell({
         </ul>
 
         <div className="mt-auto space-y-3">
-          <Link href="/app/settings#invite" className="flex items-center gap-2 px-3 text-sm text-white/45 hover:text-white">
-            <Gift className="size-4" aria-hidden /> Invite a friend
-          </Link>
           <div className="rounded-2xl bg-white/[0.04] p-4">
             <LiveCognition perSearchJobs={perSearchJobs} perJob={perJob} />
             <a
