@@ -67,7 +67,7 @@ const CURRENCY_BY_COUNTRY: Record<string, string> = {
   poland: "PLN", "south africa": "ZAR", nigeria: "NGN", kenya: "KES", egypt: "EGP",
   ireland: "EUR", germany: "EUR", france: "EUR", netherlands: "EUR", spain: "EUR", italy: "EUR", portugal: "EUR", finland: "EUR",
 };
-export const currencyFor = (country = "") => CURRENCY_BY_COUNTRY[country.trim().toLowerCase()] ?? "USD";
+export const currencyFor = (country = "") => CURRENCY_BY_COUNTRY[country.trim().toLowerCase().replace(/^the\s+/, "")] ?? "USD";
 export const SALARY_CURRENCIES = [...new Set(["MYR", "SGD", "USD", "EUR", "GBP", "AUD", ...Object.values(CURRENCY_BY_COUNTRY)])];
 
 // Typical monthly steps per currency; yearly steps are these × 12.
