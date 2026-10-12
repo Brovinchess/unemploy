@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { encrypt } from "@/lib/crypto";
 import { exchangeCode, tokenSubject } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
+import { recordReferral, REF_COOKIE } from "@/lib/referrals";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -44,6 +45,8 @@ export async function GET(request: Request) {
       .insert(schema.users)
       .values({ id: crypto.randomUUID(), hmUserId, ...values })
       .returning();
+    await recordReferral(user.id, jar.get(REF_COOKIE)?.value).catch((e) => console.error("[auth] referral", e));
+    jar.delete(REF_COOKIE);
   }
 
   await createSession(user.id);

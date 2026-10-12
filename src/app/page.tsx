@@ -94,7 +94,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const error = LOGIN_ERRORS[one(sp.login_error) ?? ""];
   const deleted = sp.deleted === "1";
   const open = launchMode === "open";
-  const action = open ? { label: "Log in", href: "/auth/login" } : { label: "Join the waitlist", href: "#top" };
+  const ref = one(sp.ref);
+  const loginHref = ref ? `/auth/login?ref=${encodeURIComponent(ref)}` : "/auth/login";
+  const action = open ? { label: "Log in", href: loginHref } : { label: "Join the waitlist", href: "#top" };
   const [{ n: waiting }] = open ? [{ n: 0 }] : await db.select({ n: count() }).from(schema.waitlist);
 
   return (
@@ -122,7 +124,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <div className="mt-8">
               {open ? (
                 <div className="flex w-full max-w-[26rem] flex-col items-center gap-3 max-md:mx-auto md:items-start">
-                  <Link href="/auth/login" className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
+                  <Link href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
                     Get my headhunter <ArrowRight className="size-4" aria-hidden />
                   </Link>
                   <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>

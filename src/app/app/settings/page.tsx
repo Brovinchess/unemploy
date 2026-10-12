@@ -6,6 +6,8 @@ import { appContext, balanceFor } from "@/lib/app-context";
 import { detailsComplete } from "@/lib/extension";
 import { DeleteAccount } from "./delete-account";
 import { CoachSwitch } from "./coach-switch";
+import { InviteFriends } from "./invite-friends";
+import { REFERRAL_REWARD, referralCodeFor, referralLink, referralStats } from "@/lib/referrals";
 import { EmailUpdates } from "./email-updates";
 
 function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
@@ -48,6 +50,10 @@ export default async function Settings() {
 
           <Section title="Email updates" id="email">
             <EmailUpdates email={user.emailVerifiedAt ? user.email : null} on={user.emailOnSearchDone} />
+          </Section>
+
+          <Section title="Invite friends" id="invite">
+            <InviteFriends link={referralLink(await referralCodeFor(user.id))} reward={REFERRAL_REWARD} stats={await referralStats(user.id)} />
           </Section>
 
           <Section title="Account">

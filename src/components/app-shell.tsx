@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { ExternalLink, ListChecks, LogOut, Plus, Settings, UserRound } from "lucide-react";
+import { ExternalLink, Gift, ListChecks, LogOut, Plus, Settings, UserRound } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
@@ -150,6 +150,9 @@ export async function AppShell({
         </ul>
 
         <div className="mt-auto space-y-3">
+          <Link href="/app/settings#invite" className="flex items-center gap-2 px-3 text-sm text-white/45 hover:text-white">
+            <Gift className="size-4" aria-hidden /> Invite a friend
+          </Link>
           <div className="rounded-2xl bg-white/[0.04] p-4">
             <LiveCognition perSearchJobs={perSearchJobs} perJob={perJob} />
             <a

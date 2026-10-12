@@ -34,6 +34,9 @@ export const users = pgTable("users", {
   emailOnSearchDone: boolean("email_on_search_done").notNull().default(true),
   // The search coach's pop-up before a search, after a slow one. Off when the person ticked "don't remind me".
   coachReminders: boolean("coach_reminders").notNull().default(true),
+  // Friend referrals: the code this person shares (?ref=…) and the code they signed up with.
+  referralCode: text("referral_code").unique(),
+  referredBy: text("referred_by"),
   // What the Chrome extension types into application forms.
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
   // Answers the person typed into application forms, reused on later forms.
@@ -325,6 +328,30 @@ export type User = typeof users.$inferSelect;
 export type Profile = typeof profiles.$inferSelect;
 export type Job = typeof jobs.$inferSelect;
 export type Pack = typeof packs.$inferSelect;
+
+// One row per friend who signed up through someone's link. "qualified" once the friend's first
+// headhunter is running; "rewarded" once the referrer's cognition has been topped up (by hand).
+export type ReferralStatus = "joined" | "qualified" | "rewarded";
+export const referrals = pgTable(
+  "referrals",
+  {
+    id: uuid("id").primaryKey(),
+    referrerId: uuid("referrer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    referredId: uuid("referred_id")
+      .notNull()
+      .unique()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status").$type<ReferralStatus>().notNull().default("joined"),
+    reward: integer("reward").notNull().default(0), // cognition promised to the referrer
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    qualifiedAt: timestamp("qualified_at", { withTimezone: true }),
+    rewardedAt: timestamp("rewarded_at", { withTimezone: true }),
+  },
+  (t) => [index("referrals_referrer").on(t.referrerId)],
+);
+export type Referral = typeof referrals.$inferSelect;
 
 // Pre-launch waitlist. referral_code is shared as ?ref=…; referred_by is the code a signup came in with.
 export const waitlist = pgTable(

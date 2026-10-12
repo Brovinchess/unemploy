@@ -14,6 +14,7 @@ import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
+import { qualifyReferral } from "@/lib/referrals";
 import { costModel } from "@/lib/cost";
 import { floorOf } from "@/lib/pay";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
@@ -167,6 +168,7 @@ async function startHunting(user: User, profile: Profile): Promise<FormState> {
     .update(schema.profiles)
     .set({ status: "hunting", briefedAt: new Date() })
     .where(eq(schema.profiles.id, profile.id));
+  await qualifyReferral(user.id).catch((e) => console.error("[referral] qualify", e));
   switchOffLater(profile.id);
 }
 
