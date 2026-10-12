@@ -63,7 +63,7 @@ export function searchRequestText(
   const skipRuled = ruledOut.length ? `Already ruled out on earlier searches, don't re-check unless the posting changed: ${ruledOut.join("; ")}. ` : "";
   const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country, discovery.city) + " " : "";
   const pay = payFloor
-    ? `Pay floor: ${payFloor}. A posted range passes if its top reaches it; skip jobs whose whole posted range is below it; jobs without posted pay are fine. `
+    ? `Pay: aim for ${payFloor}. A posted range passes if its top reaches it; jobs without posted pay are fine. Send jobs at or above it first. If you've searched widely and still can't fill the quota, step down about 10% at a time (90%, then 80%, and so on, never below 60% of it) and keep sending; say the posted pay honestly and I'll see it on the card. `
     : "";
   const skip = alreadySent.length
     ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `

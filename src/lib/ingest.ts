@@ -178,14 +178,14 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
     };
   }
 
-  // Pay is a floor: a posted range passes if its top reaches it. Only pay the posting
-  // states is held to it, and only when it's clearly below.
+  // Pay is where to aim, not a wall: when the market is thin the headhunter may step down to
+  // 60% of the floor, and the card says so. Only clearly lower posted pay is refused.
   const floor = floorOf(prefs);
-  if (!job.salaryEstimated && floor && clearlyBelow(job.salary, floor)) {
+  if (!job.salaryEstimated && floor && clearlyBelow(job.salary, { ...floor, min: floor.min * 0.6 })) {
     return {
       url: job.url,
       code: "below_salary",
-      hint: `Posted pay "${job.salary}" is below the user's floor of ${salaryLabel(floor)}. Skip jobs whose whole range is under it.`,
+      hint: `Posted pay "${job.salary}" is far below the user's floor of ${salaryLabel(floor)} (under 60% of it). Skip it.`,
     };
   }
 
@@ -405,6 +405,12 @@ async function checkAndSave(
     if (job.mustHaves.some((m) => !m.met) && job.matchScore > MAX_SCORE_WITH_GAPS) {
       adjusted.push({ url: job.url, note: `matchScore capped at ${MAX_SCORE_WITH_GAPS} because a must-have is not met.` });
       job.matchScore = MAX_SCORE_WITH_GAPS;
+    }
+    // Under the floor but within the step-down range: keep it, and put it where the person looks.
+    const floor = floorOf(prefs);
+    if (!job.salaryEstimated && floor && clearlyBelow(job.salary, floor)) {
+      job.gaps = [`Pay is below your floor of ${salaryLabel(floor)}`, ...job.gaps].slice(0, 10);
+      adjusted.push({ url: job.url, note: `Accepted, but the pay is below the floor of ${salaryLabel(floor)}; it's marked on the card.` });
     }
     const unsupported = unsupportedClaims(job, profile);
     if (unsupported.length) {

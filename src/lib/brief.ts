@@ -39,7 +39,7 @@ WHAT I WANT
 - Roles: ${prefs.targetRoles}
 - I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
-- Pay: ${floorOf(prefs) ? `at least ${salaryLabel(floorOf(prefs)!)}. It's a floor, not a target: a posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Skip jobs whose whole posted range is below it. Jobs that don't show pay are fine.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
+- Pay: ${floorOf(prefs) ? `aim for at least ${salaryLabel(floorOf(prefs)!)}. A posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Jobs that don't show pay are fine. Send jobs at or above it first; if the market is thin and you can't fill the quota, step down about 10% at a time, never below 60% of it, and keep sending.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
 
 WHERE TO LOOK
