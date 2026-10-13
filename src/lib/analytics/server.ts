@@ -18,10 +18,12 @@ export type Event =
   | "personal_mind_deployed"
   | "headhunter_removed";
 
-export function track(userId: string, event: Event, properties: Record<string, string | number | boolean | null | undefined> = {}) {
+export const analyticsOn = !!client;
+
+export function track(userId: string, event: Event, properties: Record<string, string | number | boolean | null | undefined> = {}, timestamp?: Date) {
   if (!client) return;
   try {
-    client.capture({ distinctId: userId, event, properties });
+    client.capture({ distinctId: userId, event, properties, ...(timestamp ? { timestamp } : {}) });
     void client.flush().catch(() => {});
   } catch {
     // never let analytics fail an action
