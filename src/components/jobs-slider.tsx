@@ -19,7 +19,6 @@ export function JobsSlider({
   const cost = estimateSearchCost(value, perJob);
   const pct = ((value - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
   const short = balance != null && cost.cognition > balance;
-  const left = balance != null ? Math.max(0, Math.floor((balance - cost.cognition) / cost.cognition)) : null;
   return (
     <div>
       <div className="flex items-baseline justify-between">
@@ -45,10 +44,12 @@ export function JobsSlider({
         <span>{MAX_JOBS_PER_SEARCH}</span>
       </div>
       <p className="mt-2 text-xs text-white/40">Fewer jobs, better checked.</p>
+      <p className="mt-3 text-sm text-white/55">
+        Uses about <span className="text-white">{cost.cognition} cognition</span>
+        {balance != null && !short ? <span className="text-white/40"> · {Math.round(balance)} available</span> : null}
+      </p>
       {short ? (
         <p className="mt-3 text-sm text-rose">Not enough left for this search. Pick fewer jobs or top up.</p>
-      ) : left != null && left <= 2 ? (
-        <p className="mt-3 text-sm text-white/50">About {left} {left === 1 ? "search" : "searches"} left after this one.</p>
       ) : null}
     </div>
   );

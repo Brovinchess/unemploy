@@ -116,18 +116,22 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
   const searchesLeft = balance != null ? Math.max(0, Math.floor(balance / perSearch)) : null;
   const low = balance != null && (balance <= 0 || searchesLeft === 0);
   const fill = searchesLeft == null ? 0 : Math.min(100, (searchesLeft / 10) * 100);
-  // People think in searches, not credits: the credit figure stays on the Settings page.
+  // The balance in cognition, with what it means underneath: how many searches that is.
   return (
     <>
       <p className="flex items-baseline justify-between text-sm">
-        <span className="text-white/60">Searches left</span>
-        <span className={low ? "text-rose" : "text-white"}>{searchesLeft == null ? "–" : `about ${searchesLeft}`}</span>
+        <span className="text-white/60">Cognition</span>
+        <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
       </p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
         <div className={`h-full rounded-full transition-[width] duration-700 ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
       </div>
       <p className="mt-2 text-xs text-white/45">
-        {balance == null ? "Balance unavailable" : low ? "Not enough for another search. Top up to keep going." : `Each search brings up to ${perSearchJobs} jobs`}
+        {balance == null
+          ? "Balance unavailable"
+          : low
+            ? "Not enough for another search. Top up to keep going."
+            : `About ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearchJobs} jobs`}
       </p>
     </>
   );
@@ -138,7 +142,7 @@ export function LiveCognitionShort({ perJob }: { perJob?: number }) {
   const balance = live?.profile.balance ?? null;
   if (balance == null) return null;
   const n = Math.max(0, Math.floor(balance / estimateSearchCost(COUNT_IN, perJob).cognition));
-  return <>{`${n} ${n === 1 ? "search" : "searches"} left`}</>;
+  return <>{`${Math.round(balance)} cognition · ${n} ${n === 1 ? "search" : "searches"}`}</>;
 }
 
 export function LiveBadge({ kind }: { kind: "new" | "answers" }) {

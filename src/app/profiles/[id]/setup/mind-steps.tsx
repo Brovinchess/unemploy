@@ -57,8 +57,9 @@ export function ActivateStep({
   const starterSearches = Math.max(1, Math.floor(500 / cost.cognition));
   const costLine = (
     <p className="text-sm text-white/55">
-      It only searches when you ask, and it&rsquo;s switched off in between. Your starter balance covers about {starterSearches}{" "}
-      {starterSearches === 1 ? "search" : "searches"} of {jobsPerDay} jobs.
+      Your headhunter runs on <span className="text-white">cognition</span>, Hello Minds&rsquo; credit for thinking and searching. A search for{" "}
+      {jobsPerDay} jobs uses about <span className="text-white">{cost.cognition}</span>; your starter balance covers about {starterSearches}{" "}
+      {starterSearches === 1 ? "search" : "searches"}. It&rsquo;s switched off between searches and spends nothing.
     </p>
   );
 

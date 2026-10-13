@@ -9,12 +9,14 @@ import { JobsBoard } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
 import { SearchingChip } from "@/components/sidebar-search";
+import { CognitionIntro } from "@/components/cognition-intro";
 import { SwipeDeck } from "@/components/swipe-deck";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
 import { costModel } from "@/lib/cost";
 import { detailsComplete } from "@/lib/extension";
+import { estimateSearchCost } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
 function ago(d: Date) {
@@ -80,6 +82,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         </div>
 
         <ExtensionPrompt show={toApply > 0} />
+        {sp.welcome === "1" && <CognitionIntro balance={balance} perSearch={estimateSearchCost(perSearch, cost.perJob).cognition} jobs={perSearch} />}
 
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">

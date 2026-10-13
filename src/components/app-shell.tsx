@@ -151,7 +151,7 @@ export async function AppShell({
         </ul>
 
         <div className="mt-auto space-y-3">
-          <div className="rounded-2xl bg-white/[0.04] p-4">
+          <div id="cognition-card" className="rounded-2xl bg-white/[0.04] p-4">
             <LiveCognition perJob={perJob} />
             <a
               href={mindsConfig.topUpUrl}
