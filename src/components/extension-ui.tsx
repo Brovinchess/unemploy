@@ -9,18 +9,64 @@ import { useExtension } from "./use-extension";
 const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL;
 
 // "Apply to all N": runs the extension if it's ready, otherwise explains what's missing.
-export function ApplyAllButton({ count, detailsComplete }: { count: number; detailsComplete: boolean }) {
+// `bar` lays it out as a slim row (text left, action right) for the top of the jobs list;
+// the default stacks and centres it for the end of the swipe deck.
+export function ApplyAllButton({ count, detailsComplete, bar = false }: { count: number; detailsComplete: boolean; bar?: boolean }) {
   const { status, applyAll } = useExtension();
   const [msg, setMsg] = useState<string>();
   const [pending, start] = useTransition();
   if (!count) return null;
 
   const ready = status?.installed && status.connected && detailsComplete;
-  const label = `Apply to all ${count} with the extension`;
+  const needDetails = !detailsComplete && status?.installed && status.connected;
+  const one = count === 1;
+
+  const run = () =>
+    start(async () => {
+      const r = await applyAll();
+      setMsg(
+        r?.ok
+          ? `Opening ${r.count} applications one by one. Check each form, then press Submit.`
+          : r?.reason === "empty"
+            ? "None of these jobs are on sites the extension can fill yet. Apply to them from their job page."
+            : "Couldn't start. Open the extension and try again.",
+      );
+    });
+
+  if (bar) {
+    // Nothing until the extension check finishes, so the row doesn't flash between states.
+    if (!status) return null;
+    return (
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-5 py-3.5">
+        <Rocket className="size-5 shrink-0 text-rose" aria-hidden />
+        <div className="min-w-0 flex-1">
+          <p className="font-medium text-white">
+            {count} {one ? "job" : "jobs"} ready to apply
+          </p>
+          <p className="text-sm text-white/55">
+            {msg ??
+              (ready
+                ? "The extension opens each one, fills it in and waits for you to submit."
+                : needDetails
+                  ? "Add your application details and the extension can fill them in for you."
+                  : "Set up the Chrome extension and apply to all of them in one go.")}
+          </p>
+        </div>
+        {ready ? (
+          <button className="btn btn-accent h-10 shrink-0" disabled={pending} onClick={run}>
+            {pending ? "Starting…" : one ? "Apply with the extension" : `Apply to all ${count}`}
+          </button>
+        ) : (
+          <Link href={needDetails ? "/app/you#application" : "/app/settings#extension"} className="btn btn-ghost h-10 shrink-0">
+            {needDetails ? "Add details" : "Set up extension"}
+          </Link>
+        )}
+      </div>
+    );
+  }
 
   // Not set up yet: a quiet one-liner instead of a button that can't work.
   if (!ready) {
-    const needDetails = !detailsComplete && status?.installed && status.connected;
     return (
       <p className="text-center text-sm text-white/45">
         {needDetails ? "Add your application details" : "Set up the Chrome extension"} to apply to all {count} in one go.{" "}
@@ -35,20 +81,9 @@ export function ApplyAllButton({ count, detailsComplete }: { count: number; deta
       <button
         className="inline-flex h-12 items-center gap-2 rounded-full bg-gradient-to-b from-[#d27375] to-coral px-6 text-sm font-semibold text-white disabled:opacity-60"
         disabled={pending}
-        onClick={() =>
-          start(async () => {
-            const r = await applyAll();
-            setMsg(
-              r?.ok
-                ? `Opening ${r.count} applications one by one. Check each form, then press Submit.`
-                : r?.reason === "empty"
-                  ? "None of these jobs are on sites the extension can fill yet. Apply to them from their job page."
-                  : "Couldn't start. Open the extension and try again.",
-            );
-          })
-        }
+        onClick={run}
       >
-        <Rocket className="size-4" /> {pending ? "Starting…" : label}
+        <Rocket className="size-4" /> {pending ? "Starting…" : `Apply to all ${count} with the extension`}
       </button>
       {msg && <p className="max-w-sm text-center text-xs text-white/50">{msg}</p>}
     </div>

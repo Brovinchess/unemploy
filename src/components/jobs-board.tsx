@@ -60,9 +60,10 @@ export function JobsBoard({ jobs, labels, detailsComplete }: { jobs: Job[]; labe
         )}
       </div>
 
+      {/* The one action for this list: everything swiped right, applied in one go. */}
       {toApply > 0 && (stage === "all" || stage === "saved") && (
         <div className="mt-4">
-          <ApplyAllButton count={toApply} detailsComplete={detailsComplete} />
+          <ApplyAllButton count={toApply} detailsComplete={detailsComplete} bar />
         </div>
       )}
 

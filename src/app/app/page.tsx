@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { SearchingScene } from "@/components/searching-scene";
-import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
+import { ApplyAllButton } from "@/components/extension-ui";
 import { JobsBoard } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
@@ -80,7 +80,6 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           {searching ? <SearchingChip profileId={current.id} jobsPerDay={perSearch} /> : everDelivered && searchButton()}
         </div>
 
-        <ExtensionPrompt show={toApply > 0} />
         {sp.welcome === "1" && <CognitionIntro />}
 
         {paused && (
