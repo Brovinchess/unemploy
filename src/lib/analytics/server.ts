@@ -13,6 +13,7 @@ export type Event =
   | "resume_uploaded"
   | "headhunter_deployed"
   | "search_requested"
+  | "search_finished"
   | "card_decided"
   | "personal_mind_deployed"
   | "headhunter_removed";

@@ -7,6 +7,7 @@ import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { discoveryText } from "./discovery";
 import { askPersonalMind } from "./personal";
+import { track } from "./analytics/server";
 import { mindsConfig } from "./minds/config";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
@@ -166,6 +167,16 @@ async function recordEnd(profile: Profile, reason: "finished" | "stopped" | "tim
     .update(schema.searches)
     .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, balanceEnd, cognitionUsed })
     .where(eq(schema.searches.id, row.id));
+  // Cognition burn, per search: what it cost, what it found, how long it took, what's left.
+  track(profile.userId, "search_finished", {
+    reason,
+    jobs_found: n,
+    jobs_wanted: row.jobsWanted,
+    cognition_used: cognitionUsed,
+    cognition_per_job: cognitionUsed != null && n > 0 ? Math.round(cognitionUsed / n) : null,
+    balance_after: balanceEnd,
+    minutes: Math.round((Date.now() - row.startedAt.getTime()) / 60_000),
+  });
 }
 
 async function emailResults(profile: Profile, timedOut: boolean) {
