@@ -49,10 +49,11 @@ export function NewJobs({
   }, [open]);
 
   if (!deck.length) return null;
+  // Inline, the list with its apply bar sits right below, so the summary needs no extra step.
   if (stayInline)
     return (
       <div className="mb-12">
-        <SwipeDeck jobs={deck} after={after} />
+        <SwipeDeck jobs={deck} />
       </div>
     );
 
