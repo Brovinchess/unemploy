@@ -41,7 +41,7 @@ export async function searchPace(profileId: string): Promise<Pace | null> {
 
 // Where a tip is acted on: a row of the brief editor, the resume box, or the focus field on the search form.
 // Only settings the person chooses: never their role, skills or resume.
-export type Target = "workSettings" | "maxPostingAgeDays" | "minSalary" | "jobTypes" | "jobsPerDay";
+export type Target = "workSettings" | "maxPostingAgeDays" | "jobTypes" | "jobsPerDay";
 export type Suggestion = { kind: "settings" | "fewer"; target: Target; text: string; evidence: string };
 
 // Short, plain tips. Each one names a change the person can make on the headhunter page,
@@ -65,7 +65,6 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
     const next = age < 60 ? 60 : 90;
     out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to ${next} days old.`, evidence: `${n("too_old")} of ${total} jobs it found were just over ${age} days old.` });
   }
-  if (total && share("pay") >= 0.3) out.push({ kind: "settings", target: "minSalary", text: `Lower your pay floor a little.`, evidence: `${n("pay")} of ${total} jobs it found paid under your floor.` });
   if (total && share("work_setting") >= 0.3) {
     const missing = (["remote", "hybrid", "onsite"] as const).filter((w) => !prefs.workSettings.includes(w));
     if (missing.length) out.push({ kind: "settings", target: "workSettings", text: `Also allow ${missing.map((w) => (w === "onsite" ? "on-site" : w)).join(" or ")} jobs.`, evidence: `${n("work_setting")} of ${total} jobs it found were the wrong work setting.` });

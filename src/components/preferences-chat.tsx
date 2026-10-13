@@ -7,12 +7,6 @@ import { Ninja } from "@/components/brand";
 import { JobsSlider } from "@/components/jobs-slider";
 import { FormError } from "@/components/onboarding-shell";
 import {
-  currencyFor,
-  formatAmount,
-  SALARY_CURRENCIES,
-  salaryLabel,
-  salarySteps,
-  type SalaryPeriod,
   JOB_TYPES,
   RECOMMENDED_JOBS_PER_SEARCH,
   LEVELS,
@@ -42,7 +36,7 @@ const QUESTIONS: Question[] = [
   { key: "targetRoles", ask: () => "Which roles should I look for? I've guessed from your resume; change it if you want something else." },
   { key: "country", ask: () => "Where do you live? City and country, like New York, United States." },
   { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.`, defaulted: true },
-  { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want." },
+  { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want.", defaulted: true },
   {
     key: "remoteScope",
     ask: () => "For remote jobs, where can the company be based?",
@@ -51,14 +45,13 @@ const QUESTIONS: Question[] = [
   },
   { key: "jobTypes", ask: () => "What type of job?", defaulted: true },
   { key: "levels", ask: () => "What level are you at?", defaulted: true },
-  { key: "minSalary", ask: () => "Is there a pay floor? Pick a range, or Any pay to see everything; jobs that don't show pay always come through.", defaulted: true },
   { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas.", defaulted: true },
   { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?", defaulted: true },
   { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition.", defaulted: true },
   { key: "maxPostingAgeDays", ask: () => "How recent should a posting be? Older ones are more often filled already, but allowing more gives me more to choose from.", defaulted: true },
 ];
 
-// Setup asks three things. Everything else starts as wide as sensible, so the first search casts
+// Setup asks two things: the roles and where you live. Everything else starts as wide as sensible, so the first search casts
 // a broad net and comes back faster; each default has a pencil in the summary.
 const DEFAULTS: Draft = {
   city: "",
@@ -88,8 +81,6 @@ function answerText(key: keyof Preferences, d: Draft): string {
       return [d.city, d.country].filter(Boolean).join(", ");
     case "needsVisa":
       return v ? "Yes, I need sponsorship" : "No";
-    case "minSalary":
-      return (v as string) || "Any pay";
     case "jobsPerDay":
       return `${v} per search`;
     case "maxPostingAgeDays":
@@ -193,7 +184,7 @@ export function PreferencesChat({
           <div className="card divide-y divide-line overflow-hidden">
             {summarizePreferences(draft as Preferences).map((row, i) => {
               const keys: (keyof Preferences)[] = [
-                "targetRoles", "country", "workSettings", "jobTypes", "levels", "minSalary", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
+                "targetRoles", "country", "workSettings", "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
               ];
               const key = keys[i];
               const tip = tips.find((t) => t.target === key);
@@ -254,7 +245,6 @@ function AnswerInput({
 }) {
   const key = question.key;
 
-  if (key === "minSalary") return <SalaryAnswer draft={draft} onAnswer={onAnswer} />;
 
   if (key === "targetRoles" || key === "country" || key === "city" || key === "avoidCompanies") {
     const required = key === "targetRoles" || key === "country";
@@ -334,55 +324,7 @@ function AnswerInput({
   return <SliderAnswer initial={draft.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH} onSubmit={(n) => onAnswer({ jobsPerDay: n })} />;
 }
 
-// Pay as a floor: tap a range ("5,000+"), switch month/year, or type another amount.
-function SalaryAnswer({ draft, onAnswer }: { draft: Draft; onAnswer: (p: Draft) => void }) {
-  const [currency, setCurrency] = useState(draft.salary?.currency ?? currencyFor(draft.country));
-  const [period, setPeriod] = useState<SalaryPeriod>(draft.salary?.period ?? "month");
-  const [other, setOther] = useState("");
-  const pick = (min: number) => {
-    const salary = { currency, min, period };
-    onAnswer({ salary, minSalary: salaryLabel(salary) });
-  };
-  const typed = Number(other.replace(/[^\d.]/g, "")) * (/k\s*$/i.test(other) ? 1000 : 1);
-  return (
-    <div className="rounded-2xl bg-white/[0.04] p-5">
-      <div className="flex flex-wrap items-center gap-2">
-        <select className="field h-9 w-auto py-0 text-sm" value={currency} onChange={(e) => setCurrency(e.target.value)} aria-label="Currency">
-          {SALARY_CURRENCIES.map((c) => (
-            <option key={c}>{c}</option>
-          ))}
-        </select>
-        {(["month", "year"] as const).map((p) => (
-          <button key={p} className="chip min-h-9 px-3.5 text-sm" aria-pressed={period === p} onClick={() => setPeriod(p)}>
-            {p === "month" ? "Monthly" : "Yearly"}
-          </button>
-        ))}
-      </div>
-      <div className="mt-4 flex flex-wrap gap-2">
-        {salarySteps(currency, period).map((n) => (
-          <button key={n} className="chip" aria-pressed={draft.salary?.min === n && draft.salary.currency === currency && draft.salary.period === period} onClick={() => pick(n)}>
-            {formatAmount(n)}+
-          </button>
-        ))}
-        <button className="chip" onClick={() => onAnswer({ salary: undefined, minSalary: "" })}>
-          Any pay
-        </button>
-      </div>
-      <form
-        className="mt-4 flex gap-2"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (typed >= 1) pick(Math.round(typed));
-        }}
-      >
-        <input className="field" value={other} onChange={(e) => setOther(e.target.value)} placeholder={`Other amount, e.g. ${formatAmount(salarySteps(currency, period)[1])}`} inputMode="numeric" aria-label="Other minimum amount" />
-        <button className="btn btn-primary shrink-0" disabled={!(typed >= 1)}>
-          Use this
-        </button>
-      </form>
-    </div>
-  );
-}
+
 
 function SliderAnswer({ initial, onSubmit }: { initial: number; onSubmit: (n: number) => void }) {
   const [n, setN] = useState(initial);

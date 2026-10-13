@@ -134,7 +134,6 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Work setting", value: p.workSettings.map(workSettingLabel).join(", ") + remote },
     { label: "Job type", value: p.jobTypes.join(", ") },
     { label: "Level", value: levelText(p) },
-    { label: "Minimum salary", value: p.minSalary || "Not set" },
     { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },
     { label: "Visa sponsorship", value: p.needsVisa ? "Needed" : "Not needed" },
     { label: "Jobs per search", value: String(p.jobsPerDay) },
