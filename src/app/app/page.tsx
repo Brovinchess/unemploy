@@ -2,8 +2,8 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { Profile } from "@/db/schema";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
-import Link from "next/link";
 import { Ninja } from "@/components/brand";
+import { SearchingScene } from "@/components/searching-scene";
 import { ApplyAllButton, ExtensionPrompt } from "@/components/extension-ui";
 import { JobsBoard } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
@@ -99,21 +99,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {/* The very first search is running: say what happens next and make the wait useful. */}
+        {/* The very first search is running: show it clearly busy and say what happens next. */}
         {fresh.length === 0 && searching && !everDelivered && (
-          <section className="flex flex-col items-center rounded-3xl bg-surface px-8 py-14 text-center">
-            <Ninja mood="searching" className="float size-24" />
-            <h2 className="font-display mt-6 text-3xl font-medium tracking-tight text-white">
-              <span className="font-mono text-[0.85em]">{current.mindName}</span> is on its first search
-            </h2>
-            <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
-              The first job usually lands within the hour, and you&rsquo;ll get an email when it&rsquo;s done. Each job comes back
-              as a card: reveal it, then swipe right to apply or left to pass.
-            </p>
-            <Link href="/app/you#application" className="btn btn-accent mt-8">
-              While you wait, add your details so forms fill themselves
-            </Link>
-          </section>
+          <SearchingScene mindName={current.mindName ?? "Your headhunter"} notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null} />
         )}
 
         {/* First time: nothing found yet, so the search form is the whole page. */}

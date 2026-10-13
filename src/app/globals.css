@@ -285,3 +285,16 @@ body {
 .deck-card.arrived .deck-back > :not(.deck-stamp) { animation: deck-unblur 0.4s ease-out; }
 @keyframes deck-unblur { from { filter: blur(14px); opacity: 0.7; } to { filter: none; opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .deck-card.arrived .deck-back > :not(.deck-stamp) { animation: none; } }
+
+/* Searching scene: the radar keeps sweeping and Mochi bobs while the first search runs. */
+@keyframes radar-sweep { to { transform: rotate(360deg); } }
+@keyframes radar-blip { 0%, 8% { opacity: 1; r: 4.5; } 60%, 100% { opacity: 0; r: 3; } }
+@keyframes radar-pulse { 0% { transform: scale(.3); opacity: .6; } 100% { transform: scale(1.02); opacity: 0; } }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-8px) rotate(2deg); } }
+.radar-sweep { animation: radar-sweep 6.5s linear infinite; }
+.radar-blip { animation: radar-blip 6.5s ease-out infinite; opacity: 0; }
+.radar-pulse { animation: radar-pulse 6.5s ease-out infinite; }
+.bob { animation: bob 3s ease-in-out infinite; }
+@media (prefers-reduced-motion: reduce) {
+  .radar-blip { opacity: .8; }
+}
