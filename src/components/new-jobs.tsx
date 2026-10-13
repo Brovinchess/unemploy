@@ -20,6 +20,9 @@ export function NewJobs({
   inline: boolean;
 }) {
   const [open, setOpen] = useState(false);
+  // Each swipe re-renders the page, so the first-visit deck must not flip into the strip
+  // halfway through: whatever layout the visit started with, it keeps.
+  const [stayInline] = useState(inline);
   const router = useRouter();
   const close = () => {
     setOpen(false);
@@ -38,7 +41,7 @@ export function NewJobs({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (inline) return <SwipeDeck jobs={jobs} after={after} />;
+  if (stayInline) return <SwipeDeck jobs={jobs} after={after} />;
 
   const n = jobs.length;
   return (
