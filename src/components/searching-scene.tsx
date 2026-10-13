@@ -14,31 +14,13 @@ export function SearchingScene({ mindName, notifyEmail }: { mindName: string; no
       <h2 className="font-display mt-4 text-3xl font-medium tracking-tight text-white">
         <span className="font-mono text-[0.85em]">{mindName}</span> is out searching
       </h2>
-      <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
-        It takes its time: it researches employers in your area, checks each opening on their own site and only keeps the real
-        matches.{" "}
-        {notifyEmail ? (
-          <>
-            You&rsquo;ll get an email at <span className="text-white/80">{notifyEmail}</span> as soon as it has found jobs, or check back in a while.
-          </>
-        ) : (
-          <>Check back in a while, or add your email and it will tell you as soon as it has found jobs.</>
-        )}
+      <p className="mx-auto mt-3 max-w-sm leading-relaxed text-white/55">
+        It takes its time to research and check every job.
+        {notifyEmail ? <> You&rsquo;ll get an email when it finds some, or check back in a while.</> : <> Check back in a while.</>}
       </p>
-      {notifyEmail ? (
-        <Link href="/app/you#application" className="mt-7 text-sm text-white/50 underline underline-offset-4 hover:text-white">
-          Meanwhile, add your details so forms fill themselves
-        </Link>
-      ) : (
-        <div className="mt-7 flex flex-col items-center gap-3">
-          <Link href="/app/settings#email" className="btn btn-accent">
-            Email me when it finds jobs
-          </Link>
-          <Link href="/app/you#application" className="text-sm text-white/50 underline underline-offset-4 hover:text-white">
-            Meanwhile, add your details so forms fill themselves
-          </Link>
-        </div>
-      )}
+      <Link href="/app/you#application" className="mt-7 text-sm text-white/50 underline underline-offset-4 hover:text-white">
+        Meanwhile, add your details so forms fill themselves
+      </Link>
     </section>
   );
 }
