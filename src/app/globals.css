@@ -296,5 +296,6 @@ body {
 .radar-pulse { animation: radar-pulse 6.5s ease-out infinite; }
 .bob { animation: bob 3s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) {
+  .radar-sweep, .radar-blip, .radar-pulse, .bob { animation: none; }
   .radar-blip { opacity: .8; }
 }
