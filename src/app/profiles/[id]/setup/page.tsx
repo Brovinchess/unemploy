@@ -5,7 +5,7 @@ import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { ownedProfile } from "@/lib/owned";
-import { estimateSearchCost } from "@/lib/preferences";
+import { estimateSearchCost, PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { ResumeStep } from "./resume-step";
@@ -45,7 +45,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
   if (!profile.resumeData) {
     return (
       <OnboardingShell step={0} exitHref={exitHref}>
-        <StepHeading eyebrow={`${profile.label} headhunter`} title="First, your resume">
+        <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
           Your headhunter reads it to find jobs you fit. Everything it writes about you comes from this file, so use
           your latest version.
         </StepHeading>

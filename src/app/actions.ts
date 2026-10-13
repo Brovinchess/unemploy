@@ -16,7 +16,7 @@ import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
 import { costModel } from "@/lib/cost";
 import { floorOf } from "@/lib/pay";
-import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
+import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
 import { alreadySentList, endSearch, ingestReachable, isSearching, ruledOutList, searchRequestText, switchOff } from "@/lib/search";
@@ -43,8 +43,8 @@ export async function saveUsername(_: FormState, formData: FormData): Promise<Fo
   const parsed = usernameSchema.safeParse(formData.get("username"));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const timezone = String(formData.get("timezone") || "UTC").slice(0, 64);
-  const label = String(formData.get("label") ?? "").trim();
-  if (label.length < 2 || label.length > 40) return { error: "Tell us what kind of jobs you want, like “Design” or “Marketing”." };
+  // The first headhunter is named after the roles chosen a step later (see savePreferences).
+  const label = PENDING_LABEL;
   const taken = await db.query.users.findFirst({ where: eq(schema.users.username, parsed.data), columns: { id: true } });
   if (taken && taken.id !== user.id) return { error: "That username is taken. Try another one." };
   await db.update(schema.users).set({ username: parsed.data, timezone }).where(eq(schema.users.id, user.id));
@@ -62,6 +62,14 @@ export async function createProfile(_: FormState, formData: FormData): Promise<F
   const id = crypto.randomUUID();
   await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
   redirect(`/profiles/${id}/setup`);
+}
+
+// "Senior Product Designer, UX Designer" → "Product Designer": the first role, without seniority words.
+function labelFromRoles(roles: string) {
+  const first = roles.split(/,|\/| or /i)[0]?.trim() ?? "";
+  const clean = first.replace(/\b(senior|junior|lead|principal|staff|head of|mid-level|entry-level)\b/gi, "").replace(/\s+/g, " ").trim();
+  const words = clean.split(" ").map((w) => (w.length > 2 ? w[0].toUpperCase() + w.slice(1) : w)).join(" ");
+  return (words || first || "Jobs").slice(0, 40);
 }
 
 async function pickMindName(user: User) {
@@ -289,9 +297,11 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
 
   // During setup, preferences are just saved; the brief goes out once the Mind is funded.
   if (!profile.resumeData) return { error: "Upload your resume first." };
+  // The sidebar label comes from the first role named, unless the person already chose one.
+  const label = profile.label === PENDING_LABEL ? labelFromRoles(prefs.targetRoles) : profile.label;
   await db
     .update(schema.profiles)
-    .set({ preferences: prefs, status: "needs_topup" })
+    .set({ preferences: prefs, status: "needs_topup", label })
     .where(eq(schema.profiles.id, profile.id));
   redirect(`/profiles/${profileId}/setup`);
 }

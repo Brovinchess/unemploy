@@ -40,6 +40,9 @@ export const MAX_POSTING_AGE_DAYS = 45;
 export const POSTING_AGE_OPTIONS = [30, 45, 60, 90] as const;
 export const postingAgeDays = (p: { maxPostingAgeDays?: number } | null | undefined) => p?.maxPostingAgeDays ?? MAX_POSTING_AGE_DAYS;
 
+// A first headhunter has no label until the person says which roles they want.
+export const PENDING_LABEL = "Headhunter";
+
 export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 
 // The range users can pick for one search (slider).
