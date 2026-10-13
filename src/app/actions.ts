@@ -73,7 +73,8 @@ const slug = (s: string) =>
 
 async function pickMindName(user: User, profile: Profile) {
   const api = minds(user);
-  const base = `${user.username}-${slug(profile.label) || "jobs"}`.slice(0, 40);
+  // Every Mind we create carries the app's name: rovin-careerninja, then rovin-careerninja-2.
+  const base = `${user.username}-careerninja`.slice(0, 40);
   for (let n = 1; n <= 12; n++) {
     const name = n === 1 ? base : `${base}-${n}`;
     if (await api.isNameAvailable(name)) return name;

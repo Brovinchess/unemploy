@@ -27,7 +27,7 @@ export async function createPersonalMind(): Promise<PersonalState> {
   if (user.personalMindId) return;
   const api = minds(user);
   try {
-    const base = `${user.username}-me`.slice(0, 40);
+    const base = `${user.username}-careerninja-me`.slice(0, 40);
     let name = base;
     for (let n = 2; n <= 12 && !(await api.isNameAvailable(name)); n++) name = `${base}-${n}`;
     if (!(await api.isNameAvailable(name))) name = `${base}-${crypto.randomUUID().slice(0, 6)}`;

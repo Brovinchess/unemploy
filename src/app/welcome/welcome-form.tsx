@@ -13,7 +13,7 @@ export function WelcomeForm() {
   const [username, setUsername] = useState("");
   const [label, setLabel] = useState("");
   const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
-  const mindName = `${slug(username) || "you"}-${slug(label) || "jobs"}`;
+  const mindName = `${slug(username) || "you"}-careerninja`;
 
   return (
     <form action={action} className="w-full">

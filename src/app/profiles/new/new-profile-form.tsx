@@ -9,7 +9,8 @@ const SUGGESTIONS = ["Design", "Engineering", "Product", "Marketing", "Sales", "
 export function NewProfileForm({ username }: { username: string }) {
   const [state, action, pending] = useActionState(createProfile, undefined);
   const [label, setLabel] = useState("");
-  const preview = `${username}-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "…"}`;
+  // The Mind's name is username-careerninja; a second headhunter gets -2, and so on.
+  const preview = `${username}-careerninja`;
 
   return (
     <form action={action} className="w-full">
