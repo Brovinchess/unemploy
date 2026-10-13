@@ -20,8 +20,15 @@ export function NewJobs({
   inline: boolean;
 }) {
   const [open, setOpen] = useState(false);
-  // Each swipe re-renders the page, so the first-visit deck must not flip into the strip
-  // halfway through: whatever layout the visit started with, it keeps.
+  // Each swipe re-renders the page with one card fewer, so the deck keeps the set it started
+  // with (so the summary at the end still shows) and only adopts a new set when fresh cards
+  // arrive. Likewise the first-visit layout sticks for the visit.
+  const [deck, setDeck] = useState(jobs);
+  const [prev, setPrev] = useState(jobs);
+  if (jobs !== prev) {
+    setPrev(jobs);
+    if (jobs.some((j) => !deck.some((d) => d.id === j.id))) setDeck(jobs);
+  }
   const [stayInline] = useState(inline);
   const router = useRouter();
   const close = () => {
@@ -41,12 +48,18 @@ export function NewJobs({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  if (stayInline) return <SwipeDeck jobs={jobs} after={after} />;
+  if (!deck.length) return null;
+  if (stayInline)
+    return (
+      <div className="mb-12">
+        <SwipeDeck jobs={deck} after={after} />
+      </div>
+    );
 
-  const n = jobs.length;
+  const n = deck.length;
   return (
     <>
-      <section className="flex flex-col gap-4 rounded-3xl border border-white/[0.06] bg-gradient-to-r from-coral/[0.14] to-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
+      <section className="mb-6 flex flex-col gap-4 rounded-3xl border border-white/[0.06] bg-gradient-to-r from-coral/[0.14] to-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <Ninja mood="surprised" className="size-14 shrink-0" />
           <div className="min-w-0 flex-1">
@@ -82,7 +95,7 @@ export function NewJobs({
               <X className="size-5" />
             </button>
             <div className="mx-auto w-full max-w-[920px] px-5 pb-16 pt-14">
-              <SwipeDeck jobs={jobs} after={after} />
+              <SwipeDeck jobs={deck} after={after} />
               <p className="mt-8 text-center">
                 <button
                   className="text-sm text-white/45 underline underline-offset-4 hover:text-white"
