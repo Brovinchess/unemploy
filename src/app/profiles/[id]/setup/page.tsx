@@ -90,10 +90,10 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
 
   return (
     <OnboardingShell step={2} exitHref={exitHref}>
-      <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Meet your headhunter"}>
+      <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."
-          : "We'll create your own AI agent on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
+          : "We'll deploy your own AI agent on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}

@@ -70,11 +70,11 @@ export function ActivateStep({
               const r = await launchMind(profileId);
               if (r?.started) return done(r);
               setError(r?.error);
-              router.refresh(); // created but its free cognition hasn't landed: show the waiting screen
+              router.refresh(); // deployed but its free cognition hasn't landed: show the waiting screen
             })
           }
         >
-          {pending ? "Creating your headhunter…" : "Create it and start"}
+          {pending ? "Deploying your headhunter…" : "Deploy it and start"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
@@ -91,7 +91,7 @@ export function ActivateStep({
       <div className="rounded-3xl bg-night-2 p-6">
         <ol className="space-y-4">
           <Step n={1} done>
-            <span className="font-medium text-white">{mindName}</span> is created.
+            <span className="font-medium text-white">{mindName}</span> is deployed.
           </Step>
           <Step n={2}>As soon as its cognition lands, it gets your brief and you&rsquo;re in.</Step>
         </ol>

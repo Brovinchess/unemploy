@@ -42,10 +42,10 @@ const PHRASES = ["finds jobs you'd actually get", "writes every application", "f
 const SHOW_WAITLIST_FROM = 50;
 
 const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in, get your headhunter", body: "One click creates an agent that works only for you. It belongs to you, not to us, and runs only when you ask." },
-  { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer a few questions: roles, where, remote or not, level, the least you'd accept." },
+  { icon: UserRound, mood: "happy", title: "Sign in, deploy your headhunter", body: "One click deploys an agent that works only for you. It belongs to you, not to us, and runs only when you ask." },
+  { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer two questions: the roles you want and where you live." },
   { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
-  { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, pay not below your floor, and a real fit for your resume.` },
+  { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
   { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up from To apply to Offer." },
   { icon: Puzzle, mood: "love", title: "The form fills itself", body: "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit." },
 ];
@@ -124,7 +124,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               {open ? (
                 <div className="flex w-full max-w-[26rem] flex-col items-center gap-3 max-md:mx-auto md:items-start">
                   <Link href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
-                    Get my headhunter <ArrowRight className="size-4" aria-hidden />
+                    Deploy my headhunter <ArrowRight className="size-4" aria-hidden />
                   </Link>
                   <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
                 </div>
@@ -322,7 +322,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               href={action.href}
               className="mt-8 inline-flex h-12 w-64 items-center justify-center rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose"
             >
-              {open ? "Get my headhunter" : action.label}
+              {open ? "Deploy my headhunter" : action.label}
             </a>
           </div>
           <footer className="flex flex-col items-center gap-4 py-8 text-sm text-white/45 sm:flex-row sm:justify-between">

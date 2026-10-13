@@ -8,7 +8,7 @@ export default async function Welcome() {
   if (user.username) redirect("/start");
   return (
     <OnboardingShell>
-      <StepHeading eyebrow="Welcome to Career Ninja" title="Let's set up your headhunter">
+      <StepHeading eyebrow="Welcome to Career Ninja" title="Let's deploy your headhunter">
         Two quick things, then your resume. It takes about three minutes.
       </StepHeading>
       <WelcomeForm />

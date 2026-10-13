@@ -39,7 +39,7 @@ export function NewProfileForm({ username }: { username: string }) {
       </p>
       <FormError message={state?.error} />
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || label.trim().length < 2}>
-        {pending ? "Creating…" : "Continue"}
+        {pending ? "Saving…" : "Continue"}
       </button>
     </form>
   );
