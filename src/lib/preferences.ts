@@ -107,7 +107,7 @@ export const preferencesSchema = z.object({
     .optional(),
   avoidCompanies: z.string().trim().max(500).optional().default(""),
   needsVisa: z.boolean().default(false),
-  jobsPerDay: z.number().int().min(1).max(50),
+  jobsPerDay: z.number().int().min(1).max(MAX_JOBS_PER_SEARCH),
   maxPostingAgeDays: z.number().int().min(14).max(120).optional(),
 });
 
