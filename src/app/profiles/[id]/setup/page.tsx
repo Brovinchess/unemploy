@@ -35,7 +35,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
       <OnboardingShell step={0}>
         <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
           Your headhunter reads it to find jobs you fit. Everything it writes about you comes from this file, so use
-          your latest version.
+          your latest version. That's all it needs to get started.
         </StepHeading>
         <ResumeStep profileId={profile.id} demo={mindsMode === "mock"} />
       </OnboardingShell>
@@ -52,6 +52,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
           profileId={profile.id}
           mode="setup"
           seed={{ targetRoles: guessRole(profile.resumeText) }}
+          username={user.username ?? undefined}
         />
       </OnboardingShell>
     );

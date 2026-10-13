@@ -17,6 +17,7 @@ export function ResumeStep({
   const [state, action, pending] = useActionState(uploadResume.bind(null, profileId), undefined);
   const [samplePending, startSample] = useTransition();
   const [fileName, setFileName] = useState<string>();
+  const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
   return (
     <form action={action} className="w-full">
@@ -50,6 +51,7 @@ export function ResumeStep({
       <p className="mt-3 text-sm text-muted">
         Your resume is stored privately and only shared with your own headhunter.
       </p>
+      <input type="hidden" name="timezone" value={timezone} suppressHydrationWarning />
       <FormError message={state?.error} />
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || !fileName}>
         {pending ? "Reading your resume…" : submitLabel}

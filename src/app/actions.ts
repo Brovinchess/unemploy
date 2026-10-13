@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { and, count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
@@ -38,32 +38,52 @@ const usernameSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9][a-z0-9-]{1,22}[a-z0-9]$/, "Use 3–24 letters, numbers or dashes.");
 
-export async function saveUsername(_: FormState, formData: FormData): Promise<FormState> {
+// A username from the resume's first lines: usually the person's name. Falls back to a short
+// random handle, and never collides with an existing one. Nobody has to type anything to get in.
+async function assignUsername(user: User, resumeText: string | null | undefined, timezone?: string) {
+  if (user.username) return user.username;
+  const first = (resumeText ?? "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find((l) => l && l.length <= 40 && /^[A-Za-z][A-Za-z .'-]+$/.test(l) && l.split(/\s+/).length <= 4);
+  const base = (first?.split(/\s+/)[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+  const seed = base.length >= 3 ? base : `ninja${Math.random().toString(36).slice(2, 6)}`;
+  let name = seed;
+  for (let n = 2; n < 50; n++) {
+    const taken = await db.query.users.findFirst({ where: eq(schema.users.username, name), columns: { id: true } });
+    if (!taken) break;
+    name = `${seed}${n}`;
+  }
+  await db.update(schema.users).set({ username: name, ...(timezone ? { timezone: timezone.slice(0, 64) } : {}) }).where(eq(schema.users.id, user.id));
+  track(user.id, "username_saved", { auto: true });
+  return name;
+}
+
+// Change the handle before the headhunter is deployed (its Mind is named after it).
+export async function renameUsername(username: string): Promise<FormState & { username?: string }> {
   const user = await requireUser();
-  const parsed = usernameSchema.safeParse(formData.get("username"));
+  const parsed = usernameSchema.safeParse(username);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const timezone = String(formData.get("timezone") || "UTC").slice(0, 64);
-  // The first headhunter is named after the roles chosen a step later (see savePreferences).
-  const label = PENDING_LABEL;
+  const deployed = await db.query.profiles.findFirst({ where: and(eq(schema.profiles.userId, user.id), isNotNull(schema.profiles.mindId)), columns: { id: true } });
+  if (deployed) return { error: "Your headhunter is already deployed under this name." };
   const taken = await db.query.users.findFirst({ where: eq(schema.users.username, parsed.data), columns: { id: true } });
-  if (taken && taken.id !== user.id) return { error: "That username is taken. Try another one." };
-  await db.update(schema.users).set({ username: parsed.data, timezone }).where(eq(schema.users.id, user.id));
+  if (taken && taken.id !== user.id) return { error: "That name is taken. Try another one." };
+  await db.update(schema.users).set({ username: parsed.data }).where(eq(schema.users.id, user.id));
+  revalidatePath("/profiles", "layout");
+  return { username: parsed.data };
+}
+
+// Someone who signed in but has no headhunter yet gets one, so setup can start at the resume.
+export async function ensureProfile(user: User) {
+  const existing = await db.query.profiles.findFirst({ where: eq(schema.profiles.userId, user.id), columns: { id: true } });
+  if (existing) return existing.id;
   const id = crypto.randomUUID();
-  await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
-  track(user.id, "username_saved");
-  redirect(`/profiles/${id}/setup`);
+  await db.insert(schema.profiles).values({ id, userId: user.id, label: PENDING_LABEL, status: "needs_resume" });
+  return id;
 }
 
 // ---------- Profiles ----------
 
-export async function createProfile(_: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser();
-  const label = String(formData.get("label") ?? "").trim();
-  if (label.length < 2 || label.length > 40) return { error: "Give it a short name, like “Design” or “Marketing”." };
-  const id = crypto.randomUUID();
-  await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
-  redirect(`/profiles/${id}/setup`);
-}
 
 // "Senior Product Designer, UX Designer" → "Product Designer": the first role, without seniority words.
 function labelFromRoles(roles: string) {
@@ -238,6 +258,7 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
     .update(schema.profiles)
     .set({ ...r.values, status: replacing ? profile.status : "needs_preferences", ...(replacing ? { resumeChangedAt: new Date() } : {}) })
     .where(eq(schema.profiles.id, profile.id));
+  await assignUsername(user, r.values.resumeText, String(formData.get("timezone") || ""));
 
   track(user.id, "resume_uploaded", { replacing });
   if (replacing) {
@@ -263,6 +284,7 @@ export async function loadSampleResume(profileId: string) {
       status: "needs_preferences",
     })
     .where(eq(schema.profiles.id, profile.id));
+  await assignUsername(user, SAMPLE_RESUME);
   revalidatePath(`/profiles/${profileId}/setup`);
 }
 

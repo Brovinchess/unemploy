@@ -6,6 +6,7 @@ import { savePreferences } from "@/app/actions";
 import { Ninja } from "@/components/brand";
 import { JobsSlider } from "@/components/jobs-slider";
 import { CognitionNote } from "@/components/cognition-note";
+import { UsernameRow } from "@/components/username-row";
 import { FormError } from "@/components/onboarding-shell";
 import {
   JOB_TYPES,
@@ -96,12 +97,14 @@ export function PreferencesChat({
   initial,
   seed,
   tips = [],
+  username,
 }: {
   profileId: string;
   mode: "setup" | "edit";
   initial?: Preferences;
   seed?: Draft; // answers from another headhunter, pre-filled but still asked
   tips?: { target: string; text: string }[]; // coach tips, shown beside the row they're about
+  username?: string; // setup only: the handle picked from the resume, editable here
 }) {
   const [draft, setDraft] = useState<Draft>(initial ?? { ...DEFAULTS, ...Object.fromEntries(Object.entries(seed ?? {}).filter(([, v]) => v !== undefined && v !== "")) });
   const [step, setStep] = useState(initial ? QUESTIONS.length : 0); // QUESTIONS.length = summary
@@ -182,6 +185,7 @@ export function PreferencesChat({
       {onSummary && (
         <div>
           <div className="card divide-y divide-line overflow-hidden">
+            {mode === "setup" && username && <UsernameRow username={username} />}
             {summarizePreferences(draft as Preferences).map((row, i) => {
               const keys: (keyof Preferences)[] = [
                 "targetRoles", "country", "workSettings", "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
