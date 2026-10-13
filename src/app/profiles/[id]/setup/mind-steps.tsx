@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { checkActivation, launchMind, simulateTopUp, type ActivationState } from "@/app/actions";
+import { CognitionNote } from "@/components/cognition-note";
 import { FormError } from "@/components/onboarding-shell";
 
 const POLL_MS = 6000;
@@ -50,13 +51,7 @@ export function ActivateStep({
     };
   }, [waiting, profileId, done]);
 
-  const costLine = (
-    <p className="text-sm text-white/55">
-      Your headhunter searches only when you ask, checks every job on the employer&rsquo;s own site, and writes the application for you.
-      It runs on <span className="text-white">cognition</span>, Hello Minds&rsquo; credit, which you can top up any time. Between searches it&rsquo;s
-      switched off.
-    </p>
-  );
+  const costLine = <CognitionNote />;
 
   if (!mindName) {
     return (

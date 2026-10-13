@@ -62,7 +62,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     return (
       <OnboardingShell step={1} wide exitHref={exitHref}>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
-          Two quick questions. Everything else starts wide, and you can tighten it any time.
+          Two quick questions, then deploy. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
         <PreferencesChat
           profileId={profile.id}
@@ -89,8 +89,8 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
   }
 
   return (
-    <OnboardingShell step={2} exitHref={exitHref}>
-      <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
+    <OnboardingShell step={1} exitHref={exitHref}>
+      <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."
           : "We'll deploy your own AI agent on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}

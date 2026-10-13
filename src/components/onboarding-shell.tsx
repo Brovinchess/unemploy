@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Ninja, Wordmark } from "./brand";
 
-const STEPS = ["Resume", "Preferences", "Activate"];
+const STEPS = ["Resume", "Details"];
 
 // Same frame as the landing page: wordmark left, one quiet action right, content centred.
 export function OnboardingShell({

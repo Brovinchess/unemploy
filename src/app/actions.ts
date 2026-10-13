@@ -295,7 +295,7 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
     return { error: friendly(e) };
   }
 
-  // During setup, preferences are just saved; the brief goes out once the Mind is funded.
+  // During setup, saving the answers also deploys the headhunter: one step, not two.
   if (!profile.resumeData) return { error: "Upload your resume first." };
   // The sidebar label comes from the first role named, unless the person already chose one.
   const label = profile.label === PENDING_LABEL ? labelFromRoles(prefs.targetRoles) : profile.label;
@@ -303,6 +303,10 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
     .update(schema.profiles)
     .set({ preferences: prefs, status: "needs_topup", label })
     .where(eq(schema.profiles.id, profile.id));
+  const r = await launchMind(profileId);
+  if (r?.error) return { error: r.error };
+  if (r?.started) redirect(`/app?profile=${profileId}&welcome=1`);
+  // Deployed, but its free cognition hasn't landed yet: the setup page waits for it.
   redirect(`/profiles/${profileId}/setup`);
 }
 

@@ -5,6 +5,7 @@ import { Pencil, Lightbulb } from "lucide-react";
 import { savePreferences } from "@/app/actions";
 import { Ninja } from "@/components/brand";
 import { JobsSlider } from "@/components/jobs-slider";
+import { CognitionNote } from "@/components/cognition-note";
 import { FormError } from "@/components/onboarding-shell";
 import {
   JOB_TYPES,
@@ -213,10 +214,20 @@ export function PreferencesChat({
               );
             })}
           </div>
+          {mode === "setup" && (
+            <div className="mt-6 rounded-3xl bg-night-2 p-5">
+              <CognitionNote />
+            </div>
+          )}
           <FormError message={error} />
-          <button className="btn btn-accent mt-8 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending ? "Saving…" : mode === "setup" ? "Save and meet my headhunter" : "Save"}
+          <button className="btn btn-accent mt-6 h-12 w-full" disabled={pending} onClick={submit}>
+            {pending ? (mode === "setup" ? "Deploying your headhunter…" : "Saving…") : mode === "setup" ? "Deploy my headhunter" : "Save"}
           </button>
+          {pending && mode === "setup" && (
+            <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
+              Picking a name, waking it up and sending it your brief. This takes a few seconds.
+            </p>
+          )}
         </div>
       )}
     </div>
