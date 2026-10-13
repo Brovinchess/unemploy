@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { PostHog } from "posthog-node";
 
 // Server-side events, keyed by our user id, so the funnel (signed in → resume → deployed →
@@ -24,7 +25,9 @@ export function track(userId: string, event: Event, properties: Record<string, s
   if (!client) return;
   try {
     client.capture({ distinctId: userId, event, properties, ...(timestamp ? { timestamp } : {}) });
-    void client.flush().catch(() => {});
+    // On Vercel the function is frozen the moment the response goes out, so the send has to be
+    // scheduled to run after the response, or it's lost.
+    after(() => client.flush().catch(() => {}));
   } catch {
     // never let analytics fail an action
   }
