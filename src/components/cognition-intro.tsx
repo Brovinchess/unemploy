@@ -8,7 +8,7 @@ const KEY = "cn-cognition-intro";
 
 // Shown once, right after setup: dims the page, lights up the cognition card in the sidebar
 // and says in two lines what cognition is. On small screens (no sidebar) it's a plain card.
-export function CognitionIntro({ balance, perSearch, jobs }: { balance: number | null; perSearch: number; jobs: number }) {
+export function CognitionIntro() {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [show, setShow] = useState(false);
 
@@ -36,7 +36,6 @@ export function CognitionIntro({ balance, perSearch, jobs }: { balance: number |
   };
 
   if (!show) return null;
-  const searches = balance != null ? Math.max(0, Math.floor(balance / perSearch)) : null;
   const pad = 8;
   const card = (
     <div role="dialog" aria-labelledby="cog-title" className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-3xl border border-white/[0.08] bg-night-2 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
@@ -47,9 +46,8 @@ export function CognitionIntro({ balance, perSearch, jobs }: { balance: number |
             This is cognition
           </p>
           <p className="mt-1 text-sm leading-relaxed text-white/65">
-            It&rsquo;s what your headhunter runs on, like fuel. A search for {jobs} jobs uses about {perSearch}.
-            {balance != null && searches != null ? ` You have ${Math.round(balance)}, enough for about ${searches} ${searches === 1 ? "search" : "searches"}.` : ""}{" "}
-            It spends nothing between searches, and you can top up any time.
+            The credit your headhunter runs on, like fuel. Every search uses some, nothing is spent in between, and you can top up on Hello
+            Minds any time.
           </p>
         </div>
       </div>

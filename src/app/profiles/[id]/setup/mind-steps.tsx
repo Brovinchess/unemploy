@@ -10,15 +10,11 @@ const POLL_MS = 6000;
 export function ActivateStep({
   profileId,
   mindName,
-  jobsPerDay,
-  cost,
   topUpUrl,
   mock,
 }: {
   profileId: string;
   mindName: string | null;
-  jobsPerDay: number;
-  cost: { cognition: number; usd: number };
   topUpUrl: string;
   mock: boolean;
 }) {
@@ -54,12 +50,11 @@ export function ActivateStep({
     };
   }, [waiting, profileId, done]);
 
-  const starterSearches = Math.max(1, Math.floor(500 / cost.cognition));
   const costLine = (
     <p className="text-sm text-white/55">
-      Your headhunter runs on <span className="text-white">cognition</span>, Hello Minds&rsquo; credit for thinking and searching. A search for{" "}
-      {jobsPerDay} jobs uses about <span className="text-white">{cost.cognition}</span>; your starter balance covers about {starterSearches}{" "}
-      {starterSearches === 1 ? "search" : "searches"}. It&rsquo;s switched off between searches and spends nothing.
+      Your headhunter searches only when you ask, checks every job on the employer&rsquo;s own site, and writes the application for you.
+      It runs on <span className="text-white">cognition</span>, Hello Minds&rsquo; credit, which you can top up any time. Between searches it&rsquo;s
+      switched off.
     </p>
   );
 

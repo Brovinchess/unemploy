@@ -5,7 +5,7 @@ import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { ownedProfile } from "@/lib/owned";
-import { estimateSearchCost, PENDING_LABEL } from "@/lib/preferences";
+import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { ResumeStep } from "./resume-step";
@@ -88,7 +88,6 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     );
   }
 
-  const cost = estimateSearchCost(profile.preferences.jobsPerDay);
   return (
     <OnboardingShell step={2} exitHref={exitHref}>
       <StepHeading eyebrow="Last step" title={profile.mindName ? `Switching on ${profile.mindName}` : "Meet your headhunter"}>
@@ -99,8 +98,6 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
       <ActivateStep
         profileId={profile.id}
         mindName={profile.mindName}
-        jobsPerDay={profile.preferences.jobsPerDay}
-        cost={cost}
         topUpUrl={mindsConfig.topUpUrl}
         mock={mindsMode === "mock"}
       />
