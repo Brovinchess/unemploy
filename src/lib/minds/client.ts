@@ -45,7 +45,7 @@ export class LoginExpiredError extends Error {
 // Tokens are stored encrypted (see lib/crypto). Refresh tokens rotate on every use, so two
 // concurrent refreshes would leave one holder with a dead token: refresh inside a
 // transaction that locks the user's row, which serializes it across server instances.
-async function accessTokenFor(user: User): Promise<string> {
+export async function accessTokenFor(user: User): Promise<string> {
   const fresh = (u: User) => !!u.accessToken && !!u.tokenExpiresAt && u.tokenExpiresAt.getTime() - Date.now() > 60_000;
   if (fresh(user)) return decrypt(user.accessToken!);
 
