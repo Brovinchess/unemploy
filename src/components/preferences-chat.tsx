@@ -51,14 +51,14 @@ const QUESTIONS: Question[] = [
   },
   { key: "jobTypes", ask: () => "What type of job?", defaulted: true },
   { key: "levels", ask: () => "What level are you at?", defaulted: true },
-  { key: "minSalary", ask: () => "What's the least you'd want to earn? Pick a range, or Any pay to see everything; jobs that don't show pay always come through." },
+  { key: "minSalary", ask: () => "Is there a pay floor? Pick a range, or Any pay to see everything; jobs that don't show pay always come through.", defaulted: true },
   { key: "avoidCompanies", ask: () => "Any companies I should avoid? Separate them with commas.", defaulted: true },
   { key: "needsVisa", ask: () => "Do you need visa sponsorship to work there?", defaulted: true },
   { key: "jobsPerDay", ask: () => "How many jobs should I bring you each time you ask me to search? Fewer means I can check each one more carefully, and it uses less cognition.", defaulted: true },
   { key: "maxPostingAgeDays", ask: () => "How recent should a posting be? Older ones are more often filled already, but allowing more gives me more to choose from.", defaulted: true },
 ];
 
-// Setup asks four things. Everything else starts as wide as sensible, so the first search casts
+// Setup asks three things. Everything else starts as wide as sensible, so the first search casts
 // a broad net and comes back faster; each default has a pencil in the summary.
 const DEFAULTS: Draft = {
   city: "",

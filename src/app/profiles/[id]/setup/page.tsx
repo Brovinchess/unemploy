@@ -62,7 +62,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     return (
       <OnboardingShell step={1} wide exitHref={exitHref}>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
-          Four quick questions. Everything else starts wide, and you can tighten it any time.
+          Three quick questions. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
         <PreferencesChat
           profileId={profile.id}
