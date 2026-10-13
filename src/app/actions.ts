@@ -64,8 +64,6 @@ export async function createProfile(_: FormState, formData: FormData): Promise<F
   redirect(`/profiles/${id}/setup`);
 }
 
-    .slice(0, 20);
-
 async function pickMindName(user: User) {
   const api = minds(user);
   // Every Mind we create carries the app's name: rovin-careerninja, then rovin-careerninja-2.
