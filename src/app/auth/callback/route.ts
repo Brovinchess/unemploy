@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { encrypt } from "@/lib/crypto";
 import { exchangeCode, tokenSubject } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
+import { track } from "@/lib/analytics/server";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -37,6 +38,7 @@ export async function GET(request: Request) {
     scope: tokens.scope,
   };
   let user = await db.query.users.findFirst({ where: eq(schema.users.hmUserId, hmUserId) });
+  const newUser = !user;
   if (user) {
     await db.update(schema.users).set(values).where(eq(schema.users.id, user.id));
   } else {
@@ -45,6 +47,7 @@ export async function GET(request: Request) {
       .values({ id: crypto.randomUUID(), hmUserId, ...values })
       .returning();
   }
+  track(user.id, "signed_in", { new_user: newUser });
 
   await createSession(user.id);
   return NextResponse.redirect(new URL("/start", request.url));

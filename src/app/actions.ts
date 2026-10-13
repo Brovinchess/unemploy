@@ -14,6 +14,7 @@ import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
+import { track } from "@/lib/analytics/server";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
@@ -49,6 +50,7 @@ export async function saveUsername(_: FormState, formData: FormData): Promise<Fo
   await db.update(schema.users).set({ username: parsed.data, timezone }).where(eq(schema.users.id, user.id));
   const id = crypto.randomUUID();
   await db.insert(schema.profiles).values({ id, userId: user.id, label, status: "needs_resume" });
+  track(user.id, "username_saved");
   redirect(`/profiles/${id}/setup`);
 }
 
@@ -97,6 +99,7 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
       .update(schema.profiles)
       .set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup" })
       .where(eq(schema.profiles.id, profile.id));
+    track(user.id, "headhunter_deployed", { mind: mind.name });
   } catch (e) {
     return { error: friendly(e) };
   }
@@ -236,6 +239,7 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
     .set({ ...r.values, status: replacing ? profile.status : "needs_preferences", ...(replacing ? { resumeChangedAt: new Date() } : {}) })
     .where(eq(schema.profiles.id, profile.id));
 
+  track(user.id, "resume_uploaded", { replacing });
   if (replacing) {
     revalidatePath("/app", "layout");
     // The personal Mind answers forms from the resume too: it gets the new file with its next message (see askPersonalMind).
@@ -350,6 +354,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
       })
       .where(eq(schema.profiles.id, profile.id));
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
+    track(user.id, "search_requested", { jobs: wanted, search_number: n + 1 });
     await api.setEnabled(profile.mindId, true);
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
     // after the request, a new resume as an attachment. One message, one wake.
@@ -421,6 +426,7 @@ export async function removeProfile(profileId: string) {
   const profile = await ownedProfile(user, profileId);
   if (profile.mindId) await minds(user).setEnabled(profile.mindId, false).catch((e) => console.error(e));
   await db.delete(schema.profiles).where(eq(schema.profiles.id, profile.id));
+  track(user.id, "headhunter_removed");
   redirect("/start");
 }
 
@@ -436,6 +442,8 @@ export async function setJobStatus(jobId: string, status: JobStatus, skipReason?
     .update(schema.jobs)
     .set({ status, skipReason: status === "skipped" ? (skipReason ?? null) : null, statusChangedAt: new Date() })
     .where(eq(schema.jobs.id, jobId));
+  // A swipe is a decision on a fresh card; later stage changes are tracked as moves.
+  if (job.status === "new" && (status === "saved" || status === "skipped")) track(user.id, "card_decided", { decision: status === "saved" ? "apply" : "dismiss" });
   // Form questions only matter once the person wants the job: a swipe right (or a restore) queues
   // them for the personal Mind. Jobs still face down or dismissed never reach "Needs you".
   if (status === "saved" && job.status !== "saved" && job.formQuestions?.length) {

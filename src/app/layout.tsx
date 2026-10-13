@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
+import { AnalyticsIdentity } from "@/components/analytics-identity";
+import { getCurrentUser } from "@/lib/session";
 
 // Plus Jakarta Sans for headings and buttons, Inter for reading text.
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
@@ -11,11 +13,15 @@ export const metadata: Metadata = {
   description: "A personal AI headhunter that finds the jobs that fit you and writes your application for each one.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const user = await getCurrentUser().catch(() => null);
   return (
     // The Career Ninja extension marks <html> before React loads, so attributes there differ.
     <html lang="en" className={`${jakarta.variable} ${inter.variable} h-full antialiased`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {user && <AnalyticsIdentity id={user.id} username={user.username} />}
+        {children}
+      </body>
     </html>
   );
 }

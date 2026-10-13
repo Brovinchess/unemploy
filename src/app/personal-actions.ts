@@ -1,5 +1,7 @@
 "use server";
 
+import { track } from "@/lib/analytics/server";
+
 import { revalidatePath } from "next/cache";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db, schema } from "@/db";
@@ -35,6 +37,7 @@ export async function createPersonalMind(): Promise<PersonalState> {
     // Off until it's briefed; it's switched on only when it has something to answer.
     await api.setEnabled(mind.mindId, false).catch((e) => console.error("[personal] couldn't switch off", e));
     await db.update(schema.users).set({ personalMindId: mind.mindId, personalMindName: mind.name }).where(eq(schema.users.id, user.id));
+    track(user.id, "personal_mind_deployed", { mind: mind.name });
   } catch (e) {
     return { error: friendly(e) };
   }
