@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "hm_referral_url" text;

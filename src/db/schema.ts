@@ -37,6 +37,7 @@ export const users = pgTable("users", {
   // Friend referrals: the code this person shares (?ref=…) and the code they signed up with.
   referralCode: text("referral_code").unique(),
   referredBy: text("referred_by"),
+  hmReferralUrl: text("hm_referral_url"), // their Hello Minds "refer a friend" link, pasted in once
   // What the Chrome extension types into application forms.
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
   // Answers the person typed into application forms, reused on later forms.

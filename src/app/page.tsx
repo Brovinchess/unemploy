@@ -94,8 +94,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const error = LOGIN_ERRORS[one(sp.login_error) ?? ""];
   const deleted = sp.deleted === "1";
   const open = launchMode === "open";
-  const ref = one(sp.ref);
-  const loginHref = ref ? `/auth/login?ref=${encodeURIComponent(ref)}` : "/auth/login";
+  const loginHref = "/auth/login";
   const action = open ? { label: "Log in", href: loginHref } : { label: "Join the waitlist", href: "#top" };
   const [{ n: waiting }] = open ? [{ n: 0 }] : await db.select({ n: count() }).from(schema.waitlist);
 

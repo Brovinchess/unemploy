@@ -6,7 +6,6 @@ import { mindsMode } from "@/lib/minds/config";
 import { hasEncryptionKey } from "@/lib/crypto";
 import { createPkce, loginUrl } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
-import { recordReferral, REF_COOKIE } from "@/lib/referrals";
 
 export async function GET(request: Request) {
   // Before launch, sign-in is closed except with the early-access code (for the team and testers).
@@ -16,10 +15,7 @@ export async function GET(request: Request) {
     if (!code || !given || given !== code) return NextResponse.redirect(new URL("/", request.url));
   }
 
-  // A friend's referral code rides along from the landing page to the account that comes back.
-  const ref = new URL(request.url).searchParams.get("ref")?.trim().toLowerCase().slice(0, 16) || null;
   const jar = await cookies();
-  if (ref) jar.set(REF_COOKIE, ref, { httpOnly: true, secure: process.env.NODE_ENV === "production", sameSite: "lax", path: "/", maxAge: 30 * 24 * 3600 });
 
   if (mindsMode === "mock") {
     // Demo mode: every visitor gets their own throwaway account.
@@ -27,7 +23,6 @@ export async function GET(request: Request) {
       .insert(schema.users)
       .values({ id: crypto.randomUUID(), hmUserId: `demo-${crypto.randomUUID()}` })
       .returning();
-    await recordReferral(user.id, ref ?? jar.get(REF_COOKIE)?.value);
     await createSession(user.id);
     return NextResponse.redirect(new URL("/start", request.url));
   }
