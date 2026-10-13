@@ -104,6 +104,32 @@ export function minutesSince(iso: string, now: number | null) {
 
 // ---------- Sidebar pieces ----------
 
+// A small "?" that explains cognition in two lines, for anyone who missed or forgot the intro.
+function CognitionHelp({ perSearch, jobs }: { perSearch: number; jobs: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        type="button"
+        aria-label="What is cognition?"
+        aria-expanded={open}
+        className="flex size-4 items-center justify-center rounded-full border border-white/25 text-[10px] leading-none text-white/55 hover:border-white/50 hover:text-white"
+        onClick={() => setOpen((o) => !o)}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+      >
+        ?
+      </button>
+      {open && (
+        <span role="tooltip" className="absolute bottom-full left-0 z-40 mb-2 w-60 rounded-2xl border border-white/[0.08] bg-night-2 p-3 text-xs leading-relaxed text-white/75 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
+          <span className="block font-medium text-white">What is cognition?</span>
+          It&rsquo;s what your headhunter runs on, like fuel: Hello Minds&rsquo; credit for thinking and searching. A search for {jobs} jobs uses about{" "}
+          {perSearch}. Nothing is spent between searches. Top up on Hello Minds any time.
+        </span>
+      )}
+    </span>
+  );
+}
+
 // Counted in searches of 5 jobs, whatever the slider is set to: "0 left" when a 5-job search
 // would still fit reads as broken. The slider itself warns when a bigger search doesn't fit.
 const COUNT_IN = 5;
@@ -120,7 +146,9 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
   return (
     <>
       <p className="flex items-baseline justify-between text-sm">
-        <span className="text-white/60">Cognition</span>
+        <span className="flex items-center gap-1.5 text-white/60">
+          Cognition <CognitionHelp perSearch={perSearch} jobs={perSearchJobs} />
+        </span>
         <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
       </p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
