@@ -27,15 +27,7 @@ const isStale = (j: Job) =>
   !!j.statusChangedAt &&
   Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
 
-export function JobsBoard({
-  jobs,
-  labels,
-  detailsComplete,
-}: {
-  jobs: Job[];
-  labels: Map<string, string>;
-  detailsComplete: boolean;
-}) {
+export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsComplete: boolean }) {
   const [stage, setStage] = useState<JobStatus | "all">("all");
   const [q, setQ] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
@@ -58,8 +50,6 @@ export function JobsBoard({
   const live = jobs.filter((j) => j.status !== "skipped" && matches(j));
   const dismissed = jobs.filter((j) => j.status === "skipped" && matches(j));
   const toApply = counts.get("saved") ?? 0;
-  const label = (j: Job) =>
-    labels.size > 1 ? labels.get(j.profileId) : undefined;
 
   if (!jobs.length) return null;
 
@@ -156,7 +146,7 @@ export function JobsBoard({
             </div>
             <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-3xl bg-surface">
               {g.jobs.map((j) => (
-                <Row key={j.id} job={j} label={label(j)} />
+                <Row key={j.id} job={j} />
               ))}
             </ul>
           </div>
@@ -184,7 +174,7 @@ export function JobsBoard({
           {showDismissed && (
             <ul className="mt-2 divide-y divide-white/[0.06] overflow-hidden rounded-3xl bg-surface/60">
               {dismissed.map((j) => (
-                <Row key={j.id} job={j} label={label(j)} />
+                <Row key={j.id} job={j} />
               ))}
             </ul>
           )}
@@ -237,13 +227,13 @@ function when(d: Date | null) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Row({ job: j, label }: { job: Job; label?: string }) {
+function Row({ job: j }: { job: Job }) {
   const [pending, start] = useTransition();
   const place = [j.city, j.country].filter(Boolean).join(", ");
   const setting = j.workSetting
     ? j.workSetting[0].toUpperCase() + j.workSetting.slice(1)
     : null;
-  const meta = [...new Set([place, setting, label].filter(Boolean))];
+  const meta = [...new Set([place, setting].filter(Boolean))];
   const dismissed = j.status === "skipped";
   const match = Math.round(j.matchScore);
   const strong = match >= 80;

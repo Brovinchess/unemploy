@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { and, count, eq, inArray } from "drizzle-orm";
-import { ExternalLink, Gift, ListChecks, LogOut, Plus, Settings, UserRound } from "lucide-react";
+import { ExternalLink, Gift, ListChecks, LogOut, Settings, UserRound } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { mindsConfig } from "@/lib/minds/config";
@@ -100,7 +100,7 @@ export async function AppShell({
           ))}
         </nav>
 
-        <p className="mt-8 px-3 text-xs font-medium uppercase tracking-wider text-white/35">Headhunters</p>
+        <p className="mt-8 px-3 text-xs font-medium uppercase tracking-wider text-white/35">Your headhunter</p>
         <ul className="mt-2 space-y-0.5">
           {profiles.map((p) => {
             const active = tab === "headhunter" && p.id === current.id;
@@ -124,7 +124,7 @@ export async function AppShell({
                     <span className={`block truncate text-sm ${active ? "text-white" : "text-white/70"}`}>{p.label}</span>
                     <RowStatus profileId={p.id} mindName={p.mindName ?? ""} jobsPerDay={p.preferences?.jobsPerDay ?? 5} searching={isSearching(p)} />
                   </span>
-                  {profiles.length > 1 && !!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
+                  {!!fresh.get(p.id) && <span className="text-xs text-coral">{fresh.get(p.id)} new</span>}
                 </Link>
               </li>
             );
@@ -140,14 +140,6 @@ export async function AppShell({
               </Link>
             </li>
           ))}
-          <li>
-            <Link href="/profiles/new" className="flex items-center gap-3 rounded-xl px-3 py-2 text-sm text-white/50 hover:bg-white/[0.04] hover:text-white">
-              <span className="flex size-7 items-center justify-center rounded-full border border-dashed border-white/20">
-                <Plus className="size-3.5" aria-hidden />
-              </span>
-              Add headhunter
-            </Link>
-          </li>
         </ul>
 
         <div className="mt-auto space-y-3">

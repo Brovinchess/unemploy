@@ -9,7 +9,9 @@ export default async function NewProfile() {
   const user = await requireUser();
   if (!user.username) redirect("/welcome");
   const existing = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, user.id), columns: { id: true } });
-  const first = existing.length === 0;
+  // One headhunter per account: anyone who already has one goes back to it.
+  if (existing.length > 0) redirect("/start");
+  const first = true;
   const working = await db.query.profiles.findFirst({
     where: and(eq(schema.profiles.userId, user.id), inArray(schema.profiles.status, ["hunting", "paused"])),
     columns: { id: true },

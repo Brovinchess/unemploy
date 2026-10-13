@@ -1,5 +1,4 @@
 import { and, desc, eq, inArray } from "drizzle-orm";
-import type { Profile } from "@/db/schema";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
@@ -36,7 +35,6 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
     db.query.jobs.findMany({ where: and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "new")), orderBy: [desc(schema.jobs.matchScore)] }),
     db.$count(schema.jobs, and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
   ]);
-  const labels = new Map(profiles.map((p: Profile) => [p.id, p.label]));
   const coach = user.coachReminders ? await coachFor(current) : null;
   const applyAll = <ApplyAllButton count={toApply} detailsComplete={detailsComplete(user.applicant)} />;
 
@@ -72,7 +70,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       <main className="mx-auto w-full max-w-[920px] flex-1 px-5 py-8 sm:px-8 lg:py-10">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
-            <p className="text-sm text-white/45">{profiles.length > 1 ? "All headhunters" : `${current.label} headhunter`}</p>
+            <p className="text-sm text-white/45">{`${current.label} headhunter`}</p>
             <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Jobs</h1>
             <p className="mt-1 text-sm text-white/40">{summary || (current.lastDeliveryAt ? `Last search ${ago(current.lastDeliveryAt)}` : "Nothing yet")}</p>
           </div>
@@ -94,7 +92,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         {/* New jobs: the whole page the first time, a strip with an overlay once there's a list. */}
         {fresh.length > 0 && (
           <div className={kept.length ? "mb-6" : "mb-12"}>
-            <NewJobs jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={applyAll} inline={kept.length === 0} />
+            <NewJobs jobs={fresh.map(toCard)} after={applyAll} inline={kept.length === 0} />
           </div>
         )}
 
@@ -119,7 +117,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         )}
 
         {/* Everything found so far, in one list. */}
-        <JobsBoard jobs={kept} labels={labels} detailsComplete={detailsComplete(user.applicant)} />
+        <JobsBoard jobs={kept} detailsComplete={detailsComplete(user.applicant)} />
 
         {fresh.length === 0 && everDelivered && kept.length === 0 && !searching && (
           <p className="py-16 text-center text-sm text-white/40">Nothing kept yet. Ask for jobs and swipe right on the ones you like.</p>
