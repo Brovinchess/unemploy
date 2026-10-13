@@ -10,7 +10,7 @@ import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
 import { SearchingChip } from "@/components/sidebar-search";
 import { CognitionIntro } from "@/components/cognition-intro";
-import { SwipeDeck } from "@/components/swipe-deck";
+import { NewJobs } from "@/components/new-jobs";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
@@ -91,10 +91,10 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           </div>
         )}
 
-        {/* New jobs: cards to reveal and swipe. */}
+        {/* New jobs: the whole page the first time, a strip with an overlay once there's a list. */}
         {fresh.length > 0 && (
-          <div className="mb-12">
-            <SwipeDeck jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={applyAll} />
+          <div className={kept.length ? "mb-6" : "mb-12"}>
+            <NewJobs jobs={fresh.map((j) => ({ ...toCard(j), headhunter: profiles.length > 1 ? labels.get(j.profileId) : undefined }))} after={applyAll} inline={kept.length === 0} />
           </div>
         )}
 

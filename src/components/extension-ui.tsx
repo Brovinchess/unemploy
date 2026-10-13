@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Check, Download, Puzzle, Rocket, X } from "lucide-react";
 import { connectExtension } from "@/app/extension-actions";
+import { Ninja } from "./brand";
 import { useExtension } from "./use-extension";
 
 const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL;
@@ -11,7 +12,15 @@ const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL;
 // "Apply to all N": runs the extension if it's ready, otherwise explains what's missing.
 // `bar` lays it out as a slim row (text left, action right) for the top of the jobs list;
 // the default stacks and centres it for the end of the swipe deck.
-export function ApplyAllButton({ count, detailsComplete, bar = false }: { count: number; detailsComplete: boolean; bar?: boolean }) {
+export function ApplyAllButton({
+  count,
+  detailsComplete,
+  bar = false,
+}: {
+  count: number;
+  detailsComplete: boolean;
+  bar?: boolean;
+}) {
   const { status, applyAll } = useExtension();
   const [msg, setMsg] = useState<string>();
   const [pending, start] = useTransition();
@@ -37,27 +46,42 @@ export function ApplyAllButton({ count, detailsComplete, bar = false }: { count:
     // Nothing until the extension check finishes, so the row doesn't flash between states.
     if (!status) return null;
     return (
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-5 py-3.5">
-        <Rocket className="size-5 shrink-0 text-rose" aria-hidden />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-white">
-            {count} {one ? "job" : "jobs"} ready to apply
-          </p>
-          <p className="text-sm text-white/55">
-            {msg ??
-              (ready
-                ? "The extension opens each one, fills it in and waits for you to submit."
-                : needDetails
-                  ? "Add your application details and the extension can fill them in for you."
-                  : "Set up the Chrome extension and apply to all of them in one go.")}
-          </p>
+      <div className="flex flex-col gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-5 py-3.5 sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 flex-1 items-center gap-4">
+          <Ninja mood="love" className="size-11 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-white">
+              {count} {one ? "job" : "jobs"} ready to apply
+            </p>
+            <p className="text-sm text-white/55">
+              {msg ??
+                (ready
+                  ? "The extension opens each one, fills it in and waits for you to submit."
+                  : needDetails
+                    ? "Add your application details and the extension can fill them in for you."
+                    : "Set up the Chrome extension and apply to all of them in one go.")}
+            </p>
+          </div>
         </div>
         {ready ? (
-          <button className="btn btn-accent h-10 shrink-0" disabled={pending} onClick={run}>
-            {pending ? "Starting…" : one ? "Apply with the extension" : `Apply to all ${count}`}
+          <button
+            className="btn btn-accent h-10 w-full shrink-0 justify-center sm:w-auto"
+            disabled={pending}
+            onClick={run}
+          >
+            {pending
+              ? "Starting…"
+              : one
+                ? "Apply with the extension"
+                : `Apply to all ${count}`}
           </button>
         ) : (
-          <Link href={needDetails ? "/app/you#application" : "/app/settings#extension"} className="btn btn-ghost h-10 shrink-0">
+          <Link
+            href={
+              needDetails ? "/app/you#application" : "/app/settings#extension"
+            }
+            className="btn btn-ghost h-10 w-full shrink-0 justify-center sm:w-auto"
+          >
             {needDetails ? "Add details" : "Set up extension"}
           </Link>
         )}
@@ -69,8 +93,16 @@ export function ApplyAllButton({ count, detailsComplete, bar = false }: { count:
   if (!ready) {
     return (
       <p className="text-center text-sm text-white/45">
-        {needDetails ? "Add your application details" : "Set up the Chrome extension"} to apply to all {count} in one go.{" "}
-        <Link href={needDetails ? "/app/you#application" : "/app/settings#extension"} className="text-white/75 underline underline-offset-2 hover:text-white">
+        {needDetails
+          ? "Add your application details"
+          : "Set up the Chrome extension"}{" "}
+        to apply to all {count} in one go.{" "}
+        <Link
+          href={
+            needDetails ? "/app/you#application" : "/app/settings#extension"
+          }
+          className="text-white/75 underline underline-offset-2 hover:text-white"
+        >
           {needDetails ? "Add details" : "Set up"}
         </Link>
       </p>
@@ -83,9 +115,12 @@ export function ApplyAllButton({ count, detailsComplete, bar = false }: { count:
         disabled={pending}
         onClick={run}
       >
-        <Rocket className="size-4" /> {pending ? "Starting…" : `Apply to all ${count} with the extension`}
+        <Rocket className="size-4" />{" "}
+        {pending ? "Starting…" : `Apply to all ${count} with the extension`}
       </button>
-      {msg && <p className="max-w-sm text-center text-xs text-white/50">{msg}</p>}
+      {msg && (
+        <p className="max-w-sm text-center text-xs text-white/50">{msg}</p>
+      )}
     </div>
   );
 }
@@ -97,20 +132,34 @@ export function ExtensionPrompt({ show = true }: { show?: boolean }) {
   // Nothing renders until the extension check finishes, so reading storage here is safe.
   const [hidden, setHidden] = useState(() => {
     try {
-      return typeof window !== "undefined" && localStorage.getItem("cn-ext-prompt") === "hidden";
+      return (
+        typeof window !== "undefined" &&
+        localStorage.getItem("cn-ext-prompt") === "hidden"
+      );
     } catch {
       return false;
     }
   });
-  if (!show || !status || (status.installed && status.connected) || hidden) return null;
+  if (!show || !status || (status.installed && status.connected) || hidden)
+    return null;
   return (
     <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-coral/25 bg-coral/10 px-5 py-4">
       <Puzzle className="size-6 shrink-0 text-rose" />
       <div className="min-w-0 flex-1">
-        <p className="font-medium text-white">{status.installed ? "Connect the Chrome extension" : "Get the Chrome extension"}</p>
-        <p className="text-sm text-white/60">Fills in every application. One click applies to all your To-apply jobs.</p>
+        <p className="font-medium text-white">
+          {status.installed
+            ? "Connect the Chrome extension"
+            : "Get the Chrome extension"}
+        </p>
+        <p className="text-sm text-white/60">
+          Fills in every application. One click applies to all your To-apply
+          jobs.
+        </p>
       </div>
-      <Link href="/app/settings#extension" className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose">
+      <Link
+        href="/app/settings#extension"
+        className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose"
+      >
         {status.installed ? "Connect" : "Install"}
       </Link>
       <button
@@ -130,7 +179,13 @@ export function ExtensionPrompt({ show = true }: { show?: boolean }) {
 }
 
 // The setup steps, in Settings.
-export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: boolean; toApply: number }) {
+export function ExtensionSetup({
+  detailsComplete,
+  toApply,
+}: {
+  detailsComplete: boolean;
+  toApply: number;
+}) {
   const { status, connect, refresh } = useExtension();
   const [pending, start] = useTransition();
   const installed = !!status?.installed;
@@ -140,38 +195,63 @@ export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: 
     <ol className="space-y-4">
       <Step n={1} done={installed} title="Install the extension">
         {STORE_URL ? (
-          <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-3">
+          <a
+            href={STORE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-accent mt-3"
+          >
             <Puzzle className="size-4" /> Add to Chrome
           </a>
         ) : (
           <>
-            <p className="mt-1 text-sm text-white/55">It&rsquo;s not in the Chrome Web Store yet, so install it in a minute by hand:</p>
+            <p className="mt-1 text-sm text-white/55">
+              It&rsquo;s not in the Chrome Web Store yet, so install it in a
+              minute by hand:
+            </p>
             <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-white/75">
               <li>
-                <a href="/career-ninja-extension.zip" className="inline-flex items-center gap-1 text-rose underline underline-offset-2">
+                <a
+                  href="/career-ninja-extension.zip"
+                  className="inline-flex items-center gap-1 text-rose underline underline-offset-2"
+                >
                   Download the extension <Download className="size-3.5" />
                 </a>{" "}
                 and unzip it.
               </li>
               <li>
-                In Chrome, open <span className="font-mono text-white">chrome://extensions</span> and switch on <b>Developer mode</b> (top right).
+                In Chrome, open{" "}
+                <span className="font-mono text-white">
+                  chrome://extensions
+                </span>{" "}
+                and switch on <b>Developer mode</b> (top right).
               </li>
               <li>
-                Click <b>Load unpacked</b> and choose the unzipped <span className="font-mono text-white">career-ninja-extension</span> folder.
+                Click <b>Load unpacked</b> and choose the unzipped{" "}
+                <span className="font-mono text-white">
+                  career-ninja-extension
+                </span>{" "}
+                folder.
               </li>
               <li>Come back here and refresh this page.</li>
             </ol>
           </>
         )}
         {!installed && (
-          <button className="mt-3 text-sm text-white/50 underline underline-offset-2 hover:text-white" onClick={() => location.reload()}>
+          <button
+            className="mt-3 text-sm text-white/50 underline underline-offset-2 hover:text-white"
+            onClick={() => location.reload()}
+          >
             I&rsquo;ve installed it, check again
           </button>
         )}
       </Step>
 
       <Step n={2} done={connected} title="Connect it to your account">
-        <p className="mt-1 text-sm text-white/55">So it can fetch your To-apply jobs and the applications your headhunter wrote.</p>
+        <p className="mt-1 text-sm text-white/55">
+          So it can fetch your To-apply jobs and the applications your
+          headhunter wrote.
+        </p>
         {installed && !connected && (
           <button
             className="btn btn-accent mt-3"
@@ -190,7 +270,10 @@ export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: 
       </Step>
 
       <Step n={3} done={detailsComplete} title="Add your application details">
-        <p className="mt-1 text-sm text-white/55">Your name, email, phone and location, plus answers to common questions like notice period.</p>
+        <p className="mt-1 text-sm text-white/55">
+          Your name, email, phone and location, plus answers to common questions
+          like notice period.
+        </p>
         {!detailsComplete && (
           <Link href="/app/you#application" className="btn btn-accent mt-3">
             Add details
@@ -212,7 +295,17 @@ export function ExtensionSetup({ detailsComplete, toApply }: { detailsComplete: 
   );
 }
 
-function Step({ n, done, title, children }: { n: number; done: boolean; title: string; children: React.ReactNode }) {
+function Step({
+  n,
+  done,
+  title,
+  children,
+}: {
+  n: number;
+  done: boolean;
+  title: string;
+  children: React.ReactNode;
+}) {
   return (
     <li className="flex gap-4 rounded-3xl bg-surface p-6">
       <span

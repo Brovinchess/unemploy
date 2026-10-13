@@ -14,26 +14,26 @@ const OPTIONS: { status: JobStatus; label: string }[] = [
   { status: "rejected", label: "Rejected" },
 ];
 
-// Change a job's stage in place. Our own chevron, so it sits inside the pill with even padding
-// instead of the browser's arrow hugging the edge.
+// Change a job's stage in place. A quiet pill, not a form field: most rows never change stage,
+// so it shouldn't shout. Our own chevron sits inside with even padding.
 export function MoveJob({ jobId, status }: { jobId: string; status: JobStatus }) {
   const [pending, start] = useTransition();
   return (
     <label className="relative block text-sm">
       <span className="sr-only">Status</span>
       <select
-        className="field h-9 min-h-0 w-36 appearance-none rounded-full py-0 pl-4 pr-9 text-sm disabled:opacity-50"
+        className="h-8 w-[7.5rem] appearance-none rounded-full border border-white/10 bg-transparent pl-3 pr-8 text-xs text-white/70 outline-none transition-colors hover:border-white/25 hover:text-white focus:border-white/30 disabled:opacity-50"
         value={status}
         disabled={pending}
         onChange={(e) => start(() => setJobStatus(jobId, e.target.value as JobStatus))}
       >
         {OPTIONS.map((o) => (
-          <option key={o.status} value={o.status}>
+          <option key={o.status} value={o.status} className="bg-night-2 text-white">
             {o.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 size-4 -translate-y-1/2 text-white/50" aria-hidden />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 size-3.5 -translate-y-1/2 text-white/45" aria-hidden />
     </label>
   );
 }
