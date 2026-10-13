@@ -8,7 +8,7 @@ const LABELS: Record<DropReason, string> = {
   closed: "already closed",
   poor_fit: "you miss most must-haves",
   duplicate: "already sent",
-  pay: "below your pay floor",
+  pay: "pay",
   work_setting: "wrong work setting",
   other: "other",
 };
@@ -20,7 +20,6 @@ function advice(counts: Map<DropReason, number>, total: number, country: string,
     return remoteOnly ? `Most of what it found was only open to other countries. Adding hybrid or on-site roles in ${country} would widen the pool.` : null;
   }
   if (share("too_old") >= 0.4) return "Many postings were just over your posting age limit. Raising \"Posted within\" to 60 days would let them through.";
-  if (share("pay") >= 0.4) return "Many jobs paid below your floor. Lowering it a little would widen the pool.";
   return null;
 }
 

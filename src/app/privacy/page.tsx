@@ -9,16 +9,16 @@ const SECTIONS = [
     items: [
       "If you join the waitlist: your email, name and date of birth (to confirm you're 18 or over), and which job area and country you're interested in, if you tell us.",
       "Your Hello Minds account id and the username you choose.",
-      "Sign-in tokens from Hello Minds, encrypted, so the app can act for your headhunters.",
-      "Each resume you upload, the text read from it, and the job preferences you set.",
-      "The jobs your headhunters find, their application packs, and the status you give each job.",
+      "Sign-in tokens from Hello Minds, encrypted, so the app can act for your headhunter.",
+      "The resume you upload, the text read from it, and the job preferences you set.",
+      "The jobs your headhunter finds, their application packs, the status you give each job, the questions its application forms ask, and the answers you save for them.",
       "If you add them: an email address for search updates, and the application details you want typed into job forms (name, email, phone, location, links, right to work, notice period, salary expectation).",
     ],
   },
   {
     title: "Who sees it",
     items: [
-      "Your resume and preferences are sent only to your own Hello Minds headhunters, so they can search for you.",
+      "Your resume and preferences are sent only to your own Hello Minds agents: your headhunter, so it can search for you, and your personal Mind, so it can answer application questions with your saved answers.",
       "Job sites only receive what you choose to send when you apply. If you use the Chrome extension, it types your application details, resume and the application your headhunter wrote into that job's form, and you review it before it's sent.",
       "We don't sell your data or share it with employers or advertisers.",
     ],
@@ -35,8 +35,8 @@ const SECTIONS = [
   {
     title: "Your control",
     items: [
-      "Pause a headhunter any time; it stops searching and spending cognition.",
-      "Settings → Delete my data removes your account, resumes, shortlists and tracker, and turns off your headhunters. Hello Minds keeps the agents themselves, because agents can't be deleted there.",
+      "Pause your headhunter any time; it stops searching and spending cognition.",
+      "Settings → Delete my data removes your account, resume, jobs and tracker, and turns off your agents. Hello Minds keeps the agents themselves, because agents can't be deleted there.",
       "Cognition is bought and billed by Hello Minds, not by Career Ninja.",
     ],
   },

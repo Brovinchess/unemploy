@@ -1,7 +1,6 @@
 import type { Preferences } from "./preferences";
 import { discoveryText } from "./discovery";
-import { floorOf } from "./pay";
-import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, salaryLabel, workSettingLabel } from "./preferences";
+import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel } from "./preferences";
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -32,14 +31,14 @@ HOW WE WORK
   2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. Questions about my personal facts (notice period, licence, years with a tool) are not yours to answer; my personal Mind and I handle those.
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   6. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
-  4. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, pay, work_setting, other) and a short note. No pack for those. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
+  4. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, other) and a short note. No pack for those. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
   5. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
 - I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
-- Pay: ${floorOf(prefs) ? `aim for at least ${salaryLabel(floorOf(prefs)!)}. A posted range passes if its top reaches it (e.g. 4,000–6,000 passes 5,000+). Jobs that don't show pay are fine. Send jobs at or above it first; if the market is thin and you can't fill the quota, step down about 10% at a time, never below 60% of it, and keep sending.` : prefs.minSalary ? `at least ${prefs.minSalary}` : "no minimum"}. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
+- Pay: not a filter. Never drop a job over pay; just copy what the posting shows onto the card. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
 
 WHERE TO LOOK
@@ -52,7 +51,7 @@ CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs tha
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
 2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${postingAgeDays(prefs)} days ago.
 3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
-4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "MYR 6,000–8,000 a month"). If its whole range is below my pay floor, skip it.
+4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "USD 120,000–150,000 a year").
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
 
 WRITING RULES
@@ -129,7 +128,7 @@ REPLY
   {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}]}
   codes: bad_job, not_employer_link, not_eligible, poor_fit, work_setting_not_wanted,
          wrong_country, company_avoided, stale_posting, duplicate, found_by_other_headhunter,
-         search_limit, job_closed, bad_url, paused, below_salary, no_search_requested
+         search_limit, job_closed, bad_url, paused, no_search_requested
   Long text is cut to fit and claims without exact resume evidence are dropped from the pack;
   the job is still accepted and "adjusted" says what changed.
   Fix what each hint says. Do not resend accepted jobs.

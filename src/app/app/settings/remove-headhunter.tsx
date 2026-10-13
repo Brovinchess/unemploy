@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { removeProfile } from "@/app/actions";
 
-export function RemoveHeadhunter({ profileId, label, mindName }: { profileId: string; label: string; mindName: string }) {
+export function RemoveHeadhunter({ profileId, mindName }: { profileId: string; mindName: string }) {
   const [confirming, setConfirming] = useState(false);
   const [pending, start] = useTransition();
 
@@ -17,8 +17,8 @@ export function RemoveHeadhunter({ profileId, label, mindName }: { profileId: st
   return (
     <div className="w-full rounded-2xl bg-coral-soft px-5 py-4">
       <p>
-        This turns off <span className="font-mono">{mindName}</span> so it stops spending, and deletes the {label} shortlist
-        and its tracked jobs. Any cognition left stays on the agent in Hello Minds. This can&rsquo;t be undone.
+        This turns off <span className="font-mono">{mindName}</span> and deletes your jobs and tracker. Any cognition left on it
+        stays in Hello Minds and won&rsquo;t move to a new headhunter, and the next one gets a new name. This can&rsquo;t be undone.
       </p>
       <div className="mt-4 flex gap-3">
         <button className="btn btn-accent" disabled={pending} onClick={() => start(() => removeProfile(profileId))}>

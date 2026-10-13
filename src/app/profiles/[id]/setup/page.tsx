@@ -1,6 +1,4 @@
 import { redirect } from "next/navigation";
-import { and, desc, eq, ne } from "drizzle-orm";
-import { db, schema } from "@/db";
 import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
@@ -31,65 +29,36 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
   const profile = await ownedProfile(user, id);
   if (profile.status === "hunting" || profile.status === "paused") redirect(`/app?profile=${profile.id}`);
 
-  // The user's other headhunters: a way back to them, and a resume and answers to reuse.
-  const others = await db.query.profiles.findMany({
-    where: and(eq(schema.profiles.userId, user.id), ne(schema.profiles.id, profile.id)),
-    orderBy: desc(schema.profiles.createdAt),
-    columns: { id: true, label: true, status: true, resumeFileName: true, resumeData: true, preferences: true },
-  });
-  const working = others.find((o) => o.status === "hunting" || o.status === "paused");
-  const exitHref = working ? `/app?profile=${working.id}` : undefined;
-  const resumeSource = others.find((o) => o.resumeData);
-  const prefsSource = others.find((o) => o.preferences)?.preferences ?? undefined;
 
   if (!profile.resumeData) {
     return (
-      <OnboardingShell step={0} exitHref={exitHref}>
+      <OnboardingShell step={0}>
         <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
           Your headhunter reads it to find jobs you fit. Everything it writes about you comes from this file, so use
           your latest version.
         </StepHeading>
-        <ResumeStep
-          profileId={profile.id}
-          demo={mindsMode === "mock"}
-          reuse={resumeSource ? { fromId: resumeSource.id, label: resumeSource.label, fileName: resumeSource.resumeFileName ?? "resume" } : undefined}
-        />
+        <ResumeStep profileId={profile.id} demo={mindsMode === "mock"} />
       </OnboardingShell>
     );
   }
 
   if (!profile.preferences) {
     return (
-      <OnboardingShell step={1} wide exitHref={exitHref}>
+      <OnboardingShell step={1} wide>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
           Two quick questions, then deploy. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
         <PreferencesChat
           profileId={profile.id}
           mode="setup"
-          seed={{
-            targetRoles: guessRole(profile.resumeText),
-            ...(prefsSource && {
-              country: prefsSource.country,
-              city: prefsSource.city,
-              workSettings: prefsSource.workSettings,
-              remoteScope: prefsSource.remoteScope,
-              jobTypes: prefsSource.jobTypes,
-              levels: prefsSource.levels,
-              minSalary: prefsSource.minSalary,
-              salary: prefsSource.salary,
-              avoidCompanies: prefsSource.avoidCompanies,
-              needsVisa: prefsSource.needsVisa,
-              jobsPerDay: prefsSource.jobsPerDay,
-            }),
-          }}
+          seed={{ targetRoles: guessRole(profile.resumeText) }}
         />
       </OnboardingShell>
     );
   }
 
   return (
-    <OnboardingShell step={1} exitHref={exitHref}>
+    <OnboardingShell step={1}>
       <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."

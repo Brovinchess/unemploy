@@ -144,7 +144,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             {/* Rarely needed, so small: pause keeps its memory and costs nothing; remove is final. */}
             <div className="flex flex-wrap items-center justify-between gap-3 px-2 text-sm">
               <PauseToggle profileId={current.id} paused={paused} />
-              <RemoveHeadhunter profileId={current.id} label={current.label} mindName={current.mindName ?? current.label} />
+              <RemoveHeadhunter profileId={current.id} mindName={current.mindName ?? current.label} />
             </div>
           </div>
         </div>

@@ -168,7 +168,13 @@ export async function askPersonalMind(userId: string, opts: { teachOnly?: boolea
       });
   const since = user.personalSyncedAt?.toISOString() ?? "";
   const teach = (user.savedAnswers ?? []).filter((s) => s.updatedAt > since).slice(0, 60);
-  if (!qs.length && !teach.length) return { sent: 0 };
+  // A replaced resume rides along with the next message, so the Mind answers from the current one.
+  const profile = await db.query.profiles.findFirst({
+    where: and(eq(schema.profiles.userId, userId), isNotNull(schema.profiles.resumeData)),
+    orderBy: desc(schema.profiles.createdAt),
+  });
+  const newResume = profile?.resumeChangedAt && (!user.personalSyncedAt || profile.resumeChangedAt > user.personalSyncedAt) ? profile : null;
+  if (!qs.length && !teach.length && !newResume) return { sent: 0 };
 
   if (mindsConfig.ingestUrl.startsWith("https://") && !(await ingestReachable())) return { sent: 0, unreachable: true };
   const api = minds(user);
@@ -181,7 +187,14 @@ export async function askPersonalMind(userId: string, opts: { teachOnly?: boolea
   }
   try {
     await api.setEnabled(user.personalMindId!, true);
-    await api.sendMessage(user.personalAlias!, questionsText(user.username ?? "Me", teach, qs));
+    const text = (newResume ? "My resume changed. The attached file replaces the old one; answer from this one from now on.\n\n" : "") + questionsText(user.username ?? "Me", teach, qs);
+    await api.sendMessage(
+      user.personalAlias!,
+      text,
+      newResume
+        ? [{ fileName: newResume.resumeFileName!, mimeType: newResume.resumeMime!, extension: newResume.resumeFileName!.split(".").pop()!.toLowerCase(), content: newResume.resumeData! }]
+        : undefined,
+    );
   } catch (e) {
     if (qs.length) await db.update(schema.questions).set({ status: "new", askedAt: null }).where(inArray(schema.questions.id, qs.map((q) => q.id)));
     throw e;

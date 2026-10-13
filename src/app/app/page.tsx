@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
@@ -93,7 +93,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         "skipped",
       ]),
     ),
-    orderBy: [desc(schema.jobs.statusChangedAt)],
+    orderBy: [desc(sql`coalesce(${schema.jobs.statusChangedAt}, ${schema.jobs.createdAt})`)],
   });
   const applied = kept.filter((j) =>
     ["applied", "heard_back", "interview", "offer"].includes(j.status),

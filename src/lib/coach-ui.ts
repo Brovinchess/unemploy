@@ -2,7 +2,7 @@ import "server-only";
 import type { Profile } from "@/db/schema";
 import { coachSuggestions, searchPace, type Target } from "./coach";
 
-// The link for a tip: the brief editor row, the resume box, or nothing (the focus field is on the search form itself).
+// The link for a tip: the settings row it is about.
 export const targetHref = (profileId: string, t: Target) => `/app/headhunters/${profileId}#pref-${t}`;
 
 export function paceLine(p: { jobs: number; minutes: number; perJob: number | null; tooSlow?: boolean }) {

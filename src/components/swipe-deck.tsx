@@ -72,9 +72,13 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
   const current = queue[0];
   const seen = total - queue.length;
 
+  // A swipe decides after a short animation; keys or a second swipe in that window must not decide the same card twice.
+  const deciding = useRef<string | null>(null);
   function decide(kind: Decision) {
     if (!current) return;
     if (!revealed) return reveal();
+    if (deciding.current === current.id) return;
+    deciding.current = current.id;
     const job = current;
     setQueue((q) => q.slice(1));
     setDecided((d) => [{ job, kind }, ...d]);

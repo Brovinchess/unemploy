@@ -123,9 +123,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <div className="mt-8">
               {open ? (
                 <div className="flex w-full max-w-[26rem] flex-col items-center gap-3 max-md:mx-auto md:items-start">
-                  <Link href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
+                  <a href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
                     Deploy my headhunter <ArrowRight className="size-4" aria-hidden />
-                  </Link>
+                  </a>
                   <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
                 </div>
               ) : (

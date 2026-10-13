@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Download, Puzzle, Rocket, X } from "lucide-react";
+import { Check, Download, Puzzle, Rocket } from "lucide-react";
 import { connectExtension } from "@/app/extension-actions";
 import { Ninja } from "./brand";
 import { useExtension } from "./use-extension";
@@ -121,59 +121,6 @@ export function ApplyAllButton({
       {msg && (
         <p className="max-w-sm text-center text-xs text-white/50">{msg}</p>
       )}
-    </div>
-  );
-}
-
-// A card nudging people to install the extension, until it's installed and connected.
-// Shown only when there's something to apply to.
-export function ExtensionPrompt({ show = true }: { show?: boolean }) {
-  const { status } = useExtension();
-  // Nothing renders until the extension check finishes, so reading storage here is safe.
-  const [hidden, setHidden] = useState(() => {
-    try {
-      return (
-        typeof window !== "undefined" &&
-        localStorage.getItem("cn-ext-prompt") === "hidden"
-      );
-    } catch {
-      return false;
-    }
-  });
-  if (!show || !status || (status.installed && status.connected) || hidden)
-    return null;
-  return (
-    <div className="mb-6 flex flex-wrap items-center gap-4 rounded-2xl border border-coral/25 bg-coral/10 px-5 py-4">
-      <Puzzle className="size-6 shrink-0 text-rose" />
-      <div className="min-w-0 flex-1">
-        <p className="font-medium text-white">
-          {status.installed
-            ? "Connect the Chrome extension"
-            : "Get the Chrome extension"}
-        </p>
-        <p className="text-sm text-white/60">
-          Fills in every application. One click applies to all your To-apply
-          jobs.
-        </p>
-      </div>
-      <Link
-        href="/app/settings#extension"
-        className="rounded-full bg-coral px-4 py-2 text-sm font-semibold text-white hover:bg-rose"
-      >
-        {status.installed ? "Connect" : "Install"}
-      </Link>
-      <button
-        className="text-white/40 hover:text-white"
-        aria-label="Hide"
-        onClick={() => {
-          setHidden(true);
-          try {
-            localStorage.setItem("cn-ext-prompt", "hidden");
-          } catch {}
-        }}
-      >
-        <X className="size-4" />
-      </button>
     </div>
   );
 }

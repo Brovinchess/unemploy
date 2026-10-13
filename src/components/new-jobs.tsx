@@ -25,14 +25,20 @@ export function NewJobs({
   // arrive. Likewise the first-visit layout sticks for the visit.
   const [deck, setDeck] = useState(jobs);
   const [prev, setPrev] = useState(jobs);
+  // After the overlay closes, the next server set is adopted as is, so decided cards don't come back.
+  const [adopt, setAdopt] = useState(false);
   if (jobs !== prev) {
     setPrev(jobs);
-    if (jobs.some((j) => !deck.some((d) => d.id === j.id))) setDeck(jobs);
+    if (adopt || jobs.some((j) => !deck.some((d) => d.id === j.id))) {
+      setDeck(jobs);
+      setAdopt(false);
+    }
   }
   const [stayInline] = useState(inline);
   const router = useRouter();
   const close = () => {
     setOpen(false);
+    setAdopt(true);
     router.refresh(); // the list below picks up what was decided
   };
 

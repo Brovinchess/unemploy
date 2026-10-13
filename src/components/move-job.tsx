@@ -12,6 +12,7 @@ const OPTIONS: { status: JobStatus; label: string }[] = [
   { status: "interview", label: "Interview" },
   { status: "offer", label: "Offer" },
   { status: "rejected", label: "Rejected" },
+  { status: "skipped", label: "Dismissed" },
 ];
 
 // Change a job's stage in place. A quiet pill, not a form field: most rows never change stage,

@@ -50,7 +50,7 @@ export function PersonalMindCard({
               answers the form questions your headhunter found, then goes back to sleep.
             </p>
             <button className="btn btn-accent mt-5" disabled={pending} onClick={() => run(createPersonalMind)}>
-              {pending ? "Creating…" : "Create my personal Mind"}
+              {pending ? "Deploying…" : "Deploy my personal Mind"}
             </button>
           </>
         )}

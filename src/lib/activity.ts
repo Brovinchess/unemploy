@@ -31,7 +31,7 @@ const WINDOW_MS = 3 * 86_400_000;
 const REJECTION_LABELS: Record<string, string> = {
   duplicate: "already sent",
   stale_posting: "posting too old",
-  found_by_other_headhunter: "found by your other headhunter",
+  found_by_other_headhunter: "already found",
   job_link_dead: "dead link",
   job_closed: "posting closed",
   not_employer_link: "job board copy, not the employer's page",
@@ -48,7 +48,7 @@ const REJECTION_LABELS: Record<string, string> = {
   company_avoided: "company you avoid",
   bad_url: "bad link",
   bad_job: "incomplete details",
-  below_salary: "pays below your floor",
+  below_salary: "pay too low",
   paused: "sent while paused",
 };
 

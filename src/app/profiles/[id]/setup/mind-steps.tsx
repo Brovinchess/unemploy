@@ -22,12 +22,12 @@ export function ActivateStep({
   const router = useRouter();
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
-  // A Mind that exists but isn't hunting yet is just waiting for its free cognition: poll from the start.
-  const [waiting] = useState(!!mindName);
+  // A Mind that exists but isn't hunting yet is just waiting for its free cognition: poll while that's so.
+  const waiting = !!mindName;
 
   const done = useCallback(
     (r: ActivationState | undefined) => {
-      if (r?.started) router.push(`/app?profile=${profileId}&welcome=1`);
+      if (r?.started) router.push(r.searching ? `/app?profile=${profileId}&welcome=1` : `/app?profile=${profileId}`);
       else setError(r?.error);
     },
     [router, profileId],

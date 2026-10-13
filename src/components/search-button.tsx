@@ -232,7 +232,7 @@ export function SearchButton({
         <Search className="size-4" aria-hidden /> Find new jobs
       </button>
       {open && (
-        <div className="absolute right-0 top-14 z-30 w-[22rem] rounded-3xl border border-white/[0.08] bg-night-2 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+        <div className="fixed inset-x-4 top-20 z-30 rounded-3xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-14 sm:w-[22rem] border border-white/[0.08] bg-night-2 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
           <button className="absolute right-4 top-4 text-white/40 hover:text-white" onClick={() => setOpen(false)} aria-label="Close">
             <X className="size-4" />
           </button>

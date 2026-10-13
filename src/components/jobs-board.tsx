@@ -21,6 +21,10 @@ const STAGES: { status: JobStatus; label: string }[] = [
   { status: "rejected", label: "Rejected" },
 ];
 const DAY = 24 * 60 * 60 * 1000;
+const matchesQ = (j: Job, q: string) => {
+  const needle = q.trim().toLowerCase();
+  return !needle || `${j.title} ${j.company} ${j.city ?? ""} ${j.country ?? ""}`.toLowerCase().includes(needle);
+};
 // Applied over a week ago with no news: worth a follow-up. Computed in a handler-free helper so render stays pure.
 const isStale = (j: Job) =>
   j.status === "applied" &&
@@ -35,21 +39,19 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsCompl
     () => new Set(jobs.filter(isStale).map((j) => j.id)),
     [jobs],
   );
+  // Chip counts and rows both honour the search box, so a count never says 5 while 0 rows show.
+  const matches = (j: Job) => matchesQ(j, q);
   const counts = useMemo(() => {
     const c = new Map<JobStatus, number>();
-    for (const j of jobs) c.set(j.status, (c.get(j.status) ?? 0) + 1);
+    for (const j of jobs) if (matchesQ(j, q)) c.set(j.status, (c.get(j.status) ?? 0) + 1);
     return c;
-  }, [jobs]);
-
-  const needle = q.trim().toLowerCase();
-  const matches = (j: Job) =>
-    !needle ||
-    `${j.title} ${j.company} ${j.city ?? ""} ${j.country ?? ""}`
-      .toLowerCase()
-      .includes(needle);
+  }, [jobs, q]);
+  const needle = q.trim();
   const live = jobs.filter((j) => j.status !== "skipped" && matches(j));
   const dismissed = jobs.filter((j) => j.status === "skipped" && matches(j));
   const toApply = counts.get("saved") ?? 0;
+  // A chosen stage that emptied out (its last job moved on) falls back to All instead of a blank view.
+  if (stage !== "all" && !counts.get(stage)) setStage("all");
 
   if (!jobs.length) return null;
 
@@ -84,7 +86,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsCompl
         <Chip on={stage === "all"} onClick={() => setStage("all")}>
           All{" "}
           <span className="opacity-50">
-            {jobs.length - (counts.get("skipped") ?? 0)}
+            {live.length}
           </span>
         </Chip>
         {STAGES.filter((s) => counts.get(s.status)).map((s) => (
@@ -154,7 +156,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsCompl
       )}
 
       {/* Dismissed: out of the way, one click to see and restore. */}
-      {dismissed.length > 0 && (
+      {dismissed.length > 0 && stage === "all" && (
         <div>
           <button
             type="button"
@@ -263,7 +265,7 @@ function Row({ job: j }: { job: Job }) {
         </span>
         <span
           className="hidden w-14 shrink-0 text-right text-xs text-white/35 md:block"
-          title={j.statusChangedAt?.toLocaleString()}
+          suppressHydrationWarning
         >
           {when(j.statusChangedAt)}
         </span>

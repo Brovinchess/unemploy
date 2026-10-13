@@ -39,7 +39,7 @@ export async function searchPace(profileId: string): Promise<Pace | null> {
   return { searchId: s.id, startedAt: s.startedAt, endedAt: s.endedAt, jobs: arrivals.length, minutes: last, perJob, arrivals, tooSlow, wanted: s.jobsWanted, endReason: s.endReason };
 }
 
-// Where a tip is acted on: a row of the brief editor, the resume box, or the focus field on the search form.
+// Where a tip is acted on: a row of the search settings.
 // Only settings the person chooses: never their role, skills or resume.
 export type Target = "workSettings" | "maxPostingAgeDays" | "jobTypes" | "jobsPerDay";
 export type Suggestion = { kind: "settings" | "fewer"; target: Target; text: string; evidence: string };

@@ -9,7 +9,7 @@ export default async function Start() {
   if (!user.username) redirect("/welcome");
 
   const profiles = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, user.id) });
-  // A working headhunter wins: an unfinished second one is reachable from the sidebar.
+  // A working headhunter wins; an unfinished one goes back to its setup.
   if (profiles.some((p) => p.status === "hunting" || p.status === "paused")) redirect("/app");
   const unfinished = profiles.find((p) => p.status !== "hunting" && p.status !== "paused");
   if (unfinished) redirect(`/profiles/${unfinished.id}/setup`);

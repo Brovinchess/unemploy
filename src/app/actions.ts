@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
@@ -15,8 +15,7 @@ import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
 import { costModel } from "@/lib/cost";
-import { floorOf } from "@/lib/pay";
-import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, salaryLabel, type Preferences, postingAgeDays } from "@/lib/preferences";
+import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
 import { alreadySentList, endSearch, ingestReachable, isSearching, ruledOutList, searchRequestText, switchOff } from "@/lib/search";
@@ -83,7 +82,7 @@ async function pickMindName(user: User) {
   return `${base}-${crypto.randomUUID().slice(0, 6)}`;
 }
 
-export type ActivationState = FormState & { balance?: number; started?: boolean };
+export type ActivationState = FormState & { balance?: number; started?: boolean; searching?: boolean };
 
 // Creates the Mind and, since new Minds come with free cognition, briefs it straight away.
 // Only if the free cognition hasn't landed yet does setup fall back to waiting for it.
@@ -119,9 +118,14 @@ export async function checkActivation(profileId: string, quiet = false): Promise
     if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. It can take a minute to arrive." };
     const r = await startHunting(user, profile);
     if (r?.error) return { balance, error: r.error };
+    if (r?.claimedElsewhere) return { balance, started: true, searching: true };
     // First search starts by itself, so the next screen is the headhunter already working.
-    await requestSearch(profile.id, profile.preferences?.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH).catch((e) => console.error("[activate] first search", e));
-    return { balance, started: true };
+    // If it can't start, the app's ready screen shows the search button and the reason.
+    const s = await requestSearch(profile.id, profile.preferences?.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH).catch((e) => {
+      console.error("[activate] first search", e);
+      return { error: String(e) };
+    });
+    return { balance, started: true, searching: !s?.error };
   } catch (e) {
     return { error: friendly(e) };
   }
@@ -138,7 +142,7 @@ function switchOffLater(profileId: string) {
 }
 
 // Sends the first brief (with the resume) in a fresh conversation and marks the profile hunting.
-async function startHunting(user: User, profile: Profile): Promise<FormState> {
+async function startHunting(user: User, profile: Profile): Promise<{ error?: string; claimedElsewhere?: boolean } | undefined> {
   if (!profile.mindId || !profile.resumeData || !profile.preferences) return { error: "Finish the earlier steps first." };
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
     return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel) and try again." };
@@ -146,11 +150,14 @@ async function startHunting(user: User, profile: Profile): Promise<FormState> {
   const ingestKey = newIngestKey();
   // A fresh alias per brief gives the Mind a clean thread.
   const alias = `unemploy-${profile.id.slice(0, 8)}-${Date.now().toString(36)}`;
-  // Save first: the Mind may push as soon as it reads the brief.
-  await db
+  // Save first: the Mind may push as soon as it reads the brief. The alias write doubles as a
+  // claim: the poll and a "Check now" click can both get here, and only the first one briefs.
+  const claimed = await db
     .update(schema.profiles)
     .set({ ingestKeyHash: hashKey(ingestKey), conversationAlias: alias })
-    .where(eq(schema.profiles.id, profile.id));
+    .where(and(eq(schema.profiles.id, profile.id), profile.conversationAlias ? eq(schema.profiles.conversationAlias, profile.conversationAlias) : isNull(schema.profiles.conversationAlias)))
+    .returning({ id: schema.profiles.id });
+  if (!claimed.length) return { claimedElsewhere: true };
   const api = minds(user);
   await api.createConversation(alias, profile.mindId);
   await api.sendMessage(
@@ -230,28 +237,10 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
     .where(eq(schema.profiles.id, profile.id));
 
   if (replacing) {
-    revalidatePath("/app/settings");
+    revalidatePath("/app", "layout");
+    // The personal Mind answers forms from the resume too: it gets the new file with its next message (see askPersonalMind).
     return;
   }
-  revalidatePath(`/profiles/${profileId}/setup`);
-}
-
-// Setting up another headhunter: reuse the resume from one of the user's others.
-export async function copyResume(profileId: string, fromId: string) {
-  const user = await requireUser();
-  const profile = await ownedProfile(user, profileId);
-  const from = await ownedProfile(user, fromId);
-  if (profile.resumeData || !from.resumeData) return;
-  await db
-    .update(schema.profiles)
-    .set({
-      resumeFileName: from.resumeFileName,
-      resumeMime: from.resumeMime,
-      resumeData: from.resumeData,
-      resumeText: from.resumeText,
-      status: "needs_preferences",
-    })
-    .where(eq(schema.profiles.id, profile.id));
   revalidatePath(`/profiles/${profileId}/setup`);
 }
 
@@ -305,7 +294,7 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
     .where(eq(schema.profiles.id, profile.id));
   const r = await launchMind(profileId);
   if (r?.error) return { error: r.error };
-  if (r?.started) redirect(`/app?profile=${profileId}&welcome=1`);
+  if (r?.started) redirect(r.searching ? `/app?profile=${profileId}&welcome=1` : `/app?profile=${profileId}`);
   // Deployed, but its free cognition hasn't landed yet: the setup page waits for it.
   redirect(`/profiles/${profileId}/setup`);
 }
@@ -393,7 +382,6 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         n + 1,
         note || undefined,
         await alreadySentList(user.id),
-        profile.preferences && floorOf(profile.preferences) ? salaryLabel(floorOf(profile.preferences)!) : undefined,
         profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country, city: profile.preferences.city } : undefined,
         await ruledOutList(profile.id),
         profile.preferences ? postingAgeDays(profile.preferences) : undefined,

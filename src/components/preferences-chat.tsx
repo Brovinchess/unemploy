@@ -56,7 +56,6 @@ const QUESTIONS: Question[] = [
 // a broad net and comes back faster; each default has a pencil in the summary.
 const DEFAULTS: Draft = {
   city: "",
-  minSalary: "",
   avoidCompanies: "",
   workSettings: ["onsite", "hybrid", "remote"],
   remoteScope: "anywhere",

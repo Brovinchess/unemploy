@@ -9,7 +9,7 @@ export default async function Welcome() {
   return (
     <OnboardingShell>
       <StepHeading eyebrow="Welcome to Career Ninja" title="Let's deploy your headhunter">
-        Two quick things, then your resume. It takes about three minutes.
+        A name for you, then your resume. It takes about three minutes.
       </StepHeading>
       <WelcomeForm />
     </OnboardingShell>

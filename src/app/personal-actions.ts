@@ -44,7 +44,7 @@ export async function createPersonalMind(): Promise<PersonalState> {
 // Once it has cognition, sends the brief with the latest resume. Safe to call repeatedly.
 export async function activatePersonalMind(): Promise<PersonalState> {
   const user = await requireUser();
-  if (!user.personalMindId) return { error: "Create your personal Mind first." };
+  if (!user.personalMindId) return { error: "Deploy your personal Mind first." };
   if (user.personalBriefedAt) return;
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
     return { error: "Your personal Mind can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel)." };
@@ -53,7 +53,7 @@ export async function activatePersonalMind(): Promise<PersonalState> {
     where: and(eq(schema.profiles.userId, user.id), isNotNull(schema.profiles.resumeData)),
     orderBy: desc(schema.profiles.createdAt),
   });
-  if (!profile?.resumeData) return { error: "Upload a resume to one of your headhunters first." };
+  if (!profile?.resumeData) return { error: "Upload a resume to your headhunter first." };
   const api = minds(user);
   try {
     const balance = await api.getBalance(user.personalMindId);

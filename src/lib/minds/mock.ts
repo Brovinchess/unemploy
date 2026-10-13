@@ -146,9 +146,7 @@ async function runMockHunt(alias: string) {
       workSetting: setting,
       jobType: prefs.jobTypes[0],
       level: prefs.levels[0] ?? "Mid-Senior",
-      salary: prefs.salary
-        ? `${prefs.salary.currency} ${(prefs.salary.min + (i % 3) * 1000).toLocaleString("en-US")}–${(prefs.salary.min + 3000 + (i % 3) * 1000).toLocaleString("en-US")} a ${prefs.salary.period}`
-        : undefined,
+      salary: i % 2 ? `USD ${(110_000 + (i % 3) * 10_000).toLocaleString("en-US")}–${(140_000 + (i % 3) * 10_000).toLocaleString("en-US")} a year` : undefined,
       postedAt: new Date(Date.now() - i * 86400000).toISOString().slice(0, 10),
       matchScore: 92 - i * 4,
       whyFit: `Your experience lines up with what ${company.name} asks for. In particular: "${e1}"`,

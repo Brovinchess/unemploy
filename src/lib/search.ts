@@ -50,7 +50,6 @@ export function searchRequestText(
   n: number,
   focus?: string,
   alreadySent: string[] = [],
-  payFloor?: string,
   discovery?: { targetRoles: string; country: string; city?: string },
   ruledOut: string[] = [],
   maxAgeDays?: number,
@@ -62,9 +61,6 @@ export function searchRequestText(
   const age = maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old is fine (this replaces the number in your brief). ` : "";
   const skipRuled = ruledOut.length ? `Already ruled out on earlier searches, don't re-check unless the posting changed: ${ruledOut.join("; ")}. ` : "";
   const wide = discovery ? discoveryText(discovery.targetRoles, discovery.country, discovery.city) + " " : "";
-  const pay = payFloor
-    ? `Pay: aim for ${payFloor}. A posted range passes if its top reaches it; jobs without posted pay are fine. Send jobs at or above it first. If you've searched widely and still can't fill the quota, step down about 10% at a time (90%, then 80%, and so on, never below 60% of it) and keep sending; say the posted pay honestly and I'll see it on the card. `
-    : "";
   const skip = alreadySent.length
     ? `Skip these; I already have them (company: title): ${alreadySent.join("; ")}. `
     : "";
@@ -81,7 +77,6 @@ export function searchRequestText(
     skipRuled +
     `Report every lead you drop in the "dropped" list of your next POST (reason + short note), instead of describing it in chat. ` +
     `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". Cover letter as in your brief: 150 to 220 words, open with the job's own problem and my best matching result, two or three proofs with numbers in the posting's words, one line on what I'd do first, then Thanks and my name. ` +
-    pay +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
     `If you can't reach that address, reply once to say so, then stop: don't keep retrying or searching. ` +

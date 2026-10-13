@@ -207,15 +207,11 @@ export async function AppShell({
             </Link>
           </div>
           <SidebarSearch profileId={current.id} jobsPerDay={perSearchJobs} />
-          {profiles.length > 0 && (
-            <div className="flex gap-2 overflow-x-auto px-4 pb-3">
-              {profiles.map((p) => (
-                <Link key={p.id} href={`/app/headhunters/${p.id}`} aria-selected={tab === "headhunter" && p.id === current.id} className="chip min-h-8 shrink-0 px-3.5 text-sm">
-                  {p.label}
-                </Link>
-              ))}
-            </div>
-          )}
+          <div className="flex gap-2 overflow-x-auto px-4 pb-3">
+            <Link href={`/app/headhunters/${current.id}`} aria-selected={tab === "headhunter"} className="chip min-h-8 shrink-0 gap-2 px-3.5 text-sm">
+              <Ninja mood={isSearching(current) ? "searching" : current.status === "paused" ? "sleeping" : "happy"} className="size-5" /> {current.label} headhunter
+            </Link>
+          </div>
         </header>
         {children}
       </div>
