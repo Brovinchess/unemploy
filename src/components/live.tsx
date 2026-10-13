@@ -105,7 +105,7 @@ export function minutesSince(iso: string, now: number | null) {
 // ---------- Sidebar pieces ----------
 
 // A small "?" that explains cognition in two lines, for anyone who missed or forgot the intro.
-function CognitionHelp({ perSearch, jobs }: { perSearch: number; jobs: number }) {
+function CognitionHelp() {
   const [open, setOpen] = useState(false);
   return (
     <span className="relative inline-flex">
@@ -122,8 +122,7 @@ function CognitionHelp({ perSearch, jobs }: { perSearch: number; jobs: number })
       {open && (
         <span role="tooltip" className="absolute bottom-full left-0 z-40 mb-2 w-60 rounded-2xl border border-white/[0.08] bg-night-2 p-3 text-xs leading-relaxed text-white/75 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)]">
           <span className="block font-medium text-white">What is cognition?</span>
-          It&rsquo;s what your headhunter runs on, like fuel: Hello Minds&rsquo; credit for thinking and searching. A search for {jobs} jobs uses about{" "}
-          {perSearch}. Nothing is spent between searches. Top up on Hello Minds any time.
+          The credit your headhunter runs on, like fuel. Every search uses some. Nothing is spent in between, and you can top up on Hello Minds any time.
         </span>
       )}
     </span>
@@ -147,7 +146,7 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
     <>
       <p className="flex items-baseline justify-between text-sm">
         <span className="flex items-center gap-1.5 text-white/60">
-          Cognition <CognitionHelp perSearch={perSearch} jobs={perSearchJobs} />
+          Cognition <CognitionHelp />
         </span>
         <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
       </p>
