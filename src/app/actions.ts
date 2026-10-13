@@ -64,14 +64,9 @@ export async function createProfile(_: FormState, formData: FormData): Promise<F
   redirect(`/profiles/${id}/setup`);
 }
 
-const slug = (s: string) =>
-  s
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
     .slice(0, 20);
 
-async function pickMindName(user: User, profile: Profile) {
+async function pickMindName(user: User) {
   const api = minds(user);
   // Every Mind we create carries the app's name: rovin-careerninja, then rovin-careerninja-2.
   const base = `${user.username}-careerninja`.slice(0, 40);
@@ -91,7 +86,7 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
   const profile = await ownedProfile(user, profileId);
   if (profile.mindId) return checkActivation(profileId, true);
   try {
-    const name = await pickMindName(user, profile);
+    const name = await pickMindName(user);
     const mind = await minds(user).awaken(mindsConfig.archetype, name);
     await db
       .update(schema.profiles)
