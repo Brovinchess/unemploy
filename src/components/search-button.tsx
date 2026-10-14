@@ -47,6 +47,25 @@ export function SearchButton({
   const [coachOpen, setCoachOpen] = useState(false);
   const [mute, setMute] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Where the pop-over sits: under the button, flush with its right edge (phones: 1rem from the right).
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
+  useEffect(() => {
+    if (!open || big) return;
+    const place = () => {
+      const r = trigger.current?.getBoundingClientRect();
+      if (!r) return;
+      const narrow = window.innerWidth < 640;
+      setAnchor({ top: r.bottom + 10, right: narrow ? 16 : Math.max(16, window.innerWidth - r.right) });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => {
+      window.removeEventListener("resize", place);
+      window.removeEventListener("scroll", place, true);
+    };
+  }, [open, big]);
   // "Ask for fewer" is moot once the slider is already at 5 or under.
   const tips = coach?.suggestions.filter((s) => s.kind !== "fewer" || jobs > 5) ?? [];
   const begin = () =>
@@ -67,7 +86,10 @@ export function SearchButton({
   useEffect(() => {
     if (!open || big || coachOpen) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    const onClick = (e: MouseEvent) => panel.current && !panel.current.contains(e.target as Node) && setOpen(false);
+    const onClick = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (panel.current && !panel.current.contains(t) && !trigger.current?.contains(t)) setOpen(false);
+    };
     document.addEventListener("keydown", onKey);
     document.addEventListener("mousedown", onClick);
     return () => {
@@ -235,23 +257,36 @@ export function SearchButton({
 
   if (big) return form;
 
+  // The pop-over lives at the end of the document, positioned from the button, so nothing on
+  // the page can paint over it whatever the sections around it are doing.
+  const popover =
+    open && anchor
+      ? createPortal(
+          <div
+            ref={panel}
+            className="fixed z-50 w-[calc(100vw-2rem)] rounded-3xl border border-white/[0.08] bg-night-2 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] sm:w-[22rem]"
+            style={{ top: anchor.top, right: anchor.right }}
+          >
+            <button className="absolute right-4 top-4 text-white/40 hover:text-white" onClick={() => setOpen(false)} aria-label="Close">
+              <X className="size-4" />
+            </button>
+            {form}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
-    <div className="relative" ref={panel}>
+    <div className="relative">
       <button
+        ref={trigger}
         className="flex h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-medium text-white transition-colors hover:bg-rose"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
       >
         <Search className="size-4" aria-hidden /> Find new jobs
       </button>
-      {open && (
-        <div className="fixed inset-x-4 top-20 z-30 rounded-3xl sm:absolute sm:inset-x-auto sm:right-0 sm:top-14 sm:w-[22rem] border border-white/[0.08] bg-night-2 p-6 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
-          <button className="absolute right-4 top-4 text-white/40 hover:text-white" onClick={() => setOpen(false)} aria-label="Close">
-            <X className="size-4" />
-          </button>
-          {form}
-        </div>
-      )}
+      {popover}
     </div>
   );
 }
