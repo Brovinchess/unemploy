@@ -25,6 +25,7 @@ export function SearchButton({
   big = false,
   perJob,
   coach = null,
+  topUpUrl,
 }: {
   profileId: string;
   searching: boolean;
@@ -37,6 +38,7 @@ export function SearchButton({
   perJob?: number;
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
   coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string; href: string }[] } | null;
+  topUpUrl?: string; // where to buy cognition, for the "not enough" hints
 }) {
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
@@ -183,7 +185,7 @@ export function SearchButton({
 
   const form = (
     <div className={big ? "w-full max-w-md text-left" : ""}>
-      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} />
+      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} topUpUrl={topUpUrl} />
       <button
         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose disabled:opacity-50"
         disabled={pending || tooExpensive}
@@ -210,12 +212,23 @@ export function SearchButton({
   );
 
   if (disabled) {
+    const outOfCognition = balance != null && balance <= 0;
     return (
       <div className={`flex flex-col gap-2 ${big ? "items-center" : "items-end"}`}>
         <button className="flex h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-medium text-white opacity-50" disabled>
           <Search className="size-4" aria-hidden /> Find new jobs
         </button>
-        <p className="text-xs text-white/40">{disabled}</p>
+        {outOfCognition && topUpUrl ? (
+          <p className={`text-sm text-white/60 ${big ? "text-center" : "text-right"}`}>
+            Your headhunter has no cognition left.{" "}
+            <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="text-rose underline underline-offset-2 hover:text-white">
+              Top up on Hello Minds
+            </a>{" "}
+            and it can search again.
+          </p>
+        ) : (
+          <p className="text-xs text-white/40">{disabled}</p>
+        )}
       </div>
     );
   }
