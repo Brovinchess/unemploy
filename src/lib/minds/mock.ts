@@ -193,7 +193,28 @@ async function runMockHunt(alias: string) {
 
   const { processPush } = await import("../ingest");
   const dropped = [
-    { company: "Globex", title: `${roles[0] ?? "Specialist"} (US only)`, reason: "not_eligible", note: "Posting says U.S. remote only" },
+    {
+      company: "Globex",
+      title: `${roles[0] ?? "Specialist"} (US only)`,
+      reason: "not_eligible",
+      note: "Posting says U.S. remote only",
+      // Opened before dropping, so the posting's facts come along for the pool.
+      posting: {
+        url: "https://boards.greenhouse.io/globex/jobs/4455667",
+        title: `${roles[0] ?? "Specialist"}`,
+        company: "Globex",
+        country: "United States",
+        workSetting: "remote",
+        jobType: "Full-time",
+        level: "Mid-Senior",
+        salary: "USD 130,000–160,000 a year",
+        postedAt: new Date(Date.now() - 5 * 86400000).toISOString().slice(0, 10),
+        locationText: "Remote, US only. Must be authorised to work in the United States.",
+        summary: "Own the roadmap for a logistics platform used by 300 warehouses",
+        mustHaves: ["5+ years in product", "US work authorisation"],
+        companyWebsite: "globex.example.com",
+      },
+    },
     { company: "Initech", title: roles[0] ?? "Specialist", reason: "too_old", note: "Posted 70 days ago" },
     { company: "Umbrella", title: `Senior ${roles[0] ?? "Specialist"}`, reason: "not_eligible", note: "Hybrid in Berlin" },
     { company: "Hooli", title: roles[0] ?? "Specialist", reason: "closed", note: "Page says no longer accepting applications" },

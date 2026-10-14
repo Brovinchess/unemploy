@@ -1,10 +1,11 @@
 import "server-only";
-import { and, count, eq, gte, isNull } from "drizzle-orm";
+import { and, count, eq, gte, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { avoidList, postingAgeDays } from "./preferences";
+import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
 import { isAboutTheJob, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
@@ -18,8 +19,9 @@ const claimSchema = z.object({
   evidence: trimmed(400),
 });
 
-// Text that's merely too long is trimmed rather than costing the whole job.
-const jobSchema = z.object({
+// The facts about a posting itself, shared by a sent job and by a lead the Mind opened and
+// dropped: these are what the shared postings pool keeps. Nothing about the person.
+const postingFields = {
   url: z.url({ protocol: /^https?$/ }),
   title: trimmed(200).pipe(z.string().min(2)),
   company: trimmed(200).pipe(z.string().min(1)),
@@ -30,22 +32,34 @@ const jobSchema = z.object({
   level: trimmed(60).optional(),
   salary: trimmed(120).optional(),
   postedAt: trimmed(40).optional(),
-  matchScore: z.number().min(0).max(100).catch(50),
-  whyFit: trimmed(1200).optional(), // falls back to the summary
-  gaps: z.array(trimmed(300)).max(10).default([]),
-  companyNotes: trimmed(1500).optional(),
-  // For the job card. The website gives us the company's logo.
   companyWebsite: trimmed(200).optional(),
   companyStage: trimmed(60).optional(),
   companySize: trimmed(60).optional(),
   industry: trimmed(80).optional(),
   perks: z.array(trimmed(60)).max(6).optional(),
+  summary: trimmed(200).optional(),
+  salaryEstimated: z.boolean().optional(),
+  locationText: trimmed(400).pipe(z.string().min(3)),
+};
+// For a dropped lead the requirements may come as plain strings or as the job shape.
+const postingSchema = z.object({
+  ...postingFields,
+  mustHaves: z
+    .array(z.union([trimmed(300), z.object({ requirement: trimmed(300), met: z.boolean().optional() })]))
+    .max(12)
+    .default([]),
+});
+export type PostingPush = z.infer<typeof postingSchema>;
+
+// Text that's merely too long is trimmed rather than costing the whole job.
+const jobSchema = z.object({
+  ...postingFields,
+  matchScore: z.number().min(0).max(100).catch(50),
+  whyFit: trimmed(1200).optional(), // falls back to the summary
+  gaps: z.array(trimmed(300)).max(10).default([]),
+  companyNotes: trimmed(1500).optional(),
   // Shown before the company is revealed; when missing, the card falls back to whyFit.
   highlights: z.array(trimmed(160)).max(3).optional(),
-  summary: trimmed(200).optional(), // "what you'd do", one line
-  salaryEstimated: z.boolean().optional(),
-  // Evidence the Mind must bring from the posting itself.
-  locationText: trimmed(400).pipe(z.string().min(3)), // the one field we insist on: it's the eligibility evidence
   mustHaves: z
     .array(z.object({ requirement: trimmed(300), met: z.boolean() }))
     .max(12)
@@ -73,17 +87,26 @@ const jobSchema = z.object({
   }),
 });
 
-export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "pay", "work_setting", "other"] as const;
+export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "work_setting", "other"] as const;
+// Minds briefed before pay stopped being a reason still send it: keep the lead, file it under other.
+const reasonSchema = z.enum([...DROP_REASONS, "pay"]).transform((r) => (r === "pay" ? "other" : r));
+// Reasons that are about the person, not the posting: the posting may suit someone else.
+const POOLABLE_REASONS = new Set<string>(["poor_fit", "not_eligible", "work_setting"]);
 const droppedSchema = z.object({
   company: z.string().trim().min(1).max(120),
   title: z.string().trim().min(1).max(160),
   url: z.string().trim().max(500).optional(),
-  reason: z.enum(DROP_REASONS),
+  reason: reasonSchema,
   note: z.string().trim().max(200).optional(),
+  // The posting's facts, when the Mind opened it before dropping it. A malformed one is
+  // ignored rather than losing the lead.
+  posting: postingSchema.optional().catch(undefined),
 });
+type Dropped = z.infer<typeof droppedSchema>;
 
+// Dropped items are validated one by one later, so one bad lead never costs the whole push.
 export const pushSchema = z
-  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(droppedSchema).max(100).optional() })
+  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(z.unknown()).max(100).optional() })
   .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0, { message: "Send at least one job, an empty list with final: true, or a dropped list." });
 
 export type JobPush = z.infer<typeof jobSchema>;
@@ -136,6 +159,90 @@ function runsOf(text: string) {
 const sameCountry = (a?: string, b?: string) => !!a && !!b && norm(a) === norm(b);
 
 const MAX_SCORE_WITH_GAPS = 55;
+
+// One row per posting in the shared pool. Facts only, newest wins, the row never says who
+// found it. Sources only upgrade: a lead someone dropped becomes "accepted" once anyone's
+// headhunter sends it as a job. Skipped for demo and dry runs.
+const SOURCE_RANK: Record<schema.PostingSource, number> = { dropped_lead: 0, quota_refused: 1, accepted: 2 };
+export async function upsertPosting(p: PostingPush, source: schema.PostingSource, opts: { verifiedOpenAt?: string | null; demo?: boolean } = {}) {
+  if (opts.demo) return null;
+  if (!isPublicHttpUrl(p.url) || isAggregator(p.url)) return null;
+  const key = jobKey(p.url);
+  const now = new Date();
+  const verified = opts.verifiedOpenAt && !Number.isNaN(Date.parse(opts.verifiedOpenAt)) ? new Date(Date.parse(opts.verifiedOpenAt)) : null;
+  const row = {
+    postingKey: key,
+    url: p.url,
+    title: p.title,
+    company: p.company,
+    companyKey: companyKey(p.company),
+    city: p.city ?? null,
+    country: p.country ?? null,
+    countryCode: countryCodeOf(p.country, p.locationText),
+    workSetting: p.workSetting,
+    jobType: p.jobType ?? null,
+    jobTypeKey: jobTypeKeyOf(p.jobType),
+    level: p.level ?? null,
+    levelKey: levelKeyOf(p.level ?? p.title),
+    salary: p.salary ?? null,
+    salaryEstimated: !!p.salary && !!p.salaryEstimated,
+    postedAt: p.postedAt ?? null,
+    postedOn: postedOnOf(p.postedAt),
+    locationText: p.locationText,
+    summary: p.summary ?? null,
+    mustHaves: p.mustHaves.map((m) => (typeof m === "string" ? m : m.requirement)).filter(Boolean),
+    companyDomain: p.companyWebsite ? companyDomain(p.companyWebsite) : null,
+    companyStage: p.companyStage ?? null,
+    companySize: p.companySize ?? null,
+    industry: p.industry ?? null,
+    perks: p.perks ?? null,
+    source,
+    demo: false,
+    firstSeenAt: now,
+    lastSeenAt: now,
+    lastVerifiedOpenAt: verified,
+    closedAt: null,
+  };
+  const ex = schema.postings;
+  const keep = (col: { name: string }) => sql.raw(`coalesce(excluded."${col.name}", "postings"."${col.name}")`);
+  await db
+    .insert(schema.postings)
+    .values(row)
+    .onConflictDoUpdate({
+      target: ex.postingKey,
+      set: {
+        url: sql`excluded.url`,
+        title: sql`excluded.title`,
+        company: sql`excluded.company`,
+        companyKey: sql`excluded.company_key`,
+        city: keep(ex.city),
+        country: keep(ex.country),
+        countryCode: keep(ex.countryCode),
+        workSetting: keep(ex.workSetting),
+        jobType: keep(ex.jobType),
+        jobTypeKey: keep(ex.jobTypeKey),
+        level: keep(ex.level),
+        levelKey: keep(ex.levelKey),
+        salary: keep(ex.salary),
+        salaryEstimated: sql`excluded.salary_estimated`,
+        postedAt: keep(ex.postedAt),
+        postedOn: keep(ex.postedOn),
+        locationText: keep(ex.locationText),
+        summary: keep(ex.summary),
+        mustHaves: sql`case when jsonb_array_length(excluded.must_haves) > 0 then excluded.must_haves else "postings".must_haves end`,
+        companyDomain: keep(ex.companyDomain),
+        companyStage: keep(ex.companyStage),
+        companySize: keep(ex.companySize),
+        industry: keep(ex.industry),
+        perks: keep(ex.perks),
+        source: sql.raw(`case when ${SOURCE_RANK[source]} >= case "postings".source when 'accepted' then 2 when 'quota_refused' then 1 else 0 end then excluded.source else "postings".source end`),
+        lastSeenAt: now,
+        lastVerifiedOpenAt: sql`greatest(excluded.last_verified_open_at, "postings".last_verified_open_at)`,
+        closedAt: null,
+      },
+    });
+  return key;
+}
 
 function checkJob(job: JobPush, profile: Profile): Rejection | null {
   const prefs = profile.preferences!;
@@ -376,6 +483,8 @@ async function checkAndSave(
         code: "search_limit",
         hint: `The user asked for ${prefs.jobsPerDay} jobs per search and this search's are in. Stop and wait for the next request.`,
       });
+      // Fully checked and written, just late: the posting itself is worth keeping for the pool.
+      if (!dryRun) await upsertPosting(job, "quota_refused", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => console.error("[ingest] pool", e));
       continue;
     }
 
@@ -421,9 +530,15 @@ async function checkAndSave(
     if (dryRun) continue;
 
     const id = crypto.randomUUID();
+    const postingKey = opts.demo ? null : await upsertPosting(job, "accepted", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => (console.error("[ingest] pool", e), null));
     await db.insert(schema.jobs).values({
       id,
       profileId: profile.id,
+      postingKey,
+      countryCode: countryCodeOf(job.country, job.locationText),
+      jobTypeKey: jobTypeKeyOf(job.jobType),
+      levelKey: levelKeyOf(job.level ?? job.title),
+      postedOn: postedOnOf(job.postedAt),
       url: job.url,
       title: job.title,
       company: job.company,
@@ -471,6 +586,8 @@ async function checkAndSave(
   });
 
   // Leads it looked at and dropped, kept so the user sees why and the next search skips them.
+  // Each is validated on its own: a bad one is skipped, never the whole push. A lead the Mind
+  // opened before dropping for a reason about this person goes into the shared pool too.
   let droppedRecorded = 0;
   if (!dryRun && parsed.data.dropped?.length) {
     const search = await db.query.searches.findFirst({
@@ -478,14 +595,35 @@ async function checkAndSave(
       columns: { id: true },
     });
     const seen = new Set<string>();
-    const rows = parsed.data.dropped
-      .filter((d) => {
-        const k = (d.url ? jobKey(d.url) : `${companyKey(d.company)}|${titleKey(d.title)}`).toLowerCase();
-        if (seen.has(k)) return false;
-        seen.add(k);
-        return true;
-      })
-      .map((d) => ({ profileId: profile.id, searchId: search?.id ?? null, company: d.company, title: d.title, url: d.url ?? null, reason: d.reason, note: d.note ?? null }));
+    const items: Dropped[] = [];
+    for (const raw of parsed.data.dropped) {
+      const r = droppedSchema.safeParse(raw);
+      if (!r.success) continue;
+      const d = r.data;
+      const k = (d.url ? jobKey(d.url) : `${companyKey(d.company)}|${titleKey(d.title)}`).toLowerCase();
+      if (seen.has(k)) continue;
+      seen.add(k);
+      items.push(d);
+    }
+    const rows: (typeof schema.leads.$inferInsert)[] = [];
+    for (const d of items) {
+      const url = d.posting?.url ?? d.url ?? null;
+      let postingRef: string | null = null;
+      if (d.posting && POOLABLE_REASONS.has(d.reason)) {
+        postingRef = await upsertPosting(d.posting, "dropped_lead", { demo: opts.demo }).catch((e) => (console.error("[ingest] pool", e), null));
+      }
+      rows.push({
+        profileId: profile.id,
+        searchId: search?.id ?? null,
+        company: d.company,
+        title: d.title,
+        url,
+        reason: d.reason,
+        note: d.note ?? null,
+        postingKey: url && isPublicHttpUrl(url) ? jobKey(url) : null,
+        postingRef,
+      });
+    }
     if (rows.length) await db.insert(schema.leads).values(rows);
     droppedRecorded = rows.length;
   }

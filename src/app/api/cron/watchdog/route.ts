@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { and, eq, gte, inArray, isNotNull, isNull, lt } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
 import { releaseStaleQuestions } from "@/lib/personal";
@@ -21,6 +21,7 @@ export async function GET(request: Request) {
 
   const expired = await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date())).returning({ id: schema.sessions.id });
   const closed = await recheckOpenJobs();
+  const pool = await recheckPostings().catch((e) => (console.error("[watchdog] postings", e), { checked: 0, closed: 0, retired: 0 }));
 
   // Searches only run when the user asks, so nothing is nudged. A search that never sent
   // its final batch is closed here, and its Mind switched off.
@@ -40,8 +41,8 @@ export async function GET(request: Request) {
   // Questions the personal Mind never answered go back in the queue, and it's switched off.
   const released = await releaseStaleQuestions();
 
-  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, expired sessions ${expired.length}, released questions ${released}`);
-  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, releasedQuestions: released });
+  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, pool checked ${pool.checked} closed ${pool.closed} retired ${pool.retired}, expired sessions ${expired.length}, released questions ${released}`);
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, releasedQuestions: released, pool });
 }
 
 // Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the
@@ -54,7 +55,7 @@ async function recheckOpenJobs() {
       eq(schema.jobs.demo, false),
       gte(schema.jobs.createdAt, new Date(Date.now() - 30 * 24 * HOUR)),
     ),
-    columns: { id: true, url: true },
+    columns: { id: true, url: true, postingKey: true },
     limit: RECHECK_LIMIT,
   });
   let closed = 0;
@@ -69,8 +70,49 @@ async function recheckOpenJobs() {
         } else if (state === "open") {
           await db.update(schema.jobs).set({ lastCheckedAt: now }).where(eq(schema.jobs.id, j.id));
         }
+        // The pool row for the same posting learns the result too, so it isn't fetched twice.
+        if (j.postingKey && state !== "unknown") {
+          await db
+            .update(schema.postings)
+            .set(state === "closed" ? { closedAt: now } : { lastVerifiedOpenAt: now })
+            .where(eq(schema.postings.postingKey, j.postingKey));
+        }
       }),
     );
   }
   return closed;
+}
+
+// The shared pool: postings nobody has looked at lately get a quick open-check, oldest first,
+// with a small cap and a short timeout so the job recheck above always finishes. Rows not seen
+// for 60 days are retired; a lead that pointed at one keeps its own copy of the facts.
+const POOL_LIMIT = 60;
+const POOL_DAYS = 60;
+async function recheckPostings() {
+  const retired = await db
+    .delete(schema.postings)
+    .where(lt(schema.postings.lastSeenAt, new Date(Date.now() - POOL_DAYS * 24 * HOUR)))
+    .returning({ k: schema.postings.postingKey });
+  const rows = await db.query.postings.findMany({
+    where: and(isNull(schema.postings.closedAt), eq(schema.postings.demo, false)),
+    orderBy: [sql`${schema.postings.lastVerifiedOpenAt} asc nulls first`],
+    columns: { postingKey: true, url: true },
+    limit: POOL_LIMIT,
+  });
+  let closed = 0;
+  for (let i = 0; i < rows.length; i += 8) {
+    await Promise.all(
+      rows.slice(i, i + 8).map(async (p) => {
+        const state = await checkPosting(p.url, isPublicHttpUrl, 6_000);
+        const now = new Date();
+        if (state === "closed") {
+          closed++;
+          await db.update(schema.postings).set({ closedAt: now }).where(eq(schema.postings.postingKey, p.postingKey));
+        } else if (state === "open") {
+          await db.update(schema.postings).set({ lastVerifiedOpenAt: now }).where(eq(schema.postings.postingKey, p.postingKey));
+        }
+      }),
+    );
+  }
+  return { checked: rows.length, closed, retired: retired.length };
 }

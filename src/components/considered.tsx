@@ -8,9 +8,9 @@ const LABELS: Record<DropReason, string> = {
   closed: "already closed",
   poor_fit: "you miss most must-haves",
   duplicate: "already sent",
-  pay: "pay",
   work_setting: "wrong work setting",
   other: "other",
+  pay: "other", // rows from before pay stopped being a reason
 };
 
 // Advice when one reason dominates: the rule the user could loosen, in plain words.

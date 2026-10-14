@@ -205,6 +205,13 @@ export const jobs = pgTable(
     status: text("status").$type<JobStatus>().notNull().default("new"),
     skipReason: text("skip_reason"),
     demo: boolean("demo").notNull().default(false),
+    // Clean values beside the free text (see lib/normalise): the same posting's key in the
+    // shared postings table, and filterable country, type, level and date.
+    postingKey: text("posting_key"),
+    countryCode: text("country_code"),
+    jobTypeKey: text("job_type_key"),
+    levelKey: text("level_key"),
+    postedOn: date("posted_on"),
     createdAt: createdAt(),
     statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
   },
@@ -212,7 +219,51 @@ export const jobs = pgTable(
     uniqueIndex("jobs_profile_url").on(t.profileId, t.url),
     index("jobs_profile_created").on(t.profileId, t.createdAt),
     index("jobs_profile_status").on(t.profileId, t.status),
+    index("jobs_posting_key").on(t.postingKey),
   ],
+).enableRLS();
+
+// Every posting any headhunter opened, as facts about the posting only: no user, no fit, no
+// pack, no finder. One row per posting (keyed by lib/dedupe jobKey), kept fresh by the daily
+// watchdog and retired after 60 days. The pool a Mind will check before searching.
+export type PostingSource = "accepted" | "quota_refused" | "dropped_lead";
+
+export const postings = pgTable(
+  "postings",
+  {
+    postingKey: text("posting_key").primaryKey(),
+    url: text("url").notNull(),
+    title: text("title").notNull(),
+    company: text("company").notNull(),
+    companyKey: text("company_key").notNull(),
+    city: text("city"),
+    country: text("country"),
+    countryCode: text("country_code"),
+    workSetting: text("work_setting").$type<WorkSetting>(),
+    jobType: text("job_type"),
+    jobTypeKey: text("job_type_key"),
+    level: text("level"),
+    levelKey: text("level_key"),
+    salary: text("salary"),
+    salaryEstimated: boolean("salary_estimated").notNull().default(false),
+    postedAt: text("posted_at"),
+    postedOn: date("posted_on"),
+    locationText: text("location_text"),
+    summary: text("summary"),
+    mustHaves: jsonb("must_haves").$type<string[]>(),
+    companyDomain: text("company_domain"),
+    companyStage: text("company_stage"),
+    companySize: text("company_size"),
+    industry: text("industry"),
+    perks: jsonb("perks").$type<string[]>(),
+    source: text("source").$type<PostingSource>().notNull(),
+    demo: boolean("demo").notNull().default(false),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastVerifiedOpenAt: timestamp("last_verified_open_at", { withTimezone: true }),
+    closedAt: timestamp("closed_at", { withTimezone: true }),
+  },
+  (t) => [index("postings_country_seen").on(t.countryCode, t.lastSeenAt), index("postings_company_key").on(t.companyKey)],
 ).enableRLS();
 
 export type PackAnswer = { question: string; answer: string };
@@ -289,7 +340,8 @@ export const searches = pgTable(
 
 // Leads the headhunter considered and dropped, with its reason: shows the user why a search
 // came back light, and keeps the next search from re-checking the same postings.
-export type DropReason = "not_eligible" | "too_old" | "closed" | "poor_fit" | "duplicate" | "pay" | "work_setting" | "other";
+// "pay" is no longer offered to the Mind; rows from before still carry it.
+export type DropReason = "not_eligible" | "too_old" | "closed" | "poor_fit" | "duplicate" | "work_setting" | "other" | "pay";
 
 export const leads = pgTable(
   "leads",
@@ -304,6 +356,9 @@ export const leads = pgTable(
     url: text("url"),
     reason: text("reason").$type<DropReason>().notNull(),
     note: text("note"),
+    // Same key as the postings table; the reference is set only when the Mind sent full facts.
+    postingKey: text("posting_key"),
+    postingRef: text("posting_ref").references(() => postings.postingKey, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [index("leads_profile_created").on(t.profileId, t.createdAt)],

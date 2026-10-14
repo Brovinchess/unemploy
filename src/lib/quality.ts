@@ -11,6 +11,8 @@ const AGGREGATORS = [
   "talent.com", "careerjet.com", "simplyhired.com", "ziprecruiter.com", "himalayas.app", "jobicy.com",
   "remotive.com", "remote.co", "workingnomads.com", "builtin.com", "glassdoor.com", "jobrapido.com",
   "whatjobs.com", "jobsora.com", "trabajo.org", "neuvoo.com", "echojobs.io", "hiring.cafe",
+  // Big boards: copies of employer postings, never the posting itself.
+  "linkedin.com", "indeed.com", "jobstreet.com", "jobstreet.com.my", "monster.com", "dice.com", "lensa.com", "wellfound.com", "otta.com", "foundit.in", "foundit.my",
 ];
 
 export function hostOf(url: string) {
