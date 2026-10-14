@@ -21,7 +21,6 @@ export async function GET(request: Request) {
 
   const expired = await db.delete(schema.sessions).where(lt(schema.sessions.expiresAt, new Date())).returning({ id: schema.sessions.id });
   const closed = await recheckOpenJobs();
-  const pool = await recheckPostings().catch((e) => (console.error("[watchdog] postings", e), { checked: 0, closed: 0, retired: 0 }));
 
   // Searches only run when the user asks, so nothing is nudged. A search that never sent
   // its final batch is closed here, and its Mind switched off.
@@ -40,6 +39,9 @@ export async function GET(request: Request) {
 
   // Questions the personal Mind never answered go back in the queue, and it's switched off.
   const released = await releaseStaleQuestions();
+
+  // Last, because it matters least if the run is cut short: keep the shared pool fresh.
+  const pool = await recheckPostings().catch((e) => (console.error("[watchdog] postings", e), { checked: 0, closed: 0, retired: 0 }));
 
   console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, pool checked ${pool.checked} closed ${pool.closed} retired ${pool.retired}, expired sessions ${expired.length}, released questions ${released}`);
   return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, releasedQuestions: released, pool });
@@ -74,7 +76,7 @@ async function recheckOpenJobs() {
         if (j.postingKey && state !== "unknown") {
           await db
             .update(schema.postings)
-            .set(state === "closed" ? { closedAt: now } : { lastVerifiedOpenAt: now })
+            .set(state === "closed" ? { closedAt: now, lastCheckedAt: now } : { lastVerifiedOpenAt: now, lastCheckedAt: now })
             .where(eq(schema.postings.postingKey, j.postingKey));
         }
       }),
@@ -95,7 +97,7 @@ async function recheckPostings() {
     .returning({ k: schema.postings.postingKey });
   const rows = await db.query.postings.findMany({
     where: and(isNull(schema.postings.closedAt), eq(schema.postings.demo, false)),
-    orderBy: [sql`${schema.postings.lastVerifiedOpenAt} asc nulls first`],
+    orderBy: [sql`${schema.postings.lastCheckedAt} asc nulls first`],
     columns: { postingKey: true, url: true },
     limit: POOL_LIMIT,
   });
@@ -105,12 +107,12 @@ async function recheckPostings() {
       rows.slice(i, i + 8).map(async (p) => {
         const state = await checkPosting(p.url, isPublicHttpUrl, 6_000);
         const now = new Date();
-        if (state === "closed") {
-          closed++;
-          await db.update(schema.postings).set({ closedAt: now }).where(eq(schema.postings.postingKey, p.postingKey));
-        } else if (state === "open") {
-          await db.update(schema.postings).set({ lastVerifiedOpenAt: now }).where(eq(schema.postings.postingKey, p.postingKey));
-        }
+        // Every result, even "unknown", stamps the row so the queue moves on to the next one tomorrow.
+        await db
+          .update(schema.postings)
+          .set({ lastCheckedAt: now, ...(state === "closed" ? { closedAt: now } : state === "open" ? { lastVerifiedOpenAt: now } : {}) })
+          .where(eq(schema.postings.postingKey, p.postingKey));
+        if (state === "closed") closed++;
       }),
     );
   }

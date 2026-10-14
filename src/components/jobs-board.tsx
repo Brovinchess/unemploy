@@ -5,14 +5,13 @@ import Link from "next/link";
 import { ChevronDown, RotateCcw, Search } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
 import type { Job, JobStatus } from "@/db/schema";
-
-// What the board needs from a job row. Backend-only columns (the shared posting key and the
-// clean match fields) never leave the server.
-export type BoardJob = Omit<Job, "postingKey" | "countryCode" | "jobTypeKey" | "levelKey" | "postedOn">;
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 import { ApplyAllButton } from "./extension-ui";
 import { MoveJob } from "./move-job";
+// What the board needs from a job row. Backend-only columns (the shared posting key and the
+// clean match fields) never leave the server.
+export type BoardJob = Omit<Job, "postingKey" | "countryCode" | "jobTypeKey" | "levelKey" | "postedOn">;
 
 // Every job the headhunter found, as a pipeline: a stage bar to filter, the apply-all bar,
 // then rows grouped by stage. Dismissed jobs stay out of the way until asked for.

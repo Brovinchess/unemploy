@@ -1,8 +1,13 @@
-// Clean, filterable values beside the free text a Mind sends. Pure functions: used at ingest
-// and by one-off backfills, so no server-only imports here.
+// Clean, filterable values beside the free text a Mind sends. Pure functions with no
+// server-only imports.
 
+// Order matters where names overlap: the UK (with Northern Ireland and Perth, Scotland) comes
+// before Ireland and Australia, and the explicit US forms (including New Mexico) before Mexico.
 const COUNTRIES: [RegExp, string][] = [
-  [/\b(malaysia|malaysian|kuala lumpur|\bkl\b|penang|johor|selangor)\b/i, "MY"],
+  [/\b(australia|new south wales|nsw|sydney|melbourne|brisbane|adelaide|perth, (australia|wa))\b/i, "AU"],
+  [/\b(united kingdom|u\.?k\.?|great britain|england|scotland|wales|northern ireland|belfast|london|manchester|edinburgh|glasgow)\b/i, "GB"],
+  [/\b(united states|u\.?s\.?a\.?|us[- ](only|based|remote|citizens?)|new mexico|new york|san francisco|los angeles|seattle|austin|boston|chicago|denver|miami)\b/i, "US"],
+  [/\b(malaysia|malaysian|kuala lumpur|kl|penang|johor|selangor)\b/i, "MY"],
   [/\b(singapore|singaporean)\b/i, "SG"],
   [/\b(hong kong|hk\b)\b/i, "HK"],
   [/\b(indonesia|jakarta|bali)\b/i, "ID"],
@@ -17,7 +22,6 @@ const COUNTRIES: [RegExp, string][] = [
   [/\b(pakistan|karachi|lahore)\b/i, "PK"],
   [/\b(bangladesh|dhaka)\b/i, "BD"],
   [/\b(sri lanka|colombo)\b/i, "LK"],
-  [/\b(australia|sydney|melbourne|brisbane|perth)\b/i, "AU"],
   [/\b(new zealand|auckland|wellington)\b/i, "NZ"],
   [/\b(united arab emirates|uae|dubai|abu dhabi)\b/i, "AE"],
   [/\b(saudi arabia|riyadh|jeddah)\b/i, "SA"],
@@ -27,7 +31,6 @@ const COUNTRIES: [RegExp, string][] = [
   [/\b(nigeria|lagos)\b/i, "NG"],
   [/\b(kenya|nairobi)\b/i, "KE"],
   [/\b(south africa|cape town|johannesburg)\b/i, "ZA"],
-  [/\b(united kingdom|u\.?k\.?|great britain|england|scotland|wales|london|manchester)\b/i, "GB"],
   [/\b(ireland|dublin)\b/i, "IE"],
   [/\b(the netherlands|netherlands|holland|amsterdam|rotterdam|dutch)\b/i, "NL"],
   [/\b(germany|berlin|munich|hamburg|frankfurt)\b/i, "DE"],
@@ -39,7 +42,7 @@ const COUNTRIES: [RegExp, string][] = [
   [/\b(switzerland|zurich|geneva)\b/i, "CH"],
   [/\b(austria|vienna)\b/i, "AT"],
   [/\b(poland|warsaw|krakow)\b/i, "PL"],
-  [/\b(czech|prague)\b/i, "CZ"],
+  [/\b(czech|czechia|prague)\b/i, "CZ"],
   [/\b(romania|bucharest)\b/i, "RO"],
   [/\b(sweden|stockholm)\b/i, "SE"],
   [/\b(denmark|copenhagen)\b/i, "DK"],
@@ -56,8 +59,6 @@ const COUNTRIES: [RegExp, string][] = [
   [/\b(colombia|bogot[aá])\b/i, "CO"],
   [/\b(peru|lima)\b/i, "PE"],
   [/\b(uruguay|montevideo)\b/i, "UY"],
-  // "US" last: a bare "us" matches too easily, so only the explicit forms count.
-  [/\b(united states|u\.?s\.?a\.?|us[- ](only|based|remote|citizens?)|new york|san francisco|los angeles|seattle|austin|boston|chicago|denver|miami)\b/i, "US"],
 ];
 
 // ISO-2 country for a posting, from its stated country first, then its location line.
@@ -73,10 +74,10 @@ export type JobTypeKey = "full_time" | "part_time" | "contract" | "temporary" | 
 export function jobTypeKeyOf(text?: string | null): JobTypeKey | null {
   const s = (text ?? "").toLowerCase();
   if (!s) return null;
-  if (/intern/.test(s)) return "internship";
+  if (/\bintern(ship)?s?\b/.test(s)) return "internship";
   if (/freelanc|self[- ]?employed/.test(s)) return "freelance";
   if (/contract|fixed[- ]term|contractor/.test(s)) return "contract";
-  if (/temp/.test(s)) return "temporary";
+  if (/\btemp(orary)?\b/.test(s)) return "temporary";
   if (/part[- ]?time/.test(s)) return "part_time";
   if (/full[- ]?time|permanent|regular/.test(s)) return "full_time";
   return null;
@@ -86,10 +87,11 @@ export type LevelKey = "intern" | "junior" | "mid" | "senior" | "lead" | "direct
 export function levelKeyOf(text?: string | null): LevelKey | null {
   const s = (text ?? "").toLowerCase();
   if (!s) return null;
-  if (/intern/.test(s)) return "intern";
-  if (/\b(chief|cxo|ceo|cto|coo|cfo|cpo|executive|president|vp|vice president)\b/.test(s)) return "exec";
+  if (/\bintern(ship)?s?\b/.test(s)) return "intern";
+  // "Account executive" and "executive assistant" are not the C-suite.
+  if (/\b(chief|cxo|ceo|cto|coo|cfo|cpo|president|vp|vice president|executive director|c-level)\b/.test(s)) return "exec";
   if (/\b(director|head of)\b/.test(s)) return "director";
-  if (/\b(lead|principal|staff|manager)\b/.test(s)) return "lead";
+  if (/\b(lead|principal|staff)\b/.test(s)) return "lead";
   if (/\b(senior|sr\.?|mid[- ]senior)\b/.test(s)) return "senior";
   if (/\b(junior|jr\.?|entry|graduate|associate)\b/.test(s)) return "junior";
   if (/\bmid\b/.test(s)) return "mid";
@@ -103,5 +105,10 @@ export function postedOnOf(text?: string | null): string | null {
   if (Number.isNaN(t)) return null;
   const d = new Date(t);
   if (d.getFullYear() < 2015 || d.getTime() > Date.now() + 86_400_000) return null;
-  return d.toISOString().slice(0, 10);
+  // Date-only strings parse as UTC and others as local time; read the parts the same way they were parsed.
+  const utc = /^\d{4}-\d{2}-\d{2}$/.test(text.trim());
+  const y = utc ? d.getUTCFullYear() : d.getFullYear();
+  const m = (utc ? d.getUTCMonth() : d.getMonth()) + 1;
+  const day = utc ? d.getUTCDate() : d.getDate();
+  return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }

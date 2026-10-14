@@ -261,6 +261,7 @@ export const postings = pgTable(
     firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     lastVerifiedOpenAt: timestamp("last_verified_open_at", { withTimezone: true }),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     closedAt: timestamp("closed_at", { withTimezone: true }),
   },
   (t) => [index("postings_country_seen").on(t.countryCode, t.lastSeenAt), index("postings_company_key").on(t.companyKey)],
@@ -361,7 +362,7 @@ export const leads = pgTable(
     postingRef: text("posting_ref").references(() => postings.postingKey, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
-  (t) => [index("leads_profile_created").on(t.profileId, t.createdAt)],
+  (t) => [index("leads_profile_created").on(t.profileId, t.createdAt), index("leads_posting_ref").on(t.postingRef)],
 ).enableRLS();
 
 export const ingestLog = pgTable(

@@ -44,7 +44,10 @@ export async function Considered({ profileId, country, remoteOnly }: { profileId
     );
   }
   const counts = new Map<DropReason, number>();
-  for (const r of rows) counts.set(r.reason, (counts.get(r.reason) ?? 0) + 1);
+  for (const r of rows) {
+    const reason: DropReason = r.reason === "pay" ? "other" : r.reason;
+    counts.set(reason, (counts.get(reason) ?? 0) + 1);
+  }
   const ordered = [...counts.entries()].sort((a, b) => b[1] - a[1]);
   const tip = advice(counts, rows.length, country, remoteOnly);
 

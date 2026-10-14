@@ -224,7 +224,7 @@ export async function upsertPosting(p: PostingPush, source: schema.PostingSource
         level: keep(ex.level),
         levelKey: keep(ex.levelKey),
         salary: keep(ex.salary),
-        salaryEstimated: sql`excluded.salary_estimated`,
+        salaryEstimated: sql`case when excluded.salary is null then "postings".salary_estimated else excluded.salary_estimated end`,
         postedAt: keep(ex.postedAt),
         postedOn: keep(ex.postedOn),
         locationText: keep(ex.locationText),
@@ -238,7 +238,8 @@ export async function upsertPosting(p: PostingPush, source: schema.PostingSource
         source: sql.raw(`case when ${SOURCE_RANK[source]} >= case "postings".source when 'accepted' then 2 when 'quota_refused' then 1 else 0 end then excluded.source else "postings".source end`),
         lastSeenAt: now,
         lastVerifiedOpenAt: sql`greatest(excluded.last_verified_open_at, "postings".last_verified_open_at)`,
-        closedAt: null,
+        // Only a job someone's Mind just verified open clears a closed mark; a dropped lead doesn't prove it's open.
+        closedAt: source === "accepted" ? null : sql`"postings".closed_at`,
       },
     });
   return key;
@@ -325,7 +326,12 @@ function companyDomain(raw: string) {
 }
 
 export function isPublicHttpUrl(raw: string) {
-  const u = new URL(raw);
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return false;
+  }
   if (u.protocol !== "https:" && u.protocol !== "http:") return false;
   const h = u.hostname.toLowerCase();
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".internal") || h.endsWith(".local")) return false;
@@ -483,8 +489,10 @@ async function checkAndSave(
         code: "search_limit",
         hint: `The user asked for ${prefs.jobsPerDay} jobs per search and this search's are in. Stop and wait for the next request.`,
       });
-      // Fully checked and written, just late: the posting itself is worth keeping for the pool.
-      if (!dryRun) await upsertPosting(job, "quota_refused", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => console.error("[ingest] pool", e));
+      // Passed every per-user check, just late. Worth keeping for the pool once we've seen it open ourselves.
+      if (!dryRun && !opts.demo && (await checkPosting(job.url, isPublicHttpUrl)) !== "closed") {
+        await upsertPosting(job, "quota_refused", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => console.error("[ingest] pool", e));
+      }
       continue;
     }
 
@@ -600,7 +608,8 @@ async function checkAndSave(
       const r = droppedSchema.safeParse(raw);
       if (!r.success) continue;
       const d = r.data;
-      const k = (d.url ? jobKey(d.url) : `${companyKey(d.company)}|${titleKey(d.title)}`).toLowerCase();
+      const u = d.posting?.url ?? d.url;
+      const k = (u ? jobKey(u) : `${companyKey(d.company)}|${titleKey(d.title)}`).toLowerCase();
       if (seen.has(k)) continue;
       seen.add(k);
       items.push(d);
@@ -620,7 +629,7 @@ async function checkAndSave(
         url,
         reason: d.reason,
         note: d.note ?? null,
-        postingKey: url && isPublicHttpUrl(url) ? jobKey(url) : null,
+        postingKey: url && !opts.demo && isPublicHttpUrl(url) ? jobKey(url) : null,
         postingRef,
       });
     }
