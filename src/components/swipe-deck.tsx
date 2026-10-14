@@ -441,7 +441,7 @@ function Summary({
   return (
     <div className="w-full max-w-[820px]">
       <div className="text-center">
-        <Ninja mood={toApply.length ? "excited" : "sad"} className="mx-auto size-[72px]" />
+        <Ninja mood={toApply.length ? "excited" : "sad"} className="pop-in mx-auto size-[72px]" />
         <h2 className="font-display mt-3.5 text-[30px] font-medium tracking-tight">All sorted</h2>
         <p className="mt-1.5 text-white/55">Here&rsquo;s what you decided. You can change your mind any time.</p>
         <div className="mt-5 flex justify-center gap-3">

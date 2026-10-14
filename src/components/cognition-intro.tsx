@@ -40,7 +40,7 @@ export function CognitionIntro() {
   const card = (
     <div role="dialog" aria-labelledby="cog-title" className="w-[22rem] max-w-[calc(100vw-2rem)] rounded-3xl border border-white/[0.08] bg-night-2 p-5 shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
       <div className="flex items-start gap-3">
-        <Ninja mood="thinking" className="size-12 shrink-0" />
+        <Ninja mood="thinking" className="bob size-12 shrink-0" />
         <div>
           <p id="cog-title" className="font-display text-lg font-medium text-white">
             This is cognition

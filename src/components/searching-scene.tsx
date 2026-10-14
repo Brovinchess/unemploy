@@ -6,7 +6,7 @@ import { Ninja } from "./brand";
 // just what happens next.
 export function SearchingScene({ mindName, notifyEmail }: { mindName: string; notifyEmail: string | null }) {
   return (
-    <section className="flex flex-col items-center overflow-hidden rounded-3xl bg-surface px-8 py-14 text-center">
+    <section className="rise rise-1 flex flex-col items-center overflow-hidden rounded-3xl bg-surface px-8 py-14 text-center">
       <div className="relative flex size-56 items-center justify-center">
         <Radar />
         <Ninja mood="thinking" className="relative size-28 bob" />

@@ -83,7 +83,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
         ].filter((g) => g.jobs.length);
 
   return (
-    <section aria-label="All jobs" className="space-y-4">
+    <section aria-label="All jobs" className="rise rise-2 space-y-4">
       {/* Stage bar */}
       <div className="flex flex-wrap items-center gap-2">
         <Chip on={stage === "all"} onClick={() => setStage("all")}>
@@ -150,8 +150,8 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
               )}
             </div>
             <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-3xl bg-surface">
-              {g.jobs.map((j) => (
-                <Row key={j.id} job={j} />
+              {g.jobs.map((j, i) => (
+                <Row key={j.id} job={j} index={i} />
               ))}
             </ul>
           </div>
@@ -213,7 +213,7 @@ function Chip({
 function Empty({ text }: { text: string }) {
   return (
     <div className="flex flex-col items-center rounded-3xl bg-surface px-6 py-10 text-center">
-      <Ninja mood="sleeping" className="size-16" />
+      <Ninja mood="sleeping" className="float size-16" />
       <p className="mt-3 text-sm text-white/45">{text}</p>
     </div>
   );
@@ -232,7 +232,7 @@ function when(d: Date | null) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Row({ job: j }: { job: BoardJob }) {
+function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
   const [pending, start] = useTransition();
   const place = [j.city, j.country].filter(Boolean).join(", ");
   const setting = j.workSetting
@@ -244,7 +244,8 @@ function Row({ job: j }: { job: BoardJob }) {
   const strong = match >= 80;
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${dismissed ? "opacity-60" : ""}`}
+      className={`rise flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${dismissed ? "opacity-60" : ""}`}
+      style={{ animationDelay: `${Math.min(index, 10) * 40 + 150}ms` }}
     >
       <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
       <div className="min-w-0 flex-1 basis-[13rem]">

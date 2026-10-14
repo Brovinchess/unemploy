@@ -48,7 +48,7 @@ export function ApplyAllButton({
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-5 py-3.5 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-4">
-          <Ninja mood="love" className="size-11 shrink-0" />
+          <Ninja mood="love" className="float size-11 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-medium text-white">
               {count} {one ? "job" : "jobs"} ready to apply

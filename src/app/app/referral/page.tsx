@@ -22,7 +22,7 @@ export default async function ReferralPage() {
         </p>
 
         <section className="mt-8 flex gap-5 rounded-3xl bg-surface p-6 md:p-8">
-          <Ninja mood="love" className="hidden size-14 shrink-0 sm:block" />
+          <Ninja mood="love" className="float hidden size-14 shrink-0 sm:block" />
           <div className="min-w-0 flex-1">
             <p className="font-display font-medium text-white">Your link</p>
             <p className="mt-1 mb-3 text-sm text-white/55">Works anywhere: chat, email, a post. It stays yours.</p>

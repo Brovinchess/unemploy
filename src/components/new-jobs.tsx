@@ -66,9 +66,9 @@ export function NewJobs({
   const n = deck.length;
   return (
     <>
-      <section className="mb-6 flex flex-col gap-4 rounded-3xl border border-white/[0.06] bg-gradient-to-r from-coral/[0.14] to-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
+      <section className="rise mb-6 flex flex-col gap-4 rounded-3xl border border-white/[0.06] bg-gradient-to-r from-coral/[0.14] to-surface px-5 py-4 sm:flex-row sm:items-center sm:gap-5">
         <div className="flex min-w-0 flex-1 items-center gap-4">
-          <Ninja mood="surprised" className="size-14 shrink-0" />
+          <Ninja mood="surprised" className="bob size-14 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-display text-lg font-medium text-white">
               {n} new {n === 1 ? "job" : "jobs"} to look at
@@ -79,7 +79,7 @@ export function NewJobs({
           </div>
         </div>
         <button
-          className="btn btn-accent h-10 w-full shrink-0 justify-center sm:w-auto"
+          className="btn btn-accent attention h-10 w-full shrink-0 justify-center sm:w-auto"
           onClick={() => setOpen(true)}
         >
           Review {n === 1 ? "it" : "them"}
@@ -89,7 +89,7 @@ export function NewJobs({
       {open &&
         createPortal(
           <div
-            className="fixed inset-0 z-50 overflow-y-auto bg-night/95 backdrop-blur-sm"
+            className="overlay-in fixed inset-0 z-50 overflow-y-auto bg-night/95 backdrop-blur-sm"
             role="dialog"
             aria-modal="true"
             aria-label="New jobs"
@@ -101,7 +101,7 @@ export function NewJobs({
             >
               <X className="size-5" />
             </button>
-            <div className="mx-auto w-full max-w-[920px] px-5 pb-16 pt-14">
+            <div className="deck-enter mx-auto w-full max-w-[920px] px-5 pb-16 pt-14">
               <SwipeDeck jobs={deck} after={after} />
               <p className="mt-8 text-center">
                 <button

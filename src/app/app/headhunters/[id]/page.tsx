@@ -45,7 +45,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
     <AppShell tab="headhunter" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
       <main className="w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         {/* Who it is and what it's doing */}
-        <section className="flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
+        <section className="rise flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
           <div className="flex items-center gap-5">
             <Ninja mood={searching ? "searching" : current.status === "paused" ? "sleeping" : "happy"} className={`size-20 shrink-0 ${searching ? "float" : ""}`} />
             <div>
@@ -82,7 +82,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <ActivityPanel profileId={current.id} live={searching} />
           <div className="space-y-6">
-            <section className="rounded-3xl bg-surface p-6">
+            <section className="rise rise-1 rounded-3xl bg-surface p-6">
               <h2 className="font-display text-lg font-medium text-white">Searches</h2>
               {history.length === 0 ? (
                 <p className="mt-3 text-sm text-white/45">None yet. Each one shows here with jobs found and cognition used.</p>
@@ -121,7 +121,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
 
         {/* What it works from: the brief on the left, the resume on the right. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
-          <section id="looks-for" className="scroll-mt-8 rounded-3xl bg-surface p-6">
+          <section id="looks-for" className="rise rise-2 scroll-mt-8 rounded-3xl bg-surface p-6">
             <ScrollToHash id="looks-for" />
             <Coach pace={pace} />
             <h2 className="font-display text-lg font-medium text-white">Search settings</h2>
@@ -135,7 +135,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             />
           </section>
           <div className="space-y-6">
-            <section id="resume" className="scroll-mt-8 rounded-3xl bg-surface p-6">
+            <section id="resume" className="rise rise-3 scroll-mt-8 rounded-3xl bg-surface p-6">
               <ScrollToHash id="resume" />
               <h2 className="font-display text-lg font-medium text-white">Resume</h2>
               <p className="mt-1 mb-5 text-sm text-white/55">

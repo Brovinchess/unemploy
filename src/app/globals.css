@@ -299,3 +299,30 @@ body {
   .radar-sweep, .radar-blip, .radar-pulse, .bob { animation: none; }
   .radar-blip { opacity: .8; }
 }
+
+/* Motion: things arrive, they don't just appear. Sections rise in with a small stagger,
+   the review deck flips open, and Mochi keeps a gentle idle. All off under reduced motion. */
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.rise { animation: rise .45s cubic-bezier(.2,.8,.2,1) both; }
+.rise-1 { animation-delay: .05s; } .rise-2 { animation-delay: .12s; } .rise-3 { animation-delay: .19s; } .rise-4 { animation-delay: .26s; }
+@keyframes overlay-in { from { opacity: 0; } to { opacity: 1; } }
+.overlay-in { animation: overlay-in .3s ease-out both; }
+@keyframes deck-enter {
+  0% { opacity: 0; transform: perspective(1600px) rotateY(-75deg) scale(.86) translateY(28px); }
+  60% { opacity: 1; transform: perspective(1600px) rotateY(10deg) scale(1.03) translateY(-6px); }
+  100% { opacity: 1; transform: perspective(1600px) rotateY(0) scale(1) translateY(0); }
+}
+.deck-enter { animation: deck-enter .75s .1s cubic-bezier(.22,.9,.25,1) both; transform-origin: 50% 60%; }
+@keyframes bob-sm { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+.bob-sm { animation: bob-sm 2.4s ease-in-out infinite; }
+@keyframes attention { 0%, 100% { box-shadow: 0 0 0 0 rgba(201,101,103,.55); } 60% { box-shadow: 0 0 0 10px rgba(201,101,103,0); } }
+.attention { animation: attention 2.2s ease-out 3; }
+@keyframes pop-in { 0% { opacity: 0; transform: scale(.6) translateY(10px); } 100% { opacity: 1; transform: none; } }
+.pop-in { animation: pop-in .55s cubic-bezier(.3,1.6,.5,1) both; }
+.btn:active:not(:disabled) { transform: scale(.98); }
+.btn-accent:hover:not(:disabled) { transform: translateY(-1px); }
+.btn { transition: background-color 150ms, color 150ms, border-color 150ms, box-shadow 150ms, transform 120ms; }
+@media (prefers-reduced-motion: reduce) {
+  .rise, .overlay-in, .deck-enter, .bob-sm, .attention, .pop-in { animation: none; }
+  .btn:active:not(:disabled), .btn-accent:hover:not(:disabled) { transform: none; }
+}

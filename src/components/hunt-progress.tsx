@@ -77,7 +77,7 @@ export function HuntProgress({
   return (
     <section className={`rounded-3xl bg-surface ${panel ? "" : "mb-6"}`} aria-label="Search progress">
       <div className={`flex gap-4 px-5 py-4 sm:px-6 ${panel ? "flex-col" : "items-center"}`}>
-        <Ninja mood={live ? "searching" : "sleeping"} className={`shrink-0 ${panel ? "size-12" : "size-11"}`} />
+        <Ninja mood={live ? "searching" : "sleeping"} className={`shrink-0 ${panel ? "size-12" : "size-11"} ${live ? "bob-sm" : ""}`} />
         <div className="min-w-0 flex-1">
           <div className={`flex gap-x-3 gap-y-0.5 ${panel ? "flex-col" : "flex-wrap items-baseline justify-between"}`}>
             <p className="flex flex-wrap items-center gap-2 font-medium text-white">

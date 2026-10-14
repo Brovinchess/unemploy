@@ -122,7 +122,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       balance={balance}
     >
       <main className="mx-auto w-full max-w-[920px] flex-1 px-5 py-8 sm:px-8 lg:py-10">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
+        <div className="rise mb-6 flex flex-wrap items-end justify-between gap-4">
           <div>
             <p className="text-sm text-white/45">{`${current.label} headhunter`}</p>
             <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">
@@ -175,7 +175,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
 
         {/* First time: nothing found yet, so the search form is the whole page. */}
         {fresh.length === 0 && !searching && !everDelivered && (
-          <section className="flex flex-col items-center rounded-3xl bg-surface px-8 py-16 text-center">
+          <section className="rise rise-1 flex flex-col items-center rounded-3xl bg-surface px-8 py-16 text-center">
             <Ninja className="float size-24" />
             <h2 className="font-display mt-6 text-3xl font-medium tracking-tight text-white">
               <span className="font-mono text-[0.85em]">
