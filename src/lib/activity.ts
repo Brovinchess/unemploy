@@ -92,7 +92,6 @@ function describeWork(uses: ToolUse[]): string {
 function describeSaid(raw: string): string {
   const t = plainText(raw).replace(/^\s*search request\s*#?\d*[^:]*:\s*/i, "").toLowerCase();
   if (/can'?t reach|couldn'?t reach|unreachable|not reachable|failed to reach/.test(t)) return "Couldn't reach Career Ninja";
-  if (/search closed|"final"\s*:\s*true|final push|finished|done for now|stopping here|nothing else cleared/.test(t)) return "Finished searching";
   if (/dry[- ]?run/.test(t)) return "Tested the job format";
   if (/(posted|sent|pushed|delivered)\b.*\b(job|role|pack)/.test(t) || /\baccepted\s*[1-9]/.test(t)) return "Sent you jobs";
   if (/application form|form question|formquestions/.test(t)) return "Reading application forms";
@@ -125,7 +124,7 @@ export async function buildActivity(
   const items: ActivityItem[] = [];
   let partial = false;
 
-  const [chat, usage, deliveries] = await Promise.all([
+  const [chat, usage, deliveries, ended] = await Promise.all([
     profile.conversationAlias ? api.history(profile.conversationAlias, 40).catch(() => ((partial = true), [])) : [],
     profile.mindId ? api.toolUsage(profile.mindId, usageSince).catch(() => ((partial = true), [])) : [],
     db
@@ -134,7 +133,22 @@ export async function buildActivity(
       .where(and(eq(schema.ingestLog.profileId, profile.id), gte(schema.ingestLog.createdAt, since)))
       .orderBy(desc(schema.ingestLog.createdAt))
       .limit(30),
+    db
+      .select()
+      .from(schema.searches)
+      .where(and(eq(schema.searches.profileId, profile.id), gte(schema.searches.endedAt, since)))
+      .orderBy(desc(schema.searches.endedAt))
+      .limit(10),
   ]);
+
+  // "Finished searching" only when the search really ended on our side, with how it went.
+  for (const s of ended) {
+    if (!s.endedAt) continue;
+    const mins = Math.max(1, Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 60_000));
+    const took = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
+    const title = s.endReason === "timeout" ? "Search timed out" : s.endReason === "stopped" ? "Search stopped" : "Finished searching";
+    items.push({ id: `s${s.id}`, at: s.endedAt.toISOString(), kind: "delivery", title, detail: `${plural(s.jobsAdded ?? 0, "job")} in ${took}` });
+  }
 
   const oldestOwn = [...chat].reverse().find((m) => !m.fromMind);
   chat.forEach((m, i) => {
@@ -172,7 +186,7 @@ export async function buildActivity(
     }
     const why = [...reasons].map(([label, n]) => `${n} ${label}`).join(", ");
     if (d.accepted + d.rejected === 0) {
-      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: "Finished searching", detail: "No new jobs good enough this time" });
+      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: "Checked leads, some ruled out" });
       continue;
     }
     items.push({
