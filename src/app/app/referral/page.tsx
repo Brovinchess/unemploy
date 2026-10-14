@@ -11,7 +11,6 @@ export default async function ReferralPage() {
   const { user, profiles, unfinished, current } = await appContext();
   const [balance, code, stats] = await Promise.all([balanceFor(user, current), referralCodeFor(user.id), referralStats(user.id)]);
   const url = `${mindsConfig.appUrl}/r/${code}`;
-  const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   return (
     <AppShell tab="referral" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -43,11 +42,9 @@ export default async function ReferralPage() {
           ) : (
             <ul className="mt-4 divide-y divide-white/[0.06]">
               {stats.friends.map((f, i) => (
-                <li key={i} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+                <li key={i} className="flex items-center gap-4 py-3 text-sm">
                   <span className="min-w-0 flex-1 truncate font-medium text-white">{f.username ?? "New member"}</span>
-                  <span className="text-white/45">joined {when(f.joinedAt)}</span>
-                  <span className="text-white/45">{f.deployed ? `${f.searches} ${f.searches === 1 ? "search" : "searches"}` : "setting up"}</span>
-                  <span className="w-28 text-right tabular-nums text-white">{f.cognition} cognition</span>
+                  <span className="tabular-nums text-white">{f.cognition} cognition</span>
                 </li>
               ))}
             </ul>
