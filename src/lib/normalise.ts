@@ -112,3 +112,40 @@ export function postedOnOf(text?: string | null): string | null {
   const day = utc ? d.getUTCDate() : d.getDate();
   return `${y}-${String(m).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
+
+// The person's name from a resume: a "Name:" label if there is one, otherwise the first line that
+// looks like a name (2 to 4 capitalised words, no instructions, no contact details). Null when unsure.
+const NOT_A_NAME =
+  /\b(please|email|e-mail|photo|resume|cv|curriculum|vitae|form|address|phone|mobile|summary|profile|objective|experience|education|skills|work|travel|usa|application|yourself|contact|linkedin|portfolio|date|birth|manager|engineer|designer|developer|analyst|director|lead|specialist|consultant|marketing|product|senior|junior|head|officer|associate|executive|assistant|intern|student|graduate|university|college|school|permanent|home|street|road|jalan|city|state|country|postcode|zip|nationality|gender|age)\b/i;
+// Lowercase particles that sit inside real names.
+const PARTICLE = /^(de|van|der|den|von|da|di|del|della|le|la|du|bin|binti|binte|ibn|al|el|ter|te|dos|das|e|y)$/;
+const nameWord = (w: string) => /^[A-Z][a-zA-Z'-]*\.?$/.test(w) || /^[A-Z]{2,}$/.test(w) || PARTICLE.test(w);
+
+export function guessName(resumeText: string | null | undefined): string | null {
+  const text = (resumeText ?? "").replace(/\r/g, "");
+  // "Name: Chang Kangyan", "Name Chang Kangyan", or the name on the next line. PDF text often
+  // runs lines together ("Name Chang Kangyan Permanent Home Address"), so take words only while
+  // they still look like a name.
+  const labelled = text.match(/(?:^|\n)[ \t]*(?:[Ff]ull[ \t]+)?[Nn]ame[ \t]*[:\-]?[ \t]*\n?[ \t]*((?:[A-Za-z'-]+[ \t]*){1,6})/);
+  if (labelled) {
+    const words: string[] = [];
+    for (const w of labelled[1].trim().split(/[ \t]+/)) {
+      if (words.length >= 4 || !nameWord(w) || NOT_A_NAME.test(w)) break;
+      words.push(w);
+    }
+    while (words.length && PARTICLE.test(words[words.length - 1])) words.pop();
+    if (words.length >= 2 && !PARTICLE.test(words[0])) return words.join(" ");
+  }
+  const lines = text
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .slice(0, 30);
+  for (const l of lines) {
+    if (l.length > 40 || /[@\d|•·/]/.test(l) || NOT_A_NAME.test(l)) continue;
+    const words = l.split(" ");
+    if (words.length < 2 || words.length > 4) continue;
+    if (words.every(nameWord) && nameWord(words[0]) && !PARTICLE.test(words[0])) return l;
+  }
+  return null;
+}

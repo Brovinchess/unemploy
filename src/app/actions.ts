@@ -15,6 +15,7 @@ import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
+import { guessName } from "@/lib/normalise";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
@@ -38,15 +39,14 @@ const usernameSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9][a-z0-9-]{1,22}[a-z0-9]$/, "Use 3–24 letters, numbers or dashes.");
 
-// A username from the resume's first lines: usually the person's name. Falls back to a short
-// random handle, and never collides with an existing one. Nobody has to type anything to get in.
+// A username from the resume: a "Name:" label if there is one, otherwise the first line that
+// looks like a person's name (2 to 4 capitalised words, no instructions, no contact details).
+// Falls back to a short random handle, and never collides with an existing one. Nobody has to
+// type anything to get in; the summary page lets them change it before deploying.
 async function assignUsername(user: User, resumeText: string | null | undefined, timezone?: string) {
   if (user.username) return user.username;
-  const first = (resumeText ?? "")
-    .split(/\r?\n/)
-    .map((l) => l.trim())
-    .find((l) => l && l.length <= 40 && /^[A-Za-z][A-Za-z .'-]+$/.test(l) && l.split(/\s+/).length <= 4);
-  const base = (first?.split(/\s+/)[0] ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
+  const first = guessName(resumeText)?.split(/\s+/)[0] ?? "";
+  const base = first.toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 20);
   const seed = base.length >= 3 ? base : `ninja${Math.random().toString(36).slice(2, 6)}`;
   let name = seed;
   for (let n = 2; n < 50; n++) {
