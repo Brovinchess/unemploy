@@ -6,6 +6,7 @@ import { mindsMode } from "@/lib/minds/config";
 import { hasEncryptionKey } from "@/lib/crypto";
 import { createPkce, loginUrl } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
+import { attachReferral, REF_COOKIE } from "@/lib/referrals";
 
 export async function GET(request: Request) {
   // Before launch, sign-in is closed except with the early-access code (for the team and testers).
@@ -23,6 +24,10 @@ export async function GET(request: Request) {
       .insert(schema.users)
       .values({ id: crypto.randomUUID(), hmUserId: `demo-${crypto.randomUUID()}` })
       .returning();
+    // Same referral handling as the real sign-in, so the flow can be tried locally.
+    const ref = jar.get(REF_COOKIE)?.value;
+    await attachReferral(user.id, ref).catch((e) => console.error("[auth] referral", e));
+    if (ref) jar.delete(REF_COOKIE);
     await createSession(user.id);
     return NextResponse.redirect(new URL("/start", request.url));
   }

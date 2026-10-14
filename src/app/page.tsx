@@ -126,7 +126,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <a href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
                     Deploy my headhunter <ArrowRight className="size-4" aria-hidden />
                   </a>
-                  <span className="text-sm text-white/50">Free to start. Sign in with Hello Minds.</span>
+                  <span className="text-sm text-white/50">{sp.ref === "1" ? "A friend invited you. Free to start, sign in with Hello Minds." : "Free to start. Sign in with Hello Minds."}</span>
                 </div>
               ) : (
                 <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />

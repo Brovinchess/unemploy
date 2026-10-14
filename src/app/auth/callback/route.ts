@@ -6,6 +6,7 @@ import { encrypt } from "@/lib/crypto";
 import { exchangeCode, tokenSubject } from "@/lib/minds/oauth";
 import { createSession } from "@/lib/session";
 import { track } from "@/lib/analytics/server";
+import { attachReferral, REF_COOKIE } from "@/lib/referrals";
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
@@ -47,7 +48,11 @@ export async function GET(request: Request) {
       .values({ id: crypto.randomUUID(), hmUserId, ...values })
       .returning();
   }
-  track(user.id, "signed_in", { new_user: newUser });
+  // A friend's link brought them here: record it on the brand-new account only.
+  const ref = jar.get(REF_COOKIE)?.value;
+  const referred = newUser ? await attachReferral(user.id, ref).catch((e) => (console.error("[auth] referral", e), false)) : false;
+  if (ref) jar.delete(REF_COOKIE);
+  track(user.id, "signed_in", { new_user: newUser, referred });
 
   await createSession(user.id);
   return NextResponse.redirect(new URL("/start", request.url));

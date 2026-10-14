@@ -1,16 +1,17 @@
-import { ExternalLink } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { HM_REFERRAL_SETUP, hmReferralUrl } from "@/lib/referrals";
-import { CopyMindId } from "./copy-mind-id";
-import { ReferralLink } from "./referral-link";
+import { mindsConfig } from "@/lib/minds/config";
+import { referralCodeFor, referralStats } from "@/lib/referrals";
+import { CopyLink } from "./copy-link";
 
-// Referrals are Hello Minds' programme: both sides get $5 in Cognitions. This page walks
-// through setting it up there and keeps the link handy here.
+// Your own link, and what the friends who used it have done. No rewards yet: this is the
+// record they'd be paid from later.
 export default async function ReferralPage() {
   const { user, profiles, unfinished, current } = await appContext();
-  const [balance, saved] = await Promise.all([balanceFor(user, current), hmReferralUrl(user.id)]);
+  const [balance, code, stats] = await Promise.all([balanceFor(user, current), referralCodeFor(user.id), referralStats(user.id)]);
+  const url = `${mindsConfig.appUrl}/r/${code}`;
+  const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 
   return (
     <AppShell tab="referral" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -18,35 +19,39 @@ export default async function ReferralPage() {
         <p className="text-sm text-white/45">Invite friends</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Referral</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-white/55">
-          Refer a friend and you both get <span className="text-white">$5 in Cognitions</span> from Hello Minds, once your friend has had three
-          conversations with their Mind. It lands on your headhunter, so every referral is more searches.
+          Share your link. Friends who sign up through it show up here, with what their headhunter has done since.
         </p>
 
         <section className="mt-8 flex gap-5 rounded-3xl bg-surface p-6 md:p-8">
           <Ninja mood="love" className="hidden size-14 shrink-0 sm:block" />
-          <ol className="min-w-0 flex-1 space-y-6">
-            <li>
-              <p className="font-display font-medium text-white">1. Make your headhunter the default Mind</p>
-              <p className="mt-1 text-sm text-white/55">On Hello Minds, under Referral, paste this Mind ID and confirm. Rewards go to the default Mind.</p>
-              <div className="mt-3">
-                <CopyMindId id={current.mindId ?? ""} name={current.mindName ?? current.label} />
-              </div>
-            </li>
-            <li>
-              <p className="font-display font-medium text-white">2. Create your link there</p>
-              <p className="mt-1 text-sm text-white/55">Pick any tag (your name works) and press Generate link.</p>
-              <a href={HM_REFERRAL_SETUP} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-3">
-                Open Hello Minds referral <ExternalLink className="size-4" aria-hidden />
-              </a>
-            </li>
-            <li>
-              <p className="font-display font-medium text-white">3. Paste it here, share it anywhere</p>
-              <p className="mt-1 mb-3 text-sm text-white/55">
-                Your friend creates their Mind through that link, then signs in at careerninja.app with the same account.
-              </p>
-              <ReferralLink saved={saved} />
-            </li>
-          </ol>
+          <div className="min-w-0 flex-1">
+            <p className="font-display font-medium text-white">Your link</p>
+            <p className="mt-1 mb-3 text-sm text-white/55">Works anywhere: chat, email, a post. It stays yours.</p>
+            <CopyLink url={url} />
+          </div>
+        </section>
+
+        <section className="mt-6 rounded-3xl bg-surface p-6 md:p-8">
+          <div className="flex items-baseline justify-between gap-4">
+            <p className="font-display font-medium text-white">Friends who joined</p>
+            <p className="text-sm text-white/45">
+              {stats.friends.length} {stats.friends.length === 1 ? "friend" : "friends"} · {stats.cognition} cognition spent
+            </p>
+          </div>
+          {stats.friends.length === 0 ? (
+            <p className="mt-4 text-sm text-white/45">Nobody yet. The first friend who signs up through your link appears here.</p>
+          ) : (
+            <ul className="mt-4 divide-y divide-white/[0.06]">
+              {stats.friends.map((f, i) => (
+                <li key={i} className="flex flex-wrap items-center gap-x-4 gap-y-1 py-3 text-sm">
+                  <span className="min-w-0 flex-1 truncate font-medium text-white">{f.username ?? "New member"}</span>
+                  <span className="text-white/45">joined {when(f.joinedAt)}</span>
+                  <span className="text-white/45">{f.deployed ? `${f.searches} ${f.searches === 1 ? "search" : "searches"}` : "setting up"}</span>
+                  <span className="w-28 text-right tabular-nums text-white">{f.cognition} cognition</span>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
       </main>
     </AppShell>
