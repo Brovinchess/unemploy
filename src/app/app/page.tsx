@@ -4,7 +4,7 @@ import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { SearchingScene } from "@/components/searching-scene";
 import { ApplyAllButton } from "@/components/extension-ui";
-import { JobsBoard } from "@/components/jobs-board";
+import { JobsBoard, type BoardJob } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
 import { SearchingChip } from "@/components/sidebar-search";
@@ -16,6 +16,10 @@ import { coachFor } from "@/lib/coach-ui";
 import { costModel } from "@/lib/cost";
 import { detailsComplete } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
+
+// Backend-only columns stay on the server: the board never receives them.
+const HIDDEN = new Set(["postingKey", "countryCode", "jobTypeKey", "levelKey", "postedOn"]);
+const forBoard = (j: Record<string, unknown>) => Object.fromEntries(Object.entries(j).filter(([k]) => !HIDDEN.has(k))) as BoardJob;
 
 function ago(d: Date) {
   const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
@@ -188,7 +192,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
 
         {/* Everything found so far, in one list. */}
         <JobsBoard
-          jobs={kept}
+          jobs={kept.map(forBoard)}
           detailsComplete={detailsComplete(user.applicant)}
         />
 

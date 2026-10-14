@@ -5,6 +5,10 @@ import Link from "next/link";
 import { ChevronDown, RotateCcw, Search } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
 import type { Job, JobStatus } from "@/db/schema";
+
+// What the board needs from a job row. Backend-only columns (the shared posting key and the
+// clean match fields) never leave the server.
+export type BoardJob = Omit<Job, "postingKey" | "countryCode" | "jobTypeKey" | "levelKey" | "postedOn">;
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 import { ApplyAllButton } from "./extension-ui";
@@ -21,17 +25,17 @@ const STAGES: { status: JobStatus; label: string }[] = [
   { status: "rejected", label: "Rejected" },
 ];
 const DAY = 24 * 60 * 60 * 1000;
-const matchesQ = (j: Job, q: string) => {
+const matchesQ = (j: BoardJob, q: string) => {
   const needle = q.trim().toLowerCase();
   return !needle || `${j.title} ${j.company} ${j.city ?? ""} ${j.country ?? ""}`.toLowerCase().includes(needle);
 };
 // Applied over a week ago with no news: worth a follow-up. Computed in a handler-free helper so render stays pure.
-const isStale = (j: Job) =>
+const isStale = (j: BoardJob) =>
   j.status === "applied" &&
   !!j.statusChangedAt &&
   Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
 
-export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsComplete: boolean }) {
+export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; detailsComplete: boolean }) {
   const [stage, setStage] = useState<JobStatus | "all">("all");
   const [q, setQ] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
@@ -40,7 +44,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsCompl
     [jobs],
   );
   // Chip counts and rows both honour the search box, so a count never says 5 while 0 rows show.
-  const matches = (j: Job) => matchesQ(j, q);
+  const matches = (j: BoardJob) => matchesQ(j, q);
   const counts = useMemo(() => {
     const c = new Map<JobStatus, number>();
     for (const j of jobs) if (matchesQ(j, q)) c.set(j.status, (c.get(j.status) ?? 0) + 1);
@@ -56,7 +60,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: Job[]; detailsCompl
   if (!jobs.length) return null;
 
   // "All" groups by stage, follow-ups first. A chosen stage is one flat list.
-  const groups: { key: string; title: string; jobs: Job[]; hint?: string }[] =
+  const groups: { key: string; title: string; jobs: BoardJob[]; hint?: string }[] =
     stage === "all"
       ? [
           {
@@ -229,7 +233,7 @@ function when(d: Date | null) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
-function Row({ job: j }: { job: Job }) {
+function Row({ job: j }: { job: BoardJob }) {
   const [pending, start] = useTransition();
   const place = [j.city, j.country].filter(Boolean).join(", ");
   const setting = j.workSetting
