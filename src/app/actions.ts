@@ -64,10 +64,15 @@ export async function saveUsername(username: string, timezone?: string): Promise
   const user = await requireUser();
   const parsed = usernameSchema.safeParse(username);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
+  // Free here and free on Hello Minds (Mind names are global there), so the preview is the
+  // name the Mind really gets. If Hello Minds can't be reached, our own check still applies.
+  const api = minds(user);
+  const freeOnMinds = async (handle: string) => api.isNameAvailable(`${handle}-careerninja`.slice(0, 40)).catch(() => true);
   let name = parsed.data;
   for (let n = 2; n < 100; n++) {
     const taken = await db.query.users.findFirst({ where: eq(schema.users.username, name), columns: { id: true } });
-    if (!taken || taken.id === user.id) break;
+    const ours = !taken || taken.id === user.id;
+    if (ours && (taken?.id === user.id || (await freeOnMinds(name)))) break;
     name = `${parsed.data.slice(0, 24 - String(n).length)}${n}`;
   }
   await db
