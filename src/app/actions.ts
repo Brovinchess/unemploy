@@ -40,10 +40,8 @@ const usernameSchema = z
   .toLowerCase()
   .regex(/^[a-z0-9][a-z0-9-]{1,22}[a-z0-9]$/, "Use 3–24 letters, numbers or dashes.");
 
-// A username from the resume: a "Name:" label if there is one, otherwise the first line that
-// looks like a person's name (2 to 4 capitalised words, no instructions, no contact details).
-// Falls back to a short random handle, and never collides with an existing one. Nobody has to
-// type anything to get in; the summary page lets them change it before deploying.
+// Fallback only: a person who somehow reaches the resume step without a name (an account from
+// before the name step) gets one from the resume, or a short random handle.
 async function assignUsername(user: User, resumeText: string | null | undefined, timezone?: string) {
   if (user.username) return user.username;
   const first = guessName(resumeText)?.split(/\s+/)[0] ?? "";
@@ -58,6 +56,27 @@ async function assignUsername(user: User, resumeText: string | null | undefined,
   await db.update(schema.users).set({ username: name, ...(timezone ? { timezone: timezone.slice(0, 64) } : {}) }).where(eq(schema.users.id, user.id));
   track(user.id, "username_saved", { auto: true });
   return name;
+}
+
+// The name step: the first thing a new person types. The Mind is named after it. First names
+// repeat, so a taken one gets a number (alex, alex2…) instead of a dead end; the summary shows it.
+export async function saveUsername(username: string, timezone?: string): Promise<FormState & { username?: string }> {
+  const user = await requireUser();
+  const parsed = usernameSchema.safeParse(username);
+  if (!parsed.success) return { error: parsed.error.issues[0].message };
+  let name = parsed.data;
+  for (let n = 2; n < 100; n++) {
+    const taken = await db.query.users.findFirst({ where: eq(schema.users.username, name), columns: { id: true } });
+    if (!taken || taken.id === user.id) break;
+    name = `${parsed.data.slice(0, 24 - String(n).length)}${n}`;
+  }
+  await db
+    .update(schema.users)
+    .set({ username: name, ...(timezone ? { timezone: timezone.slice(0, 64) } : {}) })
+    .where(eq(schema.users.id, user.id));
+  track(user.id, "username_saved", { auto: false });
+  revalidatePath("/profiles", "layout");
+  return { username: name };
 }
 
 // Change the handle before the headhunter is deployed (its Mind is named after it).

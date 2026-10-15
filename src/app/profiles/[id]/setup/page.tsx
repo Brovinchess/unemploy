@@ -6,6 +6,7 @@ import { ownedProfile } from "@/lib/owned";
 import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
+import { NameStep } from "./name-step";
 import { ResumeStep } from "./resume-step";
 
 // The most recent job title on the resume, as a starting answer for "which roles?".
@@ -21,18 +22,28 @@ function guessRole(resume: string | null | undefined) {
   return heads.find((h) => TITLE.test(h)) || undefined;
 }
 
-// Setup is resume → preferences → activate. The step comes from what's filled in, so a
-// profile made before this order changed still lands on the right screen.
+// Setup is name → resume → preferences → activate. The step comes from what's filled in, so
+// a profile made before this order changed still lands on the right screen.
 export default async function Setup({ params }: PageProps<"/profiles/[id]/setup">) {
   const { id } = await params;
   const user = await requireUser();
   const profile = await ownedProfile(user, id);
   if (profile.status === "hunting" || profile.status === "paused") redirect(`/app?profile=${profile.id}`);
 
+  if (!user.username) {
+    return (
+      <OnboardingShell step={0}>
+        <StepHeading eyebrow="Welcome" title="What should we call you?">
+          Your headhunter is named after you on Hello Minds. First name is fine.
+        </StepHeading>
+        <NameStep />
+      </OnboardingShell>
+    );
+  }
 
   if (!profile.resumeData) {
     return (
-      <OnboardingShell step={0}>
+      <OnboardingShell step={1}>
         <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
           Your headhunter reads it to find jobs you fit. Everything it writes about you comes from this file, so use
           your latest version. That&rsquo;s all it needs to get started.
@@ -44,7 +55,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
 
   if (!profile.preferences) {
     return (
-      <OnboardingShell step={1} wide>
+      <OnboardingShell step={2} wide>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
           Two quick questions, then deploy. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
@@ -52,14 +63,14 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
           profileId={profile.id}
           mode="setup"
           seed={{ targetRoles: guessRole(profile.resumeText) }}
-          username={user.username ?? undefined}
+          username={user.username}
         />
       </OnboardingShell>
     );
   }
 
   return (
-    <OnboardingShell step={1}>
+    <OnboardingShell step={2}>
       <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."
