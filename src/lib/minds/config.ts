@@ -32,6 +32,11 @@ export const mindsConfig = {
   topUpUrl: process.env.HM_TOPUP_URL ?? "https://hellominds.ai",
 };
 
+// Straight to that Mind's top-up page on Hello Minds (one-time credits, user picks the amount).
+// Without a Mind id yet, the general page.
+export const topUpUrlFor = (mindId: string | null | undefined) =>
+  mindId ? `https://hellominds.ai/minds/${encodeURIComponent(mindId)}/top-up?cadence=onetime` : mindsConfig.topUpUrl;
+
 export function redirectUri() {
   return `${mindsConfig.appUrl}/auth/callback`;
 }

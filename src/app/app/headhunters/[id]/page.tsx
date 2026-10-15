@@ -17,7 +17,7 @@ import { Coach } from "@/components/coach";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { costModel } from "@/lib/cost";
 import { isSearching } from "@/lib/search";
-import { mindsConfig } from "@/lib/minds/config";
+import { topUpUrlFor } from "@/lib/minds/config";
 
 function when(d: Date) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -73,7 +73,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
               perJob={cost.perJob}
                       coach={coach}
-              topUpUrl={mindsConfig.topUpUrl}
+              topUpUrl={topUpUrlFor(current.mindId)}
             />
           </div>
         </section>

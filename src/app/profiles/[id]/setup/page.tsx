@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
-import { mindsConfig, mindsMode } from "@/lib/minds/config";
+import { mindsConfig, mindsMode, topUpUrlFor } from "@/lib/minds/config";
 import { ownedProfile } from "@/lib/owned";
 import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
@@ -68,7 +68,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
       <ActivateStep
         profileId={profile.id}
         mindName={profile.mindName}
-        topUpUrl={mindsConfig.topUpUrl}
+        topUpUrl={topUpUrlFor(profile.mindId)}
         mock={mindsMode === "mock"}
       />
     </OnboardingShell>

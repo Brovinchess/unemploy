@@ -16,7 +16,7 @@ import { coachFor } from "@/lib/coach-ui";
 import { costModel } from "@/lib/cost";
 import { detailsComplete } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
-import { mindsConfig } from "@/lib/minds/config";
+import { topUpUrlFor } from "@/lib/minds/config";
 
 // Backend-only columns stay on the server: the board never receives them.
 const HIDDEN = new Set(["postingKey", "countryCode", "jobTypeKey", "levelKey", "postedOn"]);
@@ -81,7 +81,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       big={big}
       perJob={cost.perJob}
       coach={coach}
-      topUpUrl={mindsConfig.topUpUrl}
+      topUpUrl={topUpUrlFor(current.mindId)}
     />
   );
 

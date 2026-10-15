@@ -3,7 +3,7 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { ExternalLink, Gift, ListChecks, LogOut, Settings, UserRound } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
-import { mindsConfig } from "@/lib/minds/config";
+import { mindsConfig, topUpUrlFor } from "@/lib/minds/config";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { questionCounts } from "@/lib/personal";
@@ -146,7 +146,7 @@ export async function AppShell({
           <div id="cognition-card" className="rounded-2xl bg-white/[0.04] p-4">
             <LiveCognition perJob={perJob} />
             <a
-              href={mindsConfig.topUpUrl}
+              href={topUpUrlFor(current.mindId)}
               target="_blank"
               rel="noopener noreferrer"
               className={`mt-3 flex h-9 items-center justify-center gap-1.5 rounded-full text-sm ${
