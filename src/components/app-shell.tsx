@@ -3,7 +3,7 @@ import { and, count, eq, inArray } from "drizzle-orm";
 import { ExternalLink, Gift, ListChecks, LogOut, Settings, UserRound } from "lucide-react";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
-import { mindsConfig, topUpUrlFor } from "@/lib/minds/config";
+import { topUpUrlFor } from "@/lib/minds/config";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost } from "@/lib/preferences";
 import { questionCounts } from "@/lib/personal";

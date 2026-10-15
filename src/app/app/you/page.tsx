@@ -2,7 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { mindsConfig, mindsMode, topUpUrlFor } from "@/lib/minds/config";
+import { mindsMode, topUpUrlFor } from "@/lib/minds/config";
 import { questionCounts } from "@/lib/personal";
 import { ApplicantForm } from "../settings/applicant-form";
 import { SavedAnswers } from "../settings/saved-answers";

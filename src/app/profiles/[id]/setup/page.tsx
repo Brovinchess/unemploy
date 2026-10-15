@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
-import { mindsConfig, mindsMode, topUpUrlFor } from "@/lib/minds/config";
+import { mindsMode, topUpUrlFor } from "@/lib/minds/config";
 import { ownedProfile } from "@/lib/owned";
 import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";

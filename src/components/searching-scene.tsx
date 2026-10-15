@@ -8,7 +8,7 @@ export function SearchingScene({ mindName, notifyEmail }: { mindName: string; no
   return (
     <section className="rise rise-1 flex flex-col items-center overflow-hidden rounded-3xl bg-surface px-8 py-14 text-center">
       <div className="relative flex size-56 items-center justify-center">
-        <Radar />
+        <Radar live />
         <Ninja mood="thinking" className="relative size-28 bob" />
       </div>
       <h2 className="font-display mt-4 text-3xl font-medium tracking-tight text-white">
@@ -26,9 +26,9 @@ export function SearchingScene({ mindName, notifyEmail }: { mindName: string; no
 }
 
 // Concentric rings, a sweeping beam and a few blips that light up as the beam passes.
-function Radar() {
+export function Radar({ live = true, className = "absolute inset-0 size-full" }: { live?: boolean; className?: string }) {
   return (
-    <svg viewBox="0 0 200 200" className="absolute inset-0 size-full" aria-hidden>
+    <svg viewBox="0 0 200 200" className={className} aria-hidden>
       <defs>
         <linearGradient id="radar-beam" gradientUnits="userSpaceOnUse" x1="100" y1="100" x2="100" y2="10">
           <stop offset="0" stopColor="var(--coral)" stopOpacity=".55" />
@@ -41,10 +41,12 @@ function Radar() {
       <line x1="4" y1="100" x2="196" y2="100" stroke="#fff" strokeOpacity=".05" />
       <line x1="100" y1="4" x2="100" y2="196" stroke="#fff" strokeOpacity=".05" />
       {/* the beam: a wedge that spins around the centre */}
+      {live && (
       <g className="radar-sweep" style={{ transformOrigin: "100px 100px" }}>
         <path d="M100 100 L100 4 A96 96 0 0 1 157 23 Z" fill="url(#radar-beam)" />
         <line x1="100" y1="100" x2="100" y2="4" stroke="var(--coral)" strokeOpacity=".8" strokeWidth="1.5" />
       </g>
+      )}
       {/* blips: each lights up when the beam reaches it */}
       {[
         [142, 48, 0.4],
@@ -52,9 +54,9 @@ function Radar() {
         [56, 152, 3.3],
         [40, 70, 5.2],
       ].map(([x, y, d]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="3.5" fill="var(--coral)" className="radar-blip" style={{ animationDelay: `${d}s` }} />
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="3.5" fill="var(--coral)" className={live ? "radar-blip" : ""} opacity={live ? undefined : 0.25} style={{ animationDelay: `${d}s` }} />
       ))}
-      <circle cx="100" cy="100" r="98" fill="none" stroke="var(--coral)" strokeOpacity=".25" className="radar-pulse" style={{ transformOrigin: "100px 100px" }} />
+      {live && <circle cx="100" cy="100" r="98" fill="none" stroke="var(--coral)" strokeOpacity=".25" className="radar-pulse" style={{ transformOrigin: "100px 100px" }} />}
     </svg>
   );
 }
