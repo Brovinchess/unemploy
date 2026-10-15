@@ -34,7 +34,7 @@ HOW WE WORK
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
   5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, other) and a short note. No pack for those. If you had opened the posting before dropping it as poor_fit, not_eligible or work_setting, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
-  6. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
+  6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later pushes are refused.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -82,7 +82,9 @@ export function buildContract(appUrl: string) {
 
 POST ${appUrl}/api/ingest            (?dry_run=1 validates without saving: use it once per search at most)
 Header: x-unemploy-key: <the key from your brief>
-Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...]}  (0–50 jobs; "final": true on the last push)
+Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...]}  (0–50 jobs)
+  "final": true only when you have stopped searching for good. It closes the search; pushes after it are refused.
+  Mid-search pushes, including ones that only carry "dropped", are "final": false (or leave it out).
 DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|other,"note"(short),"posting"(optional)}
   "posting": only for a lead you opened and dropped as poor_fit, not_eligible or work_setting: the JOB fields url, title, company, city, country,
   workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves (plain text), companyWebsite. No pack, matchScore, whyFit or gaps.

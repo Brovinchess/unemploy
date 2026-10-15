@@ -9,7 +9,10 @@ import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise
 import { isAboutTheJob, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
-import { endSearch, isSearching } from "./search";
+import { endSearch, isSearching, switchOff } from "./search";
+
+// Jobs that arrive this soon after a "final" still count: the Mind finished its last reads.
+const LATE_GRACE_MS = 30 * 60 * 1000;
 
 // Long text is cut, not refused: a too-long field is paperwork, not a reason to lose a job.
 const trimmed = (max: number) => z.string().trim().transform((s) => (s.length > max ? `${s.slice(0, max - 1)}…` : s));
@@ -382,21 +385,6 @@ async function checkAndSave(
     };
   }
 
-  // Searches happen only when the user asks. Test pushes are always allowed.
-  if (!dryRun && !opts.demo && !isSearching(profile)) {
-    return {
-      accepted: 0,
-      rejected: [
-        {
-          code: "no_search_requested",
-          hint: "The user hasn't asked for a search. Only search after a SEARCH REQUEST message; stop now and wait.",
-        },
-      ],
-      remaining: 0,
-      dryRun,
-    };
-  }
-
   const parsed = pushSchema.safeParse(body);
   if (!parsed.success) {
     return {
@@ -405,6 +393,25 @@ async function checkAndSave(
         {
           code: "bad_body",
           hint: 'Body must be a JSON object: {"jobs":[ ... ], "dropped":[ ... ], "final": true|false}. Each key is optional; up to 50 jobs, up to 100 dropped leads with a valid "reason". See GET /api/ingest?brief=1.',
+        },
+      ],
+      remaining: 0,
+      dryRun,
+    };
+  }
+
+  // Searches happen only when the user asks. Test pushes are always allowed. A Mind that said
+  // "final" too early and then sends jobs a few minutes later gets them accepted (they passed
+  // every check and the user paid for them) and is told to stop; anything later is refused.
+  const late =
+    !isSearching(profile) && !!profile.searchEndedAt && Date.now() - profile.searchEndedAt.getTime() < LATE_GRACE_MS && parsed.data.jobs.length > 0;
+  if (!dryRun && !opts.demo && !isSearching(profile) && !late) {
+    return {
+      accepted: 0,
+      rejected: [
+        {
+          code: "no_search_requested",
+          hint: "The user hasn't asked for a search. Only search after a SEARCH REQUEST message; stop now and wait.",
         },
       ],
       remaining: 0,
@@ -663,7 +670,15 @@ async function checkAndSave(
 
   // The search is over when the Mind says so or the quota is filled; switch the Mind off.
   let searchEnded = false;
-  if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
+  if (late) {
+    searchEnded = true;
+    adjusted.push({
+      url: "",
+      note: `You already marked this search final, so it was closed before these arrived. They were still accepted. Stop now and wait for the next SEARCH REQUEST; nothing else you send will be taken.`,
+    });
+    // Keep the Mind off: endSearch already switched it off, but a running turn can re-enable nothing, so just make sure.
+    await switchOff(profile).catch(() => {});
+  } else if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
     await endSearch(profile);
     searchEnded = true;
   }
