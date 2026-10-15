@@ -122,7 +122,6 @@ export function SearchButton({
             <Square className="size-3.5" aria-hidden /> Stop
           </button>
         </div>
-        <p className="text-xs text-white/40">New jobs appear here as they&rsquo;re found.</p>
       </div>
     );
   }
