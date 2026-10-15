@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import type { ApplicantDetails } from "@/db/schema";
 import { ApplicantForm } from "../settings/applicant-form";
@@ -22,6 +22,12 @@ const LINES: { key: keyof ApplicantDetails; label: string; ask?: boolean }[] = [
 
 export function DetailsCard({ initial }: { initial: ApplicantDetails | null }) {
   const [editing, setEditing] = useState(!initial);
+  // First-time save: the form had no Cancel, so it closes itself once details exist.
+  const had = useRef(!!initial);
+  useEffect(() => {
+    if (initial && !had.current) setEditing(false);
+    had.current = !!initial;
+  }, [initial]);
   const name = [initial?.firstName, initial?.lastName].filter(Boolean).join(" ");
   const filled = LINES.filter((l) => initial?.[l.key]?.trim());
   const gaps = LINES.filter((l) => l.ask && !initial?.[l.key]?.trim());

@@ -101,9 +101,9 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
       <main className="w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         {/* Who it is, what it's after, and the one action. Mochi sits on a radar that sweeps while it searches. */}
         <section className="rise flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
-          <div className="flex items-center gap-5">
+          <div className="flex min-w-0 max-w-full items-center gap-5">
             <MochiAtWork live={searching} paused={paused} />
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm text-white/45">Headhunter</p>
               <h1 className="font-display mt-0.5 text-3xl font-medium tracking-tight text-white">
                 <RenameHeadhunter profileId={current.id} label={current.label} />

@@ -19,10 +19,15 @@ export function factsText(user: Pick<User, "applicant" | "savedAnswers">) {
       ].filter(Boolean)
     : [];
   // Answers promoted into the details above are skipped; they would repeat.
+  // One line each: a multi-line answer would break the list the Mind reads.
+  const line = (s: string) => s.replace(/\s+/g, " ").trim();
   const saved = (user.savedAnswers ?? [])
     .filter((s) => !s.field)
     .slice(0, MAX_ANSWERS)
-    .map((s) => `- Q: ${s.question}\n  A: ${s.answer.length > MAX_ANSWER_CHARS ? `${s.answer.slice(0, MAX_ANSWER_CHARS)}…` : s.answer}`);
+    .map((s) => {
+      const a = line(s.answer);
+      return `- Q: ${line(s.question)}\n  A: ${a.length > MAX_ANSWER_CHARS ? `${a.slice(0, MAX_ANSWER_CHARS)}…` : a}`;
+    });
   if (!details.length && !saved.length) return "";
   return `ABOUT ME, for form questions about me (not the job)\n${[...details, ...saved].join("\n")}`;
 }

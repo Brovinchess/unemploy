@@ -37,7 +37,12 @@ function QuestionRow({ item }: { item: Item }) {
   const skip = () =>
     start(async () => {
       setGone(true);
-      await ignoreQuestion(item.id);
+      try {
+        await ignoreQuestion(item.id);
+      } catch {
+        setGone(false);
+        setError("Couldn't skip that. Try again.");
+      }
     });
   if (gone) return null;
 

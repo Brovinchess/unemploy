@@ -16,7 +16,8 @@ const HANDLED =
 // Questions about the job or company, or about how the person fits it: the headhunter
 // answers those in each pack, because only it has read the posting.
 export const ABOUT_THE_JOB =
-  /why (do you|are you|would you|should we)|why .*\b(us|company|here|join|role|position|team)\b|interest(ed)? in (this|the|our)|what excites you|about (this|the) (role|company|position)|this (position|role|job|opportunity|company|team)|the (position|role) (you|we)|good fit|right fit|makes you (a|the)|qualif(y|ied|ications) (you )?for|suited (to|for)|what (would|will|can) you bring|relevant experience|experience (do you have )?that/i;
+  /why (do you|are you|would you|should we)|why .*\b(us|company|here|join|role|position|team)\b|interest(ed)? in (this|the|our)|what excites you|(about|know of|heard of) (this|the|our) (role|company|position|team|job)|(this|the) (position|role|job|opportunity) (appeal|interest|excite|attract)|good fit|right fit|makes you (a|the)|qualif(y|ied|ications) (you )?for|suited (to|for)|what (would|will|can) you bring|relevant experience|experience (do you have )?that/i;
+// "for this role" on its own is not a job question: "Are you willing to relocate for this role?" is about the person.
 export const isAboutTheJob = (q: string) => ABOUT_THE_JOB.test(q);
 
 const words = (s: string) => new Set(questionKey(s).split(" ").filter((w) => w.length > 2));
@@ -60,10 +61,10 @@ export async function queueQuestions(userId: string, company: string, formQuesti
     if (q.length < 3 || HANDLED.test(q) || ABOUT_THE_JOB.test(q) || sensitiveQuestion(q) || coveredByDetails(q, user)) continue;
     if (known.some((k) => similarity(q, k) >= SAME)) continue;
     const options = (f.options ?? []).map((o) => o.trim().slice(0, 120)).filter(Boolean).slice(0, 30);
-    const guess = packAnswers.find((p) => similarity(q, p.question) >= SAME)?.answer.trim();
-    let answer = guess ? humanise(guess).slice(0, 1000) : null;
-    // A choice must be one of the form's own; otherwise the person picks.
-    if (answer && options.length) answer = options.find((o) => o.toLowerCase() === answer!.toLowerCase()) ?? null;
+    const guess = packAnswers.find((p) => similarity(q, p.question) >= SAME)?.answer.trim() || null;
+    // A choice must be one of the form's own ("Yes." still counts as "Yes"); otherwise the person picks.
+    const plain = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+    const answer = !guess ? null : options.length ? (options.find((o) => plain(o) === plain(guess)) ?? null) : humanise(guess).slice(0, 1000);
     const rows = await db
       .insert(schema.questions)
       .values({
@@ -75,7 +76,7 @@ export async function queueQuestions(userId: string, company: string, formQuesti
         status: answer ? "review" : "needs_you",
         answer,
         note: answer ? "Your headhunter's answer, from your details" : null,
-        answeredAt: new Date(),
+        answeredAt: answer ? new Date() : null,
       })
       .onConflictDoNothing()
       .returning({ id: schema.questions.id });
