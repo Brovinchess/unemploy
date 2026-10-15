@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect } from "react";
 import { saveApplicantDetails } from "@/app/extension-actions";
 import type { ApplicantDetails } from "@/db/schema";
 
@@ -19,12 +19,16 @@ const FIELDS: { name: keyof ApplicantDetails; label: string; placeholder: string
   { name: "salaryExpectation", label: "Salary expectation", placeholder: "USD 120,000 a year" },
 ];
 
-// What the Chrome extension types into application forms.
-export function ApplicantForm({ initial }: { initial: ApplicantDetails | null }) {
+// The person's application details: what the headhunter (and later the extension) puts on forms.
+// `onDone` closes the form once saved, and gives it a Cancel.
+export function ApplicantForm({ initial, onDone }: { initial: ApplicantDetails | null; onDone?: () => void }) {
   const [state, action, pending] = useActionState(saveApplicantDetails, undefined);
+  useEffect(() => {
+    if (state?.ok) onDone?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
   return (
     <form action={action}>
-      <p className="mb-5 text-white/60">The Chrome extension types these into application forms. Your headhunter writes the rest.</p>
       <div className="grid gap-4 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <label key={f.name} className="block text-sm">
@@ -47,7 +51,12 @@ export function ApplicantForm({ initial }: { initial: ApplicantDetails | null })
         <button className="btn btn-accent" disabled={pending}>
           {pending ? "Saving…" : "Save details"}
         </button>
-        {state?.ok && <span className="text-sm text-white/60">Saved.</span>}
+        {onDone && (
+          <button type="button" className="text-sm text-white/50 hover:text-white" onClick={onDone} disabled={pending}>
+            Cancel
+          </button>
+        )}
+        {state?.ok && !onDone && <span className="text-sm text-white/60">Saved.</span>}
         {state?.error && <span className="text-sm text-rose">{state.error}</span>}
       </div>
     </form>

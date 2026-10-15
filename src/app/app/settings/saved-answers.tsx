@@ -22,10 +22,7 @@ export function SavedAnswers({ answers }: { answers: Item[] }) {
 
   if (!answers.length) {
     return (
-      <p className="text-white/55">
-        Nothing yet. Answers you approve or type, and ones you give on forms, are remembered here and filled in next time.
-        Diversity questions are never saved.
-      </p>
+      <p className="text-sm text-white/50">Nothing yet. Every answer you approve or type is kept here and used on the next form.</p>
     );
   }
 
@@ -39,9 +36,9 @@ export function SavedAnswers({ answers }: { answers: Item[] }) {
         <p className="mb-4 text-sm text-white/50">
           {promoted.length} {promoted.length === 1 ? "answer" : "answers"} ({[...new Set(promoted.map((a) => DETAIL_LABELS[a.field as DetailField] ?? a.field))].join(", ").toLowerCase()}) live in your{" "}
           <Link href="#application" className="text-white/75 underline-offset-2 hover:underline">
-            application details
-          </Link>{" "}
-          above.
+            details
+          </Link>
+          .
         </p>
       )}
 
