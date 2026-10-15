@@ -48,6 +48,19 @@ export function SearchButton({
   const [mute, setMute] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  // Keyboard users land inside the pop-over when it opens and back on the button when it closes.
+  useEffect(() => {
+    if (open) {
+      const t = setTimeout(() => panel.current?.querySelector<HTMLElement>("input, button:not([aria-label='Close']), [tabindex]")?.focus(), 30);
+      const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+      document.addEventListener("keydown", onKey);
+      return () => {
+        clearTimeout(t);
+        document.removeEventListener("keydown", onKey);
+      };
+    }
+    trigger.current?.focus({ preventScroll: true });
+  }, [open]);
   // Where the pop-over sits: under the button, flush with its right edge (phones: 1rem from the right).
   const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(null);
   useEffect(() => {

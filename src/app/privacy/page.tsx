@@ -37,7 +37,7 @@ const SECTIONS = [
     title: "Your control",
     items: [
       "Pause your headhunter any time; it stops searching and spending cognition.",
-      "Settings → Delete my data removes your account, resume, jobs and tracker, and turns off your agents. Hello Minds keeps the agents themselves, because agents can't be deleted there.",
+      "Settings → Delete my data removes your account, resume, jobs and tracker, and turns off your headhunter. Hello Minds keeps the agent itself, because agents can't be deleted there.",
       "Cognition is bought and billed by Hello Minds, not by Career Ninja.",
     ],
   },

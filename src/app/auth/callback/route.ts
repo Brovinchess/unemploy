@@ -19,7 +19,13 @@ export async function GET(request: Request) {
   jar.delete("unemploy_pkce");
   if (!raw) return fail("expired");
 
-  const { verifier, state } = JSON.parse(raw) as { verifier: string; state: string };
+  let verifier = "", state = "";
+  try {
+    ({ verifier, state } = JSON.parse(raw) as { verifier: string; state: string });
+  } catch {
+    return fail("expired");
+  }
+  if (!verifier || !state) return fail("expired");
   const code = url.searchParams.get("code");
   if (!code || url.searchParams.get("state") !== state) return fail("state");
 

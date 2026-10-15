@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState, useTransition } from "react";
+import { useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { FileText, Upload } from "lucide-react";
 import { uploadResume, loadSampleResume } from "@/app/actions";
 import { FormError } from "@/components/onboarding-shell";
@@ -20,6 +20,17 @@ export function ResumeStep({
   const [over, setOver] = useState(false);
   const [dropError, setDropError] = useState<string>();
   const input = useRef<HTMLInputElement>(null);
+  // Replacing a resume stays on the page, so say when it worked.
+  const [replaced, setReplaced] = useState(false);
+  const wasPending = useRef(false);
+  useEffect(() => {
+    if (wasPending.current && !pending && !state?.error && demo === false && submitLabel !== "Upload and continue") {
+      setReplaced(true);
+      setFileName(undefined);
+      setTimeout(() => setReplaced(false), 4000);
+    }
+    wasPending.current = pending;
+  }, [pending, state, demo, submitLabel]);
   const timezone = typeof Intl !== "undefined" ? Intl.DateTimeFormat().resolvedOptions().timeZone : "UTC";
 
   // A dropped file goes into the real file input, so the form submits it like a chosen one.
@@ -95,6 +106,7 @@ export function ResumeStep({
       </p>
       <input type="hidden" name="timezone" value={timezone} suppressHydrationWarning />
       <FormError message={dropError ?? state?.error} />
+      {replaced && <p className="mt-3 text-sm text-white/65" aria-live="polite">Resume replaced. Your headhunter gets it with the next search.</p>}
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || !fileName}>
         {pending ? "Reading your resume…" : submitLabel}
       </button>

@@ -80,13 +80,12 @@ export function workSettingLabel(v: string) {
 
 export function summarizePreferences(p: Preferences): { label: string; value: string }[] {
   const place = [p.city, p.country].filter(Boolean).join(", ");
-  const remote = p.workSettings.includes("remote")
-    ? ` · remote: ${REMOTE_SCOPES.find((r) => r.value === p.remoteScope)?.label.toLowerCase()}`
-    : "";
+  const remote = p.workSettings.includes("remote");
   return [
     { label: "Looking for", value: p.targetRoles },
     { label: "Where", value: place },
-    { label: "Work setting", value: p.workSettings.map(workSettingLabel).join(", ") + remote },
+    { label: "Work setting", value: p.workSettings.map(workSettingLabel).join(", ") },
+    ...(remote ? [{ label: "Remote jobs from", value: REMOTE_SCOPES.find((r) => r.value === p.remoteScope)?.label ?? "Anywhere" }] : []),
     { label: "Job type", value: p.jobTypes.join(", ") },
     { label: "Level", value: levelText(p) },
     { label: "Avoid", value: avoidList(p.avoidCompanies).join(", ") || "None" },

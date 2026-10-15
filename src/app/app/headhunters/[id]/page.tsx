@@ -23,7 +23,7 @@ import { postingAgeDays, workSettingLabel } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
 const took = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
-const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+const when = (d: Date, tz?: string | null) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: tz || "UTC" });
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
 const STATUS_LABEL: Record<string, string> = {
   new: "New",
@@ -241,7 +241,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                       const mins = s.endedAt ? Math.max(1, Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 60_000)) : null;
                       return (
                         <li key={s.id} className="flex items-center justify-between gap-4 py-2.5 text-sm">
-                          <span className="text-white/70">{when(s.startedAt)}</span>
+                          <span className="text-white/70">{when(s.startedAt, user.timezone)}</span>
                           <span className="text-white/45">{s.endedAt ? (mins != null ? took(mins) : "") : "In progress"}</span>
                           <span className="text-white">{s.jobsAdded == null ? "–" : plural(s.jobsAdded, "job")}</span>
                         </li>

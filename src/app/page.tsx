@@ -23,6 +23,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
+import { extensionLive } from "@/lib/flags";
 import { MAX_POSTING_AGE_DAYS } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
@@ -47,7 +48,14 @@ const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] 
   { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
   { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
   { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up from To apply to Offer." },
-  { icon: Puzzle, mood: "love", title: "The form fills itself (coming soon)", body: "A Chrome extension will open each application, fill in your details, cover letter and answers, and wait for you to press Submit. Until then, you apply with what it wrote." },
+  {
+    icon: Puzzle,
+    mood: "love",
+    title: extensionLive ? "The form fills itself" : "The form fills itself (coming soon)",
+    body: extensionLive
+      ? "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit."
+      : "A Chrome extension will open each application, fill in your details, cover letter and answers, and wait for you to press Submit. Until then, you apply with what it wrote.",
+  },
 ];
 
 
@@ -64,7 +72,9 @@ const PAINS = [
 const FAQ = [
   {
     q: "Does it apply for me?",
-    a: "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. It leaves Submit to you unless you choose to let it send.",
+    a: extensionLive
+      ? "Almost. It finds the job and writes the application. The Chrome extension fills the form for you, and leaves Submit to you unless you choose to let it send."
+      : "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. It leaves Submit to you unless you choose to let it send.",
   },
   {
     q: "What about the questions only I can answer?",
@@ -76,7 +86,7 @@ const FAQ = [
   },
   {
     q: "What happens to my resume?",
-    a: "It's used only to find and write for your jobs, and is shared only with your own agents. You can delete your account, resume and every job in one step from Settings.",
+    a: "It's used only to find and write for your jobs, and is shared only with your own headhunter. You can delete your account, resume and every job in one step from Settings.",
   },
 ];
 
@@ -116,8 +126,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               </span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-white/55 md:mx-0">
-              It finds real, open jobs you&rsquo;d get, writes each application from your resume, and fills in the form. You read
-              it and press Submit.
+              It finds real, open jobs you&rsquo;d get, writes each application from your resume, and prepares every answer the
+              form will ask. You read it and press Submit.
             </p>
 
             <div className="mt-8">
@@ -233,9 +243,9 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {/* Two agents */}
         <section id="agents" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
-            <H2>One finds jobs. One knows you.</H2>
+            <H2>One headhunter, two jobs.</H2>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
-              Two agents that never talk to each other. The app sits in the middle and passes each one only what it needs.
+              It finds the jobs, and it answers what forms ask about you, from the details you gave it. Nothing is guessed.
             </p>
           </div>
           <div className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-2">
@@ -280,10 +290,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section id="extension" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
-              <p className="mb-3 inline-block rounded-full bg-coral/15 px-3 py-1 text-xs font-medium text-rose">Coming soon</p>
+              {!extensionLive && <p className="mb-3 inline-block rounded-full bg-coral/15 px-3 py-1 text-xs font-medium text-rose">Coming soon</p>}
               <H2>The form fills itself. You press Submit.</H2>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
-                The Chrome extension will open each job you kept and fill in your details, resume, cover letter and answers.
+                The Chrome extension {extensionLive ? "opens" : "will open"} each job you kept and {extensionLive ? "fills" : "fill"} in your details, resume, cover letter and answers.
                 Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and
                 Ashby.
               </p>

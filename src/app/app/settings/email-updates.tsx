@@ -12,6 +12,13 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
   const [code, setCode] = useState("");
   const [error, setError] = useState<string>();
   const [editing, setEditing] = useState(!email);
+  // The box reflects the tap at once; the server value catches up after revalidation.
+  const [checked, setChecked] = useState(on);
+  const [seenOn, setSeenOn] = useState(on);
+  if (on !== seenOn) {
+    setSeenOn(on);
+    setChecked(on);
+  }
 
   if (email && !editing) {
     return (
@@ -27,16 +34,25 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
           <input
             type="checkbox"
             className="size-5 accent-[var(--coral)]"
-            checked={on}
+            checked={checked}
             disabled={pending}
-            onChange={(e) => start(() => setSearchEmails(e.target.checked))}
+            onChange={(e) => {
+              setChecked(e.target.checked);
+              start(() => setSearchEmails(e.target.checked));
+            }}
           />
         </label>
         <div className="mt-4 flex gap-4 text-sm">
           <button className="text-white/55 hover:text-white" onClick={() => setEditing(true)}>
             Change email
           </button>
-          <button className="text-white/55 hover:text-rose" disabled={pending} onClick={() => start(() => removeEmail())}>
+          <button
+            className="text-white/55 hover:text-rose"
+            disabled={pending}
+            onClick={() => {
+              if (confirm("Remove this email? You'll stop getting search updates.")) start(() => removeEmail());
+            }}
+          >
             Remove
           </button>
         </div>

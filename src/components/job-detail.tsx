@@ -4,6 +4,7 @@ import { db, schema } from "@/db";
 import type { Job } from "@/db/schema";
 import { CopyBlock } from "./copy-block";
 import { JobActions } from "./job-actions";
+import { MoveJob } from "./move-job";
 import { JobTags, linkSource, MatchBadge, postedAgo } from "./job-card";
 import { CompanyLogo } from "./company-logo";
 
@@ -28,10 +29,13 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
         <div className="flex items-start gap-4">
           <CompanyLogo name={job.company} domain={job.companyDomain} size="lg" />
           <div className="min-w-0 flex-1">
-            <p className="text-muted">{job.company}</p>
-            <h1 className="font-display text-2xl font-medium leading-tight tracking-tight text-ink">{job.title}</h1>
+            {/* Badge beside the company, so the title keeps the full width on phones. */}
+            <div className="flex items-center justify-between gap-3">
+              <p className="truncate text-muted">{job.company}</p>
+              <MatchBadge score={job.matchScore} />
+            </div>
+            <h1 className="font-display mt-0.5 text-xl font-medium leading-tight tracking-tight text-ink sm:text-2xl">{job.title}</h1>
           </div>
-          <MatchBadge score={job.matchScore} />
         </div>
         <div className="mt-4">
           <JobTags job={job} />
@@ -44,7 +48,10 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
           {job.demo && <span className="ml-2 text-rose">Demo job, not a real posting</span>}
         </p>
         {STATUS_NOTE[job.status] ? (
-          <p className="mt-5 rounded-xl bg-mist-soft px-4 py-3 text-sm">{STATUS_NOTE[job.status]}</p>
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-mist-soft px-4 py-3 text-sm">
+            <p>{STATUS_NOTE[job.status]}</p>
+            {job.status !== "expired" && <MoveJob jobId={job.id} status={job.status} />}
+          </div>
         ) : (
           <JobActions key={job.id} jobId={job.id} url={job.url} status={job.status} doneHref={doneHref} />
         )}

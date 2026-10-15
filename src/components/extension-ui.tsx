@@ -17,10 +17,12 @@ export function ApplyAllButton({
   count,
   detailsComplete,
   bar = false,
+  inSetup = false, // rendered inside the setup list itself: no "set up" link back to it
 }: {
   count: number;
   detailsComplete: boolean;
   bar?: boolean;
+  inSetup?: boolean;
 }) {
   const { status, applyAll } = useExtension();
   const [msg, setMsg] = useState<string>();
@@ -109,6 +111,7 @@ export function ApplyAllButton({
 
   // Not set up yet: a quiet one-liner instead of a button that can't work.
   if (!ready) {
+    if (inSetup && !needDetails) return <p className="text-sm text-white/45">Finish steps 1 to 3 and the button appears here.</p>;
     return (
       <p className="text-center text-sm text-white/45">
         {needDetails
@@ -259,7 +262,7 @@ export function ExtensionSetup({
             : "Swipe right on a few jobs first, then come back here."}
         </p>
         <div className="mt-3">
-          <ApplyAllButton count={toApply} detailsComplete={detailsComplete} />
+          <ApplyAllButton count={toApply} detailsComplete={detailsComplete} inSetup />
         </div>
       </Step>
     </ol>

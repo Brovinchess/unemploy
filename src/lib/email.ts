@@ -56,7 +56,7 @@ export async function sendSearchDoneEmail(args: {
       : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
   const intro =
     n === 0
-      ? `Your ${label} headhunter searched but found nothing that passed every check. Try again later, or give it a focus for the next search.`
+      ? `Your ${label} headhunter searched but found nothing that passed every check. Try again in a day or two, or widen its search settings.`
       : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Each one has a cover letter and answers ready to paste.`;
   const top = jobs.slice(0, 5);
   const text =

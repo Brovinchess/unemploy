@@ -20,7 +20,7 @@ import {
 const COUNTRIES = [
   "United States", "United Kingdom", "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
   "South Korea", "China", "India", "Pakistan", "Bangladesh", "Australia", "New Zealand", "United Arab Emirates",
-  "Saudi Arabia", "Qatar", "Bahrain", "United Kingdom", "Ireland", "Germany", "France", "Netherlands", "Spain",
+  "Saudi Arabia", "Qatar", "Bahrain", "Ireland", "Germany", "France", "Netherlands", "Spain",
   "Italy", "Portugal", "Sweden", "Denmark", "Norway", "Finland", "Poland", "Switzerland",
   "Canada", "Mexico", "Brazil", "Argentina", "Chile", "Colombia", "South Africa", "Nigeria", "Kenya", "Egypt",
 ];
@@ -151,11 +151,16 @@ export function PreferencesChat({
     setStep(i);
   }
 
+  const [saved, setSaved] = useState(false);
   function submit() {
     start(async () => {
       const r = await savePreferences(profileId, draft as Preferences);
       if (r?.error) setError(r.error);
-      else if (mode === "edit") setError(undefined);
+      else if (mode === "edit") {
+        setError(undefined);
+        setSaved(true);
+        setTimeout(() => setSaved(false), 3000);
+      }
     });
   }
 
@@ -188,7 +193,9 @@ export function PreferencesChat({
             {mode === "setup" && username && <UsernameRow username={username} />}
             {summarizePreferences(draft as Preferences).map((row, i) => {
               const keys: (keyof Preferences)[] = [
-                "targetRoles", "country", "workSettings", "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
+                "targetRoles", "country", "workSettings",
+                ...(draft.workSettings?.includes("remote") ? (["remoteScope"] as (keyof Preferences)[]) : []),
+                "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
               ];
               const key = keys[i];
               const tip = tips.find((t) => t.target === key);
@@ -224,8 +231,9 @@ export function PreferencesChat({
           )}
           <FormError message={error} />
           <button className="btn btn-accent mt-6 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending ? (mode === "setup" ? "Deploying your headhunter…" : "Saving…") : mode === "setup" ? "Deploy my headhunter" : "Save"}
+            {pending ? (mode === "setup" ? "Deploying your headhunter…" : "Saving…") : mode === "setup" ? "Deploy my headhunter" : saved ? "Saved" : "Save"}
           </button>
+          {saved && <p className="mt-3 text-center text-sm text-white/55" aria-live="polite">Saved. Your next search uses these.</p>}
           {pending && mode === "setup" && (
             <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
               Picking a name, waking it up and sending it your brief. This takes a few seconds.

@@ -88,6 +88,6 @@ export async function setCoachReminders(on: boolean) {
 
 export async function removeEmail() {
   const user = await requireUser();
-  await db.update(schema.users).set({ email: null, emailVerifiedAt: null }).where(eq(schema.users.id, user.id));
+  await db.update(schema.users).set({ email: null, emailVerifiedAt: null, emailOnSearchDone: false }).where(eq(schema.users.id, user.id));
   revalidatePath("/app", "layout");
 }

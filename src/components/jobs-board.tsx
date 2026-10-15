@@ -38,6 +38,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
   const [stage, setStage] = useState<JobStatus | "all">("all");
   const [q, setQ] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
   const stale = useMemo(
     () => new Set(jobs.filter(isStale).map((j) => j.id)),
     [jobs],
@@ -50,8 +51,10 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
     return c;
   }, [jobs, q]);
   const needle = q.trim();
-  const live = jobs.filter((j) => j.status !== "skipped" && matches(j));
+  const live = jobs.filter((j) => j.status !== "skipped" && j.status !== "expired" && matches(j));
   const dismissed = jobs.filter((j) => j.status === "skipped" && matches(j));
+  // Postings the daily check found closed before the person applied: shown, not silently gone.
+  const closed = jobs.filter((j) => j.status === "expired" && matches(j));
   const toApply = counts.get("saved") ?? 0;
   // A chosen stage that emptied out (its last job moved on) falls back to All instead of a blank view.
   if (stage !== "all" && !counts.get(stage)) setStage("all");
@@ -158,6 +161,28 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
         ))
       )}
 
+      {closed.length > 0 && stage === "all" && (
+        <div>
+          <button
+            type="button"
+            className="flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-[0.14em] text-white/35 hover:text-white/70"
+            onClick={() => setShowClosed((v) => !v)}
+            aria-expanded={showClosed}
+          >
+            Closed before you applied{" "}
+            <span className="font-normal normal-case tracking-normal">{closed.length}</span>
+            <ChevronDown className={`size-3.5 transition-transform ${showClosed ? "rotate-180" : ""}`} aria-hidden />
+          </button>
+          {showClosed && (
+            <ul className="mt-2 divide-y divide-white/[0.06] overflow-hidden rounded-3xl bg-surface/60">
+              {closed.map((j) => (
+                <Row key={j.id} job={j} />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Dismissed: out of the way, one click to see and restore. */}
       {dismissed.length > 0 && stage === "all" && (
         <div>
@@ -240,11 +265,12 @@ function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
     : null;
   const meta = [...new Set([place, setting].filter(Boolean))];
   const dismissed = j.status === "skipped";
+  const closed = j.status === "expired";
   const match = Math.round(j.matchScore);
   const strong = match >= 80;
   return (
     <li
-      className={`rise flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${dismissed ? "opacity-60" : ""}`}
+      className={`rise flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${dismissed || closed ? "opacity-60" : ""}`}
       style={{ animationDelay: `${Math.min(index, 10) * 40 + 150}ms` }}
     >
       <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
@@ -273,7 +299,11 @@ function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
         >
           {when(j.statusChangedAt)}
         </span>
-        {dismissed ? (
+        {closed ? (
+          <span className="flex h-8 shrink-0 items-center rounded-full border border-white/10 px-3 text-xs text-white/50" title="The posting no longer accepts applications">
+            Closed
+          </span>
+        ) : dismissed ? (
           <button
             type="button"
             className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border border-white/10 px-3 text-xs text-white/60 hover:border-white/25 hover:text-white disabled:opacity-50"

@@ -6,7 +6,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ code
   const { code } = await params;
   const res = NextResponse.redirect(new URL("/?ref=1", request.url));
   if (isReferralCode(code.toLowerCase())) {
-    res.cookies.set(REF_COOKIE, code.toLowerCase(), { httpOnly: true, sameSite: "lax", secure: true, path: "/", maxAge: REF_COOKIE_DAYS * 86_400 });
+    res.cookies.set(REF_COOKIE, code.toLowerCase(), { httpOnly: true, sameSite: "lax", secure: request.url.startsWith("https://"), path: "/", maxAge: REF_COOKIE_DAYS * 86_400 });
   }
   return res;
 }

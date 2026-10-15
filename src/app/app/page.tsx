@@ -97,6 +97,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         "offer",
         "rejected",
         "skipped",
+        "expired",
       ]),
     ),
     orderBy: [desc(sql`coalesce(${schema.jobs.statusChangedAt}, ${schema.jobs.createdAt})`)],

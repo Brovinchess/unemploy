@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { after } from "next/server";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
@@ -18,6 +18,8 @@ export async function appContext(profileParam?: string | string[]) {
   const ready = all.filter((p) => p.status === "hunting" || p.status === "paused");
   if (!ready.length) redirect("/start");
   const wanted = typeof profileParam === "string" ? profileParam : undefined;
+  // A headhunter id in the address that isn't yours (or doesn't exist) is a 404, not someone else's page.
+  if (wanted && !ready.some((p) => p.id === wanted)) notFound();
   const current = ready.find((p) => p.id === wanted) ?? ready[0];
   const unfinished = all.filter((p) => !ready.includes(p));
   // A search that ran past its timeout without a final batch is closed now (Mind switched

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
@@ -42,6 +42,22 @@ export function NewJobs({
     router.refresh(); // the list below picks up what was decided
   };
 
+  // Focus moves into the overlay (its Close button) and returns to Review when it closes.
+  const closeBtn = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const back = opener.current;
+    const t = setTimeout(() => closeBtn.current?.focus(), 50);
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
+    document.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(t);
+      document.removeEventListener("keydown", onKey);
+      back?.focus({ preventScroll: true });
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
@@ -80,6 +96,7 @@ export function NewJobs({
         </div>
         <button
           className="btn btn-accent attention h-10 w-full shrink-0 justify-center sm:w-auto"
+          ref={opener}
           onClick={() => setOpen(true)}
         >
           Review {n === 1 ? "it" : "them"}
@@ -95,6 +112,7 @@ export function NewJobs({
             aria-label="New jobs"
           >
             <button
+              ref={closeBtn}
               className="fixed right-5 top-5 z-10 flex size-10 items-center justify-center rounded-full bg-white/[0.06] text-white/60 hover:bg-white/[0.12] hover:text-white"
               onClick={close}
               aria-label="Close"

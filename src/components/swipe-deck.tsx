@@ -234,6 +234,13 @@ function TopCard({
         drag.current.dx = e.clientX - drag.current.x;
         paint(drag.current.dx);
       }}
+      onPointerCancel={() => {
+        // A vertical scroll on a phone cancels the pointer: let go of the card cleanly.
+        if (!drag.current.on) return;
+        drag.current.on = false;
+        el.current?.classList.remove("dragging");
+        paint(0);
+      }}
       onPointerUp={() => {
         if (!drag.current.on) return;
         const dx = drag.current.dx;

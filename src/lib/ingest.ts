@@ -532,14 +532,16 @@ async function checkAndSave(
       });
     }
 
-    remaining--;
-    accepted++;
     mine.add({ url: job.url, company: job.company, title: job.title, createdAt: new Date() });
-    if (dryRun) continue;
+    if (dryRun) {
+      remaining--;
+      accepted++;
+      continue;
+    }
 
     const id = crypto.randomUUID();
     const postingKey = opts.demo ? null : await upsertPosting(job, "accepted", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => (console.error("[ingest] pool", e), null));
-    await db.insert(schema.jobs).values({
+    const inserted = await db.insert(schema.jobs).values({
       id,
       profileId: profile.id,
       postingKey,
@@ -575,7 +577,14 @@ async function checkAndSave(
       verifiedAt: job.verifiedOpenAt && !Number.isNaN(Date.parse(job.verifiedOpenAt)) ? new Date(Date.parse(job.verifiedOpenAt)) : new Date(),
       lastCheckedAt: new Date(),
       demo: !!opts.demo,
-    });
+    }).onConflictDoNothing().returning({ id: schema.jobs.id });
+    if (!inserted.length) {
+      // Two pushes carried the same job at once: the first one won.
+      rejected.push({ url: job.url, code: "duplicate", hint: "Already sent. Only send new jobs." });
+      continue;
+    }
+    remaining--;
+    accepted++;
     await db.insert(schema.packs).values({
       jobId: id,
       ...job.pack,

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { and, count, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
@@ -27,7 +27,7 @@ import { destroySession, requireUser } from "@/lib/session";
 export type FormState = { error?: string } | undefined;
 
 function friendly(e: unknown): string {
-  if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Please sign in again.";
+  if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Sign out from Settings and sign in again.";
   console.error(e);
   return "Hello Minds didn't respond. Please try again in a minute.";
 }
@@ -113,6 +113,15 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
   if (profile.mindId) return checkActivation(profileId, true);
+  // Claim the deploy first: two tabs pressing Deploy must not awaken two Minds. The claim is
+  // a placeholder name that only this call knows; a second caller sees it and just waits.
+  const claim = `pending-${crypto.randomUUID().slice(0, 8)}`;
+  const claimed = await db
+    .update(schema.profiles)
+    .set({ mindName: claim })
+    .where(and(eq(schema.profiles.id, profile.id), isNull(schema.profiles.mindId), or(isNull(schema.profiles.mindName), eq(schema.profiles.mindName, ""))))
+    .returning({ id: schema.profiles.id });
+  if (!claimed.length) return checkActivation(profileId, true);
   try {
     const name = await pickMindName(user);
     const mind = await minds(user).awaken(mindsConfig.archetype, name);
@@ -122,6 +131,7 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
       .where(eq(schema.profiles.id, profile.id));
     track(user.id, "headhunter_deployed", { mind: mind.name });
   } catch (e) {
+    await db.update(schema.profiles).set({ mindName: null }).where(and(eq(schema.profiles.id, profile.id), eq(schema.profiles.mindName, claim)));
     return { error: friendly(e) };
   }
   revalidatePath(`/profiles/${profileId}/setup`);
@@ -169,7 +179,7 @@ function switchOffLater(profileId: string) {
 async function startHunting(user: User, profile: Profile): Promise<{ error?: string; claimedElsewhere?: boolean } | undefined> {
   if (!profile.mindId || !profile.resumeData || !profile.preferences) return { error: "Finish the earlier steps first." };
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
-    return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel) and try again." };
+    return { error: "Your headhunter can't reach this computer from the internet, so it wasn't started. (Local setup: INGEST_URL must be a public address.)" };
   }
   const ingestKey = newIngestKey();
   // A fresh alias per brief gives the Mind a clean thread.
@@ -326,15 +336,18 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
   redirect(`/profiles/${profileId}/setup`);
 }
 
-export async function setPaused(profileId: string, paused: boolean) {
+export async function setPaused(profileId: string, paused: boolean): Promise<FormState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  // Resuming doesn't switch the Mind on: it only wakes for a search the user asks for.
-  if (paused && profile.mindId) await minds(user).setEnabled(profile.mindId, false);
-  await db
-    .update(schema.profiles)
-    .set({ status: paused ? "paused" : "hunting", ...(paused && isSearching(profile) ? { searchEndedAt: new Date() } : {}) })
-    .where(eq(schema.profiles.id, profile.id));
+  try {
+    // Pausing mid-search ends the search properly (history row closed, Mind switched off).
+    // Resuming doesn't switch the Mind on: it only wakes for a search the user asks for.
+    if (paused && isSearching(profile)) await endSearch(profile, "stopped");
+    else if (paused && profile.mindId) await minds(user).setEnabled(profile.mindId, false);
+  } catch (e) {
+    return { error: friendly(e) };
+  }
+  await db.update(schema.profiles).set({ status: paused ? "paused" : "hunting" }).where(eq(schema.profiles.id, profile.id));
   revalidatePath("/app", "layout");
 }
 
@@ -349,7 +362,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
   if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
   if (isSearching(profile)) return;
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
-    return { error: "Your headhunter can't reach this computer. Set INGEST_URL to your tunnel address (npm run tunnel)." };
+    return { error: "Your headhunter can't reach this computer from the internet, so it wasn't started. (Local setup: INGEST_URL must be a public address.)" };
   }
   if (mindsMode === "live" && !(await ingestReachable())) {
     return { error: `Your headhunter couldn't reach ${mindsConfig.ingestUrl}, so it wasn't started. If you're running locally, check the tunnel is up.` };
@@ -368,14 +381,17 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
       .from(schema.ingestLog)
       .where(eq(schema.ingestLog.profileId, profile.id));
     // The chosen number becomes this search's quota (checked at ingest) and the next default.
-    await db
+    // Conditional on no search being open: two clicks (two tabs, a retry) start one search, not two.
+    const started = await db
       .update(schema.profiles)
       .set({
         searchStartedAt: new Date(),
         searchEndedAt: null,
         ...(profile.preferences ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
       })
-      .where(eq(schema.profiles.id, profile.id));
+      .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
+      .returning({ id: schema.profiles.id });
+    if (!started.length) return;
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
     track(user.id, "search_requested", { jobs: wanted, search_number: n + 1 });
     await api.setEnabled(profile.mindId, true);
@@ -422,7 +438,9 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
     // The Mind is now up to date with everything saved before this moment.
     if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   } catch (e) {
+    // The request never reached the Mind: close what was opened so nothing shows "in progress".
     await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    await db.delete(schema.searches).where(and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)));
     return { error: friendly(e) };
   }
   revalidatePath("/app", "layout");

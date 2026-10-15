@@ -168,7 +168,8 @@ export function LiveCognitionShort({ perJob }: { perJob?: number }) {
   const balance = live?.profile.balance ?? null;
   if (balance == null) return null;
   const n = Math.max(0, Math.floor(balance / estimateSearchCost(COUNT_IN, perJob).cognition));
-  return <>{`${Math.round(balance)} cognition · ${n} ${n === 1 ? "search" : "searches"}`}</>;
+  // One line in the phone header: "160 · 1 search" with the long form as a tooltip.
+  return <span className="whitespace-nowrap" title={`${Math.round(balance)} cognition, about ${n} ${n === 1 ? "search" : "searches"} of ${COUNT_IN} jobs`}>{`${Math.round(balance)} · ${n} ${n === 1 ? "search" : "searches"}`}</span>;
 }
 
 export function LiveBadge({ kind }: { kind: "new" | "answers" }) {

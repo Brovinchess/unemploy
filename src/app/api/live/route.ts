@@ -2,7 +2,7 @@ import { after, NextResponse, type NextRequest } from "next/server";
 import { and, count, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Live } from "@/components/live";
-import { freshBalance } from "@/lib/app-context";
+import { balanceFor, freshBalance } from "@/lib/app-context";
 import { ownedProfile } from "@/lib/owned";
 import { questionCounts } from "@/lib/personal";
 import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
@@ -34,7 +34,8 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
   const searching = isSearching(profile);
 
   const [balance, [{ n: newJobs }], [{ n: toApply }], [{ n: jobsFound }], counts] = await Promise.all([
-    freshBalance(user, profile),
+    // Live from Hello Minds while a search spends; the 2-minute cache otherwise.
+    searching ? freshBalance(user, profile) : balanceFor(user, profile),
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "new"))) : [{ n: 0 }],
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "saved"))) : [{ n: 0 }],
     profile.searchStartedAt
