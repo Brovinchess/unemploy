@@ -4,6 +4,8 @@ import { Ninja } from "@/components/brand";
 import { requireAdmin } from "@/lib/admin";
 
 export const metadata: Metadata = { title: "Career Ninja admin", robots: { index: false, follow: false } };
+// Every admin page reads live data and the session; never pre-rendered at build time.
+export const dynamic = "force-dynamic";
 
 const NAV = [
   ["/admin", "Overview"],
