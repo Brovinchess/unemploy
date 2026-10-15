@@ -5,7 +5,10 @@ import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
 import { RemoveHeadhunter } from "@/app/app/settings/remove-headhunter";
 import { RenameHeadhunter } from "@/app/app/settings/rename-headhunter";
 import { ActivityPanel } from "@/components/activity-feed";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { CompanyLogo } from "@/components/company-logo";
 import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { ScrollToHash } from "@/components/scroll-to-hash";
@@ -22,6 +25,17 @@ import { isSearching } from "@/lib/search";
 const took = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
 const when = (d: Date) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 const plural = (n: number, one: string) => `${n} ${n === 1 ? one : `${one}s`}`;
+const STATUS_LABEL: Record<string, string> = {
+  new: "New",
+  saved: "To apply",
+  applied: "Applied",
+  heard_back: "Heard back",
+  interview: "Interview",
+  offer: "Offer",
+  rejected: "Rejected",
+  skipped: "Dismissed",
+  expired: "Closed",
+};
 
 // One headhunter: who it is and what it's after, what it has delivered, how the last search
 // went in a sentence, then its settings and resume. History and the live log sit behind a link.
@@ -58,9 +72,15 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
 
   // The last finished search, as a sentence: outcome, the main reason leads were dropped, the fix.
   const last = history.find((s) => s.endedAt);
-  let lastLine: { outcome: string; why: string | null; fix: string | null } | null = null;
+  let lastLine: { why: string | null; fix: string | null } | null = null;
+  const lastJobs = last
+    ? await db.query.jobs.findMany({
+        where: and(eq(schema.jobs.profileId, current.id), gte(schema.jobs.createdAt, last.startedAt)),
+        orderBy: desc(schema.jobs.matchScore),
+        columns: { id: true, title: true, company: true, companyDomain: true, matchScore: true, status: true, city: true, country: true, workSetting: true },
+      })
+    : [];
   if (last?.endedAt) {
-    const mins = Math.max(1, Math.round((last.endedAt.getTime() - last.startedAt.getTime()) / 60_000));
     const drops = await db.query.leads.findMany({
       where: and(eq(schema.leads.profileId, current.id), gte(schema.leads.createdAt, last.startedAt)),
       columns: { reason: true },
@@ -71,16 +91,10 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
       counts.set(r, (counts.get(r) ?? 0) + 1);
     }
     const top = [...counts.entries()].filter(([r]) => r !== "other").sort((a, b) => b[1] - a[1])[0];
-    const outcome =
-      last.endReason === "timeout"
-        ? `Timed out after ${took(mins)} with ${plural(last.jobsAdded ?? 0, "job")}.`
-        : last.endReason === "stopped"
-          ? `Stopped by you after ${took(mins)} with ${plural(last.jobsAdded ?? 0, "job")}.`
-          : `${plural(last.jobsAdded ?? 0, "job")} in ${took(mins)}${last.cognitionUsed != null ? `, ${Math.round(last.cognitionUsed)} cognition` : ""}.`;
     const why = top && drops.length >= 5 && top[1] / drops.length >= 0.3 ? `${Math.round((top[1] / drops.length) * 100)}% of what it checked was ${DROP_LABELS[top[0]]}.` : null;
     const remoteOnly = (prefs?.workSettings ?? []).every((w) => w === "remote");
     const fix = coach?.suggestions[0]?.text ?? (prefs ? dropAdvice(counts, drops.length, prefs.city || prefs.country, remoteOnly, postingAgeDays(prefs)) : null);
-    lastLine = { outcome, why, fix };
+    lastLine = { why, fix };
   }
 
   const lookingFor = prefs
@@ -149,12 +163,46 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         </section>
 
         {/* The last search in a sentence or three: outcome, the main reason, the fix. */}
-        {lastLine && (
+        {last && (
           <section className="rise rise-2 mt-6 rounded-3xl bg-surface p-6 sm:p-8">
-            <h2 className="font-display text-lg font-medium text-white">Last search</h2>
-            <p className="mt-2 text-white/80">{lastLine.outcome}</p>
-            {lastLine.why && <p className="mt-1 text-sm text-white/55">{lastLine.why}</p>}
-            {lastLine.fix && (
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <h2 className="font-display text-lg font-medium text-white">Last search</h2>
+              <Link href="/app" className="btn btn-ghost h-9 text-sm">
+                Open the jobs board <ArrowRight className="size-4" aria-hidden />
+              </Link>
+            </div>
+            {lastJobs.length === 0 ? (
+              <p className="mt-3 text-sm text-white/45">{last.endedAt ? "It didn't find anything that passed every check." : "Nothing yet. Jobs appear here as they're found."}</p>
+            ) : (
+              <ul className="mt-4 divide-y divide-white/[0.06]">
+                {lastJobs.map((j) => {
+                  const place = [j.city, j.country].filter(Boolean).join(", ");
+                  const setting = j.workSetting ? j.workSetting[0].toUpperCase() + j.workSetting.slice(1) : null;
+                  const match = Math.round(j.matchScore);
+                  return (
+                    <li key={j.id}>
+                      <Link href={`/app/jobs/${j.id}`} className="group flex items-center gap-4 py-3">
+                        <CompanyLogo name={j.company} domain={j.companyDomain} size="sm" />
+                        <span className="min-w-0 flex-1">
+                          <span className="font-display block truncate font-medium text-white group-hover:underline group-hover:decoration-mist group-hover:underline-offset-4">{j.title}</span>
+                          <span className="block truncate text-sm text-white/50">
+                            <span className="text-white/70">{j.company}</span>
+                            {[place, setting].filter(Boolean).length > 0 && <> · {[place, setting].filter(Boolean).join(" · ")}</>}
+                          </span>
+                        </span>
+                        <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums sm:inline-flex ${match >= 80 ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`}>
+                          {match}%
+                        </span>
+                        <span className="w-20 shrink-0 text-right text-xs text-white/45">{STATUS_LABEL[j.status] ?? j.status}</span>
+                        <ArrowRight className="size-4 shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {lastLine?.why && <p className="mt-4 text-sm text-white/55">{lastLine.why}</p>}
+            {lastLine?.fix && (
               <p className="mt-1 text-sm text-coral">
                 <a href="#looks-for" className="underline underline-offset-4">
                   {lastLine.fix}
