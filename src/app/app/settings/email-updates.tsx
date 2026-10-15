@@ -28,7 +28,7 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
         </p>
         <label className="mt-5 flex cursor-pointer items-center justify-between gap-4 rounded-2xl bg-night-2 px-4 py-3.5">
           <span>
-            <span className="block text-white">Email me when a search finishes</span>
+            <span className="block text-white">Email when a search finishes</span>
             <span className="block text-sm text-white/50">With the new jobs and their match scores</span>
           </span>
           <input

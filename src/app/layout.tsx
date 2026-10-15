@@ -9,8 +9,8 @@ const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Career Ninja — your own AI headhunter",
-  description: "A personal AI headhunter that finds the jobs that fit you and writes your application for each one.",
+  title: "Career Ninja, your own AI headhunter",
+  description: "Your own AI headhunter: it finds the jobs that fit you and writes each application from your resume.",
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

@@ -19,8 +19,8 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <button className="btn btn-primary" onClick={reset}>
           Try again
         </button>
-        <Link href="/start" className="btn btn-ghost">
-          Go home
+        <Link href="/" className="btn btn-ghost">
+          Back to Career Ninja
         </Link>
       </div>
     </main>

@@ -16,7 +16,7 @@ export function SearchingScene({ mindName, notifyEmail }: { mindName: string; no
       </h2>
       <p className="mx-auto mt-3 max-w-sm leading-relaxed text-white/55">
         It takes its time to research and check every job.
-        {notifyEmail ? <> You&rsquo;ll get an email when it finds some, or check back in a while.</> : <> Check back in a while.</>}
+        {notifyEmail ? <> You&rsquo;ll get an email when it finds some.</> : <> Jobs appear here as it finds them.</>}
       </p>
       <Link href="/app/you#application" className="mt-7 text-sm text-white/50 underline underline-offset-4 hover:text-white">
         Meanwhile, add your details so applications are ready to send

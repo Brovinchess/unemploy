@@ -40,7 +40,6 @@ export type CardJob = {
   mustHaves: { requirement: string; met: boolean }[];
   posted: string | null; // "15 days ago"
   verified: boolean;
-  headhunter?: string; // shown when the user has more than one
 };
 
 type Decision = "apply" | "dismiss";
@@ -296,7 +295,7 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
           <Ninja mood="surprised" className="float relative size-32" />
         </div>
         <p className="font-display mt-6 text-[22px] font-medium tracking-tight">Found one for you</p>
-        <p className="mt-1.5 text-sm text-white/50">Open, checked, application written.</p>
+        <p className="mt-1.5 text-sm text-white/50">Checked open today. Application written.</p>
       </div>
       <div className="relative px-6 pb-6">
         <button
@@ -327,7 +326,6 @@ function Back({ job }: { job: CardJob }) {
           <div className="min-w-0">
             <p className="font-display text-[21px] font-semibold leading-tight">{job.title}</p>
             <p className="mt-1 text-[13px] text-white/55">{job.company}</p>
-            {job.headhunter && <p className="mt-1 text-[11px] uppercase tracking-wider text-white/35">Found by {job.headhunter}</p>}
           </div>
         </div>
 

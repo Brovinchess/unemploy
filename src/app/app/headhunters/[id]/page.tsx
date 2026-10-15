@@ -164,7 +164,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               </Link>
             </div>
             {lastJobs.length === 0 ? (
-              <p className="mt-3 text-sm text-white/45">{last.endedAt ? "It didn't find anything that passed every check." : "Nothing yet. Jobs appear here as they're found."}</p>
+              <p className="mt-3 text-sm text-white/45">{last.endedAt ? "It didn't find anything that passed every check. Widen a setting below and try again." : "Nothing yet. Jobs appear here as they're found."}</p>
             ) : (
               <ul className="mt-4 divide-y divide-white/[0.06]">
                 {lastJobs.map((j) => {

@@ -69,7 +69,7 @@ export function ActivateStep({
             })
           }
         >
-          {pending ? "Deploying your headhunter…" : "Deploy it and start"}
+          {pending ? "Deploying your headhunter…" : "Deploy my headhunter"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
@@ -112,7 +112,7 @@ export function ActivateStep({
       <p className="mt-6 text-center text-xs text-white/40">
         Still nothing after a few minutes? You can{" "}
         <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-white/30 underline-offset-4 hover:text-white">
-          add cognition on Hello Minds
+          top up on Hello Minds
         </a>{" "}
         and it will start the moment it arrives.
       </p>

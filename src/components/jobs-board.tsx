@@ -132,7 +132,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
             needle
               ? `Nothing matches “${q}”.`
               : stage === "saved"
-                ? "Nothing to apply to. Review new cards or ask for more."
+                ? "Nothing to apply to yet. Swipe right on a new card, or ask for more jobs."
                 : "Nothing here yet."
           }
         />

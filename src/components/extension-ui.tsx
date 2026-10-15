@@ -54,7 +54,7 @@ export function ApplyAllButton({
           <p className="font-medium text-white">
             {count} {one ? "job" : "jobs"} ready to apply
           </p>
-          <p className="text-sm text-white/55">Open each job to apply with the application your headhunter wrote. One-click apply for all of them is coming soon.</p>
+          <p className="text-sm text-white/55">Open each job to apply with the application your headhunter wrote. Apply to all, with the Chrome extension, is coming soon.</p>
         </div>
       </div>
     );
@@ -76,7 +76,7 @@ export function ApplyAllButton({
                 (ready
                   ? "The extension opens each one, fills it in and waits for you to submit."
                   : status.needsUpdate
-                    ? "Your Career Ninja extension is out of date. Chrome updates it by itself; open chrome://extensions and press Update to do it now."
+                    ? "Your Career Ninja extension is out of date. Chrome updates it by itself. To do it now, open chrome://extensions and press Update."
                     : needDetails
                     ? "Add your application details and the extension can fill them in for you."
                     : "Set up the Chrome extension and apply to all of them in one go.")}
@@ -223,7 +223,7 @@ export function ExtensionSetup({
 
       <Step n={2} done={connected} title="Connect it to your account">
         <p className="mt-1 text-sm text-white/55">
-          So it can fetch your To-apply jobs and the applications your
+          So it can fetch your To apply jobs and the applications your
           headhunter wrote.
         </p>
         {installed && !connected && (

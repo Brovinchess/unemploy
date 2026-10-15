@@ -56,14 +56,14 @@ export async function sendSearchDoneEmail(args: {
       : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
   const intro =
     n === 0
-      ? `Your ${label} headhunter searched but found nothing that passed every check. Try again in a day or two, or widen its search settings.`
+      ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page, or try again tomorrow.`
       : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Each one has a cover letter and answers ready to paste.`;
   const top = jobs.slice(0, 5);
   const text =
     `${intro}\n\n` +
     top.map((j) => `- ${j.title} at ${j.company} (${Math.round(j.matchScore)}% match)`).join("\n") +
     (n > top.length ? `\n…and ${n - top.length} more` : "") +
-    `\n\nSee your shortlist: ${link}`;
+    `\n\nSee your jobs: ${link}`;
   await send(to, subject, text, searchDoneHtml({ intro, jobs: top, more: n - top.length, link, empty: n === 0 }));
 }
 
@@ -120,7 +120,7 @@ export function searchDoneHtml({ intro, jobs, more, link, empty }: { intro: stri
         ${rows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>` : ""}
         ${more > 0 ? `<p style="margin:12px 0 0;font-family:${FONT};font-size:13px;color:#8b98a5">…and ${more} more</p>` : ""}
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:28px"><tr><td bgcolor="#c96567" style="background:#c96567;border-radius:999px">
-          <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">See your shortlist</a>
+          <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">See your jobs</a>
         </td></tr></table>
       </td></tr>
       <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#5f6d7a">You get this because you asked for a search. Turn these emails off in Settings. © ${new Date().getFullYear()} Career Ninja · powered by Hello Minds</td></tr>

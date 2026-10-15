@@ -38,7 +38,7 @@ const usernameSchema = z
   .string()
   .trim()
   .toLowerCase()
-  .regex(/^[a-z0-9][a-z0-9-]{1,22}[a-z0-9]$/, "Use 3–24 letters, numbers or dashes.");
+  .regex(/^[a-z0-9][a-z0-9-]{1,22}[a-z0-9]$/, "Use 3 to 24 letters, numbers or dashes.");
 
 // Fallback only: a person who somehow reaches the resume step without a name (an account from
 // before the name step) gets one from the resume, or a short random handle.

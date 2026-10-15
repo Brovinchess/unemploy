@@ -33,7 +33,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
   if (!user.username) {
     return (
       <OnboardingShell step={0}>
-        <StepHeading eyebrow="Welcome" title="What should we call you?">
+        <StepHeading eyebrow="Your name" title="What should we call you?">
           Your headhunter is named after you on Hello Minds. First name is fine.
         </StepHeading>
         <NameStep />
@@ -74,7 +74,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
       <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
         {profile.mindName
           ? "Waiting for its cognition to land. This usually takes a few seconds."
-          : "We'll deploy your own AI agent on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
+          : "We'll deploy your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}

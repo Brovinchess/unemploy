@@ -14,7 +14,7 @@ const STATUS_NOTE: Partial<Record<string, string>> = {
   interview: "You have an interview for this job.",
   offer: "You got an offer for this job.",
   rejected: "This application was unsuccessful.",
-  skipped: "You skipped this job.",
+  skipped: "You dismissed this job.",
   expired: "This posting has closed. Career Ninja's daily check found it no longer accepts applications.",
 };
 

@@ -185,9 +185,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
               is ready
             </h2>
             <p className="mx-auto mt-3 max-w-md leading-relaxed text-white/55">
-              It has your resume and knows what you want. Ask for jobs and they
-              come back as cards: reveal one, swipe right to apply, left to
-              pass.
+              It has your resume and knows what you want. Press Find new jobs.
+              Each one comes as a card: reveal it, swipe right to keep it, left
+              to dismiss.
             </p>
             <div className="mt-8 w-full max-w-md">{searchButton(true)}</div>
           </section>

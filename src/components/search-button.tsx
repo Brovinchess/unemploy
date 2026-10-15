@@ -229,7 +229,7 @@ export function SearchButton({
       </button>
       <p className="mt-3 text-center text-xs text-white/45">
         {notifyEmail ? (
-          <>We&rsquo;ll email {notifyEmail} when it&rsquo;s done.</>
+          <>You&rsquo;ll get an email at {notifyEmail} when it&rsquo;s done.</>
         ) : (
           <>
             Want an email when it&rsquo;s done?{" "}

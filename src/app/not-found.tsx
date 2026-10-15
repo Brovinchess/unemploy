@@ -6,8 +6,8 @@ export default function NotFound() {
       <p className="eyebrow">Not found</p>
       <h1 className="font-display mt-3 text-2xl font-bold text-ink">This page doesn&rsquo;t exist</h1>
       <p className="mt-3 text-muted">It may have been removed, or the link is wrong.</p>
-      <Link href="/start" className="btn btn-primary mt-8">
-        Go home
+      <Link href="/" className="btn btn-primary mt-8">
+        Back to Career Ninja
       </Link>
     </main>
   );

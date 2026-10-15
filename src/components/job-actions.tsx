@@ -40,7 +40,7 @@ export function JobActions({
   if (skipping) {
     return (
       <div className="mt-5 rounded-xl bg-canvas p-4">
-        <p className="font-medium">Why skip this one? Your headhunter learns from it.</p>
+        <p className="font-medium">Why dismiss this one? Your headhunter learns from it.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {SKIP_REASONS.map((r) => (
             <button key={r} className="chip min-h-9 text-sm" disabled={pending} onClick={() => act("skipped", r, true)}>
@@ -76,11 +76,11 @@ export function JobActions({
       </a>
       {status === "new" && (
         <button className="btn btn-ghost" disabled={pending} onClick={() => act("saved")}>
-          <Bookmark className="size-4" aria-hidden /> Save
+          <Bookmark className="size-4" aria-hidden /> Keep
         </button>
       )}
       <button className="btn btn-ghost" disabled={pending} onClick={() => setSkipping(true)}>
-        <X className="size-4" aria-hidden /> Skip
+        <X className="size-4" aria-hidden /> Dismiss
       </button>
     </div>
   );

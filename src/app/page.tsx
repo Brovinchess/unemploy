@@ -43,11 +43,11 @@ const PHRASES = ["finds jobs you'd actually get", "writes every application", "f
 const SHOW_WAITLIST_FROM = 50;
 
 const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in, deploy your headhunter", body: "One click deploys an agent that works only for you. It belongs to you, not to us, and runs only when you ask." },
+  { icon: UserRound, mood: "happy", title: "Sign in, deploy your headhunter", body: "One click deploys a headhunter that works only for you. It belongs to you, not to us, and runs only when you ask." },
   { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer two questions: the roles you want and where you live." },
-  { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
+  { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find new jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
   { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
-  { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up from To apply to Offer." },
+  { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to dismiss. Kept jobs line up from To apply to Offer." },
   {
     icon: Puzzle,
     mood: "love",
@@ -74,7 +74,7 @@ const FAQ = [
     q: "Does it apply for me?",
     a: extensionLive
       ? "Almost. It finds the job and writes the application. The Chrome extension fills the form for you, and leaves Submit to you unless you choose to let it send."
-      : "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. It leaves Submit to you unless you choose to let it send.",
+      : "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the form for you is coming soon.",
   },
   {
     q: "What about the questions only I can answer?",
@@ -136,7 +136,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                   <a href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
                     Deploy my headhunter <ArrowRight className="size-4" aria-hidden />
                   </a>
-                  <span className="text-sm text-white/50">{sp.ref === "1" ? "A friend invited you. Free to start, sign in with Hello Minds." : "Free to start. Sign in with Hello Minds."}</span>
+                  <span className="text-sm text-white/50">{sp.ref === "1" ? "A friend invited you. Sign in with Hello Minds; your first searches run on its free cognition." : "Sign in with Hello Minds. Your first searches run on its free cognition."}</span>
                 </div>
               ) : (
                 <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
@@ -199,7 +199,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
           <div className="mx-auto max-w-3xl text-center">
             <H2>From resume to Submit</H2>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
-              Six steps. You do three: set it up, swipe, press Submit.
+              Six steps. Three are yours: set it up, swipe, press Submit.
             </p>
           </div>
           <ol className="mx-auto mt-12 grid max-w-6xl gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -226,11 +226,11 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <H2>One job at a time, face down</H2>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
                 Reveal a card and the big questions are answered first: what the job is, what it pays, whether you can work it
-                from where you live, and how many requirements you meet. Swipe right to keep it, left to pass.
+                from where you live, and how many requirements you meet. Swipe right to keep it, left to dismiss.
               </p>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
-                No match percentages pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
-                requirements against your resume.
+                The match score is not pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
+                requirements against your resume, and the card shows which ones you meet.
               </p>
             </div>
             <div className="mx-auto w-full max-w-[360px]" aria-hidden>
@@ -240,8 +240,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         </section>
 
         {/* Live search */}
-        {/* Two agents */}
-        <section id="agents" className="bg-night px-[6%] py-16 sm:py-20">
+        {/* One headhunter, two jobs */}
+        <section id="answers" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl text-center">
             <H2>One headhunter, two jobs.</H2>
             <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
@@ -273,10 +273,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 </span>
                 <Ninja mood="thinking" className="size-16" />
               </div>
-              <p className="font-display mt-4 text-xl font-medium text-white">Knows your answers</p>
+              <p className="font-display mt-4 text-xl font-medium text-white">It answers forms about you</p>
               <p className="mt-1 text-sm text-white/45">Every form question about you, answered once</p>
               <ul className="mt-4 space-y-2 text-[15px] text-white/70">
-                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your details and the answers you've given; never a guess", "Hands the question to you when it has nothing to go on", "Remembers every answer you give, so fewer questions reach you each time"].map((t) => (
+                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your details and the answers you've given. Never a guess", "Hands the question to you when it has nothing to go on", "Remembers every answer you give, so fewer questions reach you each time"].map((t) => (
                   <li key={t} className="flex gap-2.5">
                     <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
                   </li>
@@ -294,8 +294,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               <H2>The form fills itself. You press Submit.</H2>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
                 The Chrome extension {extensionLive ? "opens" : "will open"} each job you kept and {extensionLive ? "fills" : "fill"} in your details, resume, cover letter and answers.
-                Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and
-                Ashby.
+                Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. {extensionLive ? "Works" : "It will work"} on Greenhouse, Lever and
+                Ashby{extensionLive ? "" : " first"}.
               </p>
             </div>
             <div className="flex justify-center" aria-hidden>
