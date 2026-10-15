@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DropReason } from "@/db/schema";
 import { ResumeStep } from "@/app/profiles/[id]/setup/resume-step";
@@ -64,11 +64,6 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
     { label: "interviews", n: n("interview") },
     { label: "offers", n: n("offer") },
   ];
-  const [{ spent }] = await db
-    .select({ spent: sql<number>`coalesce(sum(${schema.searches.cognitionUsed}), 0)` })
-    .from(schema.searches)
-    .where(eq(schema.searches.profileId, current.id));
-  const perJob = found > 0 && Number(spent) > 0 ? Math.round(Number(spent) / found) : null;
 
   // The last finished search, as a sentence: outcome, the main reason leads were dropped, the fix.
   const last = history.find((s) => s.endedAt);
@@ -144,10 +139,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
 
         {/* What it has delivered, and what that cost. */}
         <section className="rise rise-1 mt-6 rounded-3xl bg-surface p-6 sm:p-8">
-          <div className="flex flex-wrap items-baseline justify-between gap-4">
-            <h2 className="font-display text-lg font-medium text-white">Results</h2>
-            {perJob != null && <p className="text-sm text-white/45">About {perJob} cognition per job</p>}
-          </div>
+          <h2 className="font-display text-lg font-medium text-white">Results</h2>
           {found === 0 ? (
             <p className="mt-3 text-sm text-white/45">Nothing yet. Its first search fills this in.</p>
           ) : (
