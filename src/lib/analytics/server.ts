@@ -16,7 +16,6 @@ export type Event =
   | "search_requested"
   | "search_finished"
   | "card_decided"
-  | "personal_mind_deployed"
   | "headhunter_removed";
 
 export const analyticsOn = !!client;

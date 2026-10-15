@@ -65,7 +65,7 @@ const jobSchema = z.object({
     .max(12)
     .default([]),
   verifiedOpenAt: trimmed(40).optional(),
-  // The questions on the job's application form, so the personal Mind can answer them.
+  // The questions on the job's application form, so the ones about the person can be answered once.
   formQuestions: z
     .array(
       z.object({
@@ -81,8 +81,8 @@ const jobSchema = z.object({
     aboutMe: trimmed(1500).pipe(z.string().min(10)),
     answers: z
       .array(z.object({ question: trimmed(500), answer: trimmed(3000) }))
-      .max(20)
-      .default([]),
+      .default([])
+      .transform((a) => a.slice(0, 40)),
     claims: z.array(claimSchema).max(40).default([]),
   }),
 });
@@ -516,7 +516,7 @@ async function checkAndSave(
       job.pack.claims = job.pack.claims.filter((c) => !unsupported.includes(c));
       adjusted.push({
         url: job.url,
-        note: `Dropped ${unsupported.length} claim(s) whose evidence isn't in the resume word for word: ${unsupported.map((c) => `"${c.evidence.slice(0, 60)}"`).join("; ")}. Quote the resume exactly next time.`,
+        note: `Dropped ${unsupported.length} claim(s) whose evidence isn't in the resume word for word: ${unsupported.map((c) => `"${c.evidence.slice(0, 60)}"`).join("; ")}. Quote the resume exactly next time (answers taken from ABOUT ME need no claim).`,
       });
     }
 

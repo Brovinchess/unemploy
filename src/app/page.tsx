@@ -67,8 +67,8 @@ const FAQ = [
     a: "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. Nothing is ever sent without you.",
   },
   {
-    q: "What is the second agent for?",
-    a: "Application forms ask things only you know: notice period, relocation, years with a tool. Your personal agent answers those from your resume and details, you approve once, and it learns.",
+    q: "What about the questions only I can answer?",
+    a: "Application forms ask things like notice period, relocation, years with a tool. Your headhunter answers those from your details and your earlier answers; anything it doesn't know comes to you once, and it remembers from then on.",
   },
   {
     q: "Will it make things up about me?",
@@ -263,10 +263,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 </span>
                 <Ninja mood="thinking" className="size-16" />
               </div>
-              <p className="font-display mt-4 text-xl font-medium text-white">Your personal agent</p>
-              <p className="mt-1 text-sm text-white/45">Knows you, and nothing else</p>
+              <p className="font-display mt-4 text-xl font-medium text-white">Knows your answers</p>
+              <p className="mt-1 text-sm text-white/45">Every form question about you, answered once</p>
               <ul className="mt-4 space-y-2 text-[15px] text-white/70">
-                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your resume, your details and what you've told it; never a guess", "Says \"I don't know\" and hands the question to you when it has nothing to go on", "Learns every answer you give, so fewer questions reach you each time"].map((t) => (
+                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your details and the answers you've given; never a guess", "Hands the question to you when it has nothing to go on", "Remembers every answer you give, so fewer questions reach you each time"].map((t) => (
                   <li key={t} className="flex gap-2.5">
                     <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
                   </li>

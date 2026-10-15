@@ -1,5 +1,6 @@
 import type { Preferences } from "./preferences";
 import { discoveryText } from "./discovery";
+import { FACTS_RULE } from "./facts";
 import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel } from "./preferences";
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
@@ -12,8 +13,9 @@ export function buildBrief(args: {
   timezone: string;
   appUrl: string;
   ingestKey: string;
+  facts?: string; // ABOUT ME block from factsText(); empty until the person fills in details
 }) {
-  const { ownerName, profileLabel, prefs, appUrl, ingestKey, resumeAttached = true } = args;
+  const { ownerName, profileLabel, prefs, appUrl, ingestKey, resumeAttached = true, facts = "" } = args;
   const resumeLine = resumeAttached
     ? "My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume."
     : "You already have my resume saved in your memory; keep working from that copy.";
@@ -28,11 +30,11 @@ HOW WE WORK
 - You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.
 - For each request:
   1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
-  2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. Questions about my personal facts (notice period, licence, years with a tool) are not yours to answer; my personal Mind and I handle those.
+  2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE}
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
-  6. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
-  4. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, other) and a short note. No pack for those. If you had opened the posting before dropping it as poor_fit, not_eligible or work_setting, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
-  5. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
+  4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
+  5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, other) and a short note. No pack for those. If you had opened the posting before dropping it as poor_fit, not_eligible or work_setting, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
+  6. When you're done, POST {"jobs":[],"final":true} (or mark your last push "final": true). Then stop.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -40,7 +42,9 @@ WHAT I WANT
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
 - Pay: not a filter. Never drop a job over pay; just copy what the posting shows onto the card. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
-
+${facts ? `
+${facts}
+` : ""}
 WHERE TO LOOK
 - ${discoveryText(prefs.targetRoles, prefs.country, prefs.city)}
 
@@ -121,8 +125,10 @@ JOB fields
   pack          required
     coverLetter required  under 350 words
     aboutMe     required  2–3 sentences for "tell us about yourself"
-    answers     required when the form asks about the job, company or fit: one entry per such
-                          question, "question" copied exactly from the form; facts only from the resume
+    answers     one entry per form question you can answer, "question" copied exactly from the form:
+                          questions about the job, company or fit (facts only from the resume) and
+                          questions about the user answered only from the ABOUT ME block in the brief or
+                          search request. Never guess a fact about the user; leave that question out.
     claims      wanted    [{"claim":"...","evidence":"<exact words from the resume>"}]; a claim without exact evidence is dropped
                           one entry per fact about the user used in the pack
 

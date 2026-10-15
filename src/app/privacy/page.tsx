@@ -18,7 +18,7 @@ const SECTIONS = [
   {
     title: "Who sees it",
     items: [
-      "Your resume and preferences are sent only to your own Hello Minds agents: your headhunter, so it can search for you, and your personal Mind, so it can answer application questions with your saved answers.",
+      "Your resume, preferences, application details and saved answers are sent only to your own Hello Minds agent, your headhunter, so it can search for you and answer application questions as you would.",
       "Job sites only receive what you choose to send when you apply. If you use the Chrome extension, it types your application details, resume and the application your headhunter wrote into that job's form, and you review it before it's sent.",
       "We don't sell your data or share it with employers or advertisers.",
     ],

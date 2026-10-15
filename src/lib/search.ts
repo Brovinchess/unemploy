@@ -6,9 +6,9 @@ import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { discoveryText } from "./discovery";
-import { askPersonalMind } from "./personal";
 import { track } from "./analytics/server";
 import { mindsConfig } from "./minds/config";
+import { FACTS_RULE } from "./facts";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
 // the Mind sends its final batch, fills the quota, or this timeout passes. Between searches
@@ -55,6 +55,7 @@ export function searchRequestText(
   ruledOut: string[] = [],
   maxAgeDays?: number,
   resumeChanged = false,
+  facts = "",
 ) {
   const resume = resumeChanged
     ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
@@ -80,6 +81,7 @@ export function searchRequestText(
     `Writing style for the cover letter and answers: Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like \\"I am excited to\\" or \\"passionate about\\". Cover letter as in your brief: 150 to 220 words, open with the job's own problem and my best matching result, two or three proofs with numbers in the posting's words, one line on what I'd do first, then Thanks and my name. ` +
     skip +
     (focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies. ` : "") +
+    (facts ? `\n\n${facts}\n${FACTS_RULE} This replaces anything in your brief that says such questions are not yours to answer.\n\n` : "") +
     `If you can't reach that address, reply once to say so, then stop: don't keep retrying or searching. ` +
     `Then stop and wait for my next request. (${new Date().toISOString()})`
   );
@@ -138,8 +140,6 @@ export async function endSearch(profile: Profile, reason: "finished" | "stopped"
   await switchOff(profile);
   await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
   if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
-  // The search's form questions go to the personal Mind in one batch.
-  await askPersonalMind(profile.userId).catch((e) => console.error("[search] personal Mind not asked", profile.id, e));
 }
 
 // Closes the search's history row: when, why, jobs added and the balance after.

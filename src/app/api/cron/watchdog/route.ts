@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
-import { releaseStaleQuestions } from "@/lib/personal";
 import { checkPosting } from "@/lib/quality";
 import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
 
@@ -37,14 +36,11 @@ export async function GET(request: Request) {
     stale++;
   }
 
-  // Questions the personal Mind never answered go back in the queue, and it's switched off.
-  const released = await releaseStaleQuestions();
-
   // Last, because it matters least if the run is cut short: keep the shared pool fresh.
   const pool = await recheckPostings().catch((e) => (console.error("[watchdog] postings", e), { checked: 0, closed: 0, retired: 0 }));
 
-  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, pool checked ${pool.checked} closed ${pool.closed} retired ${pool.retired}, expired sessions ${expired.length}, released questions ${released}`);
-  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, releasedQuestions: released, pool });
+  console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, pool checked ${pool.checked} closed ${pool.closed} retired ${pool.retired}, expired sessions ${expired.length}`);
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, pool });
 }
 
 // Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the

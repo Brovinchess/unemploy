@@ -1,6 +1,6 @@
 import "server-only";
 import { after } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { ChatMessage, MindsApi, ToolUse } from "./client";
 
@@ -22,7 +22,7 @@ function say(alias: string, fromMind: boolean, text: string, attachments = 0) {
   state.chats.set(alias, [...(state.chats.get(alias) ?? []), { fromMind, text, at: new Date() }]);
   // Dev only: what the app sent, so the message a real Mind would get can be checked.
   if (!fromMind) {
-    const flags = [text.includes("CHANGES SINCE LAST TIME") && "changes", /\n---\n/.test(text) && "brief", attachments && `${attachments} attachment(s)`].filter(Boolean).join(", ");
+    const flags = [text.includes("CHANGES SINCE LAST TIME") && "changes", /\n---\n/.test(text) && "brief", text.includes("ABOUT ME") && "about me", attachments && `${attachments} attachment(s)`].filter(Boolean).join(", ");
     console.log(`[mock] → ${alias} (${text.length} chars${flags ? `; ${flags}` : ""}): ${text.replace(/\s+/g, " ").slice(0, 120)}…`);
   }
 }
@@ -55,8 +55,6 @@ export const mockMinds: MindsApi = {
     say(alias, false, text, attachments?.length ?? 0);
     if (text.includes("/api/ingest")) say(alias, true, "Got your brief and read your resume. I'll search when you ask.");
     if (text.includes("SEARCH REQUEST #")) scheduleHunt(alias);
-    if (text.includes("You are my personal Mind")) say(alias, true, "Got it. I'll answer form questions about you, and say when I don't know.");
-    if (text.includes("QUESTIONS from job application forms")) scheduleAnswers(alias);
   },
   async beacon() {},
   async setEnabled() {},
@@ -85,22 +83,6 @@ function scheduleHunt(alias: string) {
     spend(alias, "LLM_Turn", 2, 22);
     await wait(3000);
     await runMockHunt(alias).catch((e) => console.error("[mock mind] hunt failed", e));
-  });
-}
-
-// The mock personal Mind picks the first choice for multiple-choice questions and admits it
-// doesn't know the rest, so both paths in the app can be tried.
-function scheduleAnswers(alias: string) {
-  after(async () => {
-    await new Promise((r) => setTimeout(r, 4000));
-    const user = await db.query.users.findFirst({ where: eq(schema.users.personalAlias, alias) });
-    if (!user) return;
-    const asked = await db.query.questions.findMany({ where: and(eq(schema.questions.userId, user.id), eq(schema.questions.status, "asked")) });
-    const { processAnswers } = await import("../personal");
-    await processAnswers(user, {
-      answers: asked.map((q) => ({ id: q.id, answer: q.options?.[0] ?? null, note: q.options?.length ? "From your resume" : undefined })),
-    });
-    say(alias, true, `Answered ${asked.length} questions.`);
   });
 }
 
@@ -181,7 +163,7 @@ async function runMockHunt(alias: string) {
         aboutMe: `${e1} ${e2}`,
         answers: [
           { question: "Why do you want to work here?", answer: `${company.notes} That matches the work I've been doing.` },
-          { question: "What is your notice period?", answer: "Please fill in your own notice period." },
+          { question: "Are you willing to relocate?", answer: "Yes" },
         ],
         claims: [
           { claim: "Relevant experience", evidence: e1 },

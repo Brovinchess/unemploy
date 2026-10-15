@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { estimateSearchCost } from "@/lib/preferences";
 
 // The app's live numbers, polled from /api/live: every 15 s while something is happening
-// (a search, or the personal Mind answering), every 60 s otherwise, and not at all while
+// a search runs, every 60 s otherwise, and not at all while
 // the tab is hidden. When a server-rendered part changes (a search ends, jobs or answers
 // arrive) the page is refreshed so lists and cards catch up without a reload.
 export type Live = {
@@ -20,7 +20,7 @@ export type Live = {
   };
   newJobs: number; // across every headhunter
   toApply: number;
-  answers: { forYou: number; asked: number; waiting: number; balance: number | null };
+  answers: { forYou: number }; // form questions waiting on the person
 };
 
 const ACTIVE_MS = 15_000;
@@ -29,14 +29,13 @@ const IDLE_MS = 60_000;
 const Ctx = createContext<Live | null>(null);
 export const useLive = () => useContext(Ctx);
 
-const active = (l: Live) => l.profile.searching || l.answers.asked > 0;
+const active = (l: Live) => l.profile.searching;
 // Changes that only a server render can show (cards, lists, badges in server JSX).
 const needsRefresh = (a: Live, b: Live) =>
   a.profile.searching !== b.profile.searching ||
   a.profile.lastDeliveryAt !== b.profile.lastDeliveryAt ||
   b.newJobs > a.newJobs || // fewer new jobs means the user swiped, which already re-rendered
-  a.answers.forYou !== b.answers.forYou ||
-  a.answers.asked !== b.answers.asked;
+  a.answers.forYou !== b.answers.forYou;
 
 export function LiveProvider({ initial, children }: { initial: Live; children: React.ReactNode }) {
   const router = useRouter();

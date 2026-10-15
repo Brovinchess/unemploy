@@ -35,7 +35,7 @@ export async function AppShell({
   children: React.ReactNode;
 }) {
   const ids = profiles.map((p) => p.id);
-  const [newCounts, { forYou, asked, new: waiting }, [{ n: toApply }], { perJob }] = await Promise.all([
+  const [newCounts, { forYou }, [{ n: toApply }], { perJob }] = await Promise.all([
     db
       .select({ profileId: schema.jobs.profileId, n: count() })
       .from(schema.jobs)
@@ -70,7 +70,7 @@ export async function AppShell({
     },
     newJobs: allNew,
     toApply,
-    answers: { forYou, asked, waiting, balance: null },
+    answers: { forYou },
   };
 
   return (

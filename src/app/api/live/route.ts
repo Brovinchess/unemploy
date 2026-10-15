@@ -3,9 +3,8 @@ import { and, count, eq, gte, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Live } from "@/components/live";
 import { freshBalance } from "@/lib/app-context";
-import { minds } from "@/lib/minds/client";
 import { ownedProfile } from "@/lib/owned";
-import { askIfReady, questionCounts } from "@/lib/personal";
+import { questionCounts } from "@/lib/personal";
 import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
 import { getCurrentUser } from "@/lib/session";
 
@@ -22,7 +21,6 @@ export async function GET(req: NextRequest) {
   after(async () => {
     if (profile.searchStartedAt && !profile.searchEndedAt && !isSearching(profile)) await endSearch(profile, "timeout").catch(() => {});
     else await nudgeIfQuiet(profile).catch(() => {});
-    await askIfReady(user.id).catch((e) => console.error("[live] ask personal Mind", e));
   });
   return NextResponse.json(live, { headers: { "Cache-Control": "no-store" } });
 }
@@ -31,14 +29,12 @@ type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 type Profile = Awaited<ReturnType<typeof ownedProfile>>;
 
 export async function snapshot(user: User, profile: Profile): Promise<Live> {
-  const api = minds(user);
   const mine = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, user.id), columns: { id: true, status: true } });
   const ready = mine.filter((p) => p.status === "hunting" || p.status === "paused").map((p) => p.id);
   const searching = isSearching(profile);
 
-  const [balance, personalBalance, [{ n: newJobs }], [{ n: toApply }], [{ n: jobsFound }], counts] = await Promise.all([
+  const [balance, [{ n: newJobs }], [{ n: toApply }], [{ n: jobsFound }], counts] = await Promise.all([
     freshBalance(user, profile),
-    user.personalMindId ? api.getBalance(user.personalMindId).catch(() => null) : null,
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "new"))) : [{ n: 0 }],
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "saved"))) : [{ n: 0 }],
     profile.searchStartedAt
@@ -59,6 +55,6 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
     },
     newJobs,
     toApply,
-    answers: { forYou: counts.forYou, asked: counts.asked, waiting: counts.new, balance: personalBalance },
+    answers: { forYou: counts.forYou },
   };
 }

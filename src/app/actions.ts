@@ -8,6 +8,7 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
 import { buildBrief } from "@/lib/brief";
+import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
 import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
@@ -192,6 +193,7 @@ async function startHunting(user: User, profile: Profile): Promise<{ error?: str
       timezone: user.timezone ?? "UTC",
       appUrl: mindsConfig.ingestUrl,
       ingestKey,
+      facts: factsText(user),
     }),
     [resumeAttachment(profile)],
   );
@@ -263,7 +265,6 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
   track(user.id, "resume_uploaded", { replacing });
   if (replacing) {
     revalidatePath("/app", "layout");
-    // The personal Mind answers forms from the resume too: it gets the new file with its next message (see askPersonalMind).
     return;
   }
   revalidatePath(`/profiles/${profileId}/setup`);
@@ -399,6 +400,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
             appUrl: mindsConfig.ingestUrl,
             ingestKey: "(the same key as before)",
             resumeAttached: newResume,
+            facts: factsText(user),
           })
         : "");
     await api.sendMessage(
@@ -413,6 +415,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         await ruledOutList(profile.id),
         profile.preferences ? postingAgeDays(profile.preferences) : undefined,
         newResume,
+        newBrief ? "" : factsText(user), // a new brief below already carries it
       ) + changes,
       newResume ? [resumeAttachment(profile)] : undefined,
     );
@@ -467,7 +470,7 @@ export async function setJobStatus(jobId: string, status: JobStatus, skipReason?
   // A swipe is a decision on a fresh card; later stage changes are tracked as moves.
   if (job.status === "new" && (status === "saved" || status === "skipped")) track(user.id, "card_decided", { decision: status === "saved" ? "apply" : "dismiss" });
   // Form questions only matter once the person wants the job: a swipe right (or a restore) queues
-  // them for the personal Mind. Jobs still face down or dismissed never reach "Needs you".
+  // them on the You page. Jobs still face down or dismissed never reach "Needs you".
   if (status === "saved" && job.status !== "saved" && job.formQuestions?.length) {
     const pack = await db.query.packs.findFirst({ where: eq(schema.packs.jobId, jobId) });
     await queueQuestions(user.id, job.company, job.formQuestions, pack?.answers ?? []).catch((e) => console.error("[jobs] queue questions failed", jobId, e));

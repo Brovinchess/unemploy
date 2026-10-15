@@ -33,7 +33,7 @@ export type Mood =
   | "sad" // nothing here / nothing found
   | "surprised" // a new job card
   | "love" // jobs you want to apply to
-  | "thinking"; // the personal Mind answering questions
+  | "thinking"; // working something out
 
 const INK = "#141b22";
 const MOUTH = "#9e5a63";

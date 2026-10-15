@@ -42,14 +42,13 @@ export const users = pgTable("users", {
   applicant: jsonb("applicant").$type<ApplicantDetails>(),
   // Answers the person typed into application forms, reused on later forms.
   savedAnswers: jsonb("saved_answers").$type<SavedAnswer[]>(),
-  // The personal Mind: a second Mind that only learns about the person and answers the
-  // questions application forms ask. It sends answers back with its own key (stored hashed).
+  // The retired personal Mind (a second Mind that answered form questions until Oct 2026).
+  // Kept so existing ones can be switched off; nothing uses them now.
   personalMindId: text("personal_mind_id"),
   personalMindName: text("personal_mind_name"),
   personalAlias: text("personal_alias"),
   personalKeyHash: text("personal_key_hash").unique(),
   personalBriefedAt: timestamp("personal_briefed_at", { withTimezone: true }),
-  // Saved answers newer than this haven't been taught to the personal Mind yet.
   personalSyncedAt: timestamp("personal_synced_at", { withTimezone: true }),
   createdAt: createdAt(),
 }).enableRLS();
@@ -69,8 +68,8 @@ export type ApplicantDetails = {
   currentTitle?: string;
 };
 
-// `field` is set when the answer was promoted into application details (it stays here so
-// the personal Mind is still taught it, but the list hides it).
+// `field` is set when the answer was promoted into application details (it stays here for
+// the extension's matcher, but the list hides it).
 export type SavedAnswer = { question: string; answer: string; updatedAt: string; field?: string };
 
 // The Chrome extension's link to an account: a random token, stored hashed.
@@ -284,11 +283,11 @@ export const packs = pgTable("packs", {
 // Form questions waiting on an answer about the person. Once approved, an answer moves to
 // users.savedAnswers (which the extension fills from) and the row is removed.
 export type QuestionStatus =
-  | "new" // not sent to the personal Mind yet
-  | "asked" // sent; waiting for its reply
-  | "review" // the personal Mind answered; the person checks it once
-  | "needs_you" // the personal Mind didn't know
-  | "ignored"; // the person chose not to answer
+  | "review" // the headhunter answered it from the person's facts; the person checks it once
+  | "needs_you" // the headhunter couldn't; the person answers
+  | "ignored" // the person chose not to answer
+  | "new" // legacy (waiting for the retired personal Mind); treated as needs_you
+  | "asked"; // legacy; treated as needs_you
 
 export const questions = pgTable(
   "questions",
@@ -300,7 +299,7 @@ export const questions = pgTable(
     question: text("question").notNull(),
     key: text("key").notNull(),
     options: jsonb("options").$type<string[]>(),
-    status: text("status").$type<QuestionStatus>().notNull().default("new"),
+    status: text("status").$type<QuestionStatus>().notNull().default("new"), // column default unchanged; inserts always set it
     answer: text("answer"),
     note: text("note"),
     // Where it was first seen, for context ("asked by Acme").
