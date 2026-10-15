@@ -37,11 +37,11 @@ const pages = {
   "screenshot-2": [1280, 800, `<div style="display:flex;height:800px;align-items:center;padding:0 90px;gap:80px">
     <div style="width:460px"><h1 class="j" style="font-size:46px;line-height:1.08;margin:0 0 14px;font-weight:600">Swipe right.<br><span class="c">Apply to all.</span></h1>
       <p class="m" style="font-size:18px;line-height:1.5;margin:0 0 22px">Pick the jobs your AI headhunter found, then let the extension open each application, fill it in and move to the next.</p>
-      <p class="m" style="font-size:15px;margin:0">✓ Review every form, or send automatically when it's complete<br>✓ Marks each job “Applied” when the company confirms<br>✓ Works on Greenhouse, Lever and Ashby</p></div>
+      <p class="m" style="font-size:15px;margin:0">✓ You press Submit, or switch on auto-send with a countdown you can cancel<br>✓ Marks each job “Applied” when the company confirms<br>✓ Works on Greenhouse, Lever and Ashby</p></div>
     <div style="width:330px;background:#141b22;border-radius:18px;border:1px solid rgba(255,255,255,.08);padding:20px;box-shadow:0 40px 80px -20px rgba(0,0,0,.7)">
       <div style="display:flex;align-items:center;gap:10px;font-weight:600;font-size:16px"><div class="mochi" style="width:30px;height:28px">${mochi}</div>careerninja<span class="c">.</span></div>
       <div class="j" style="font-size:34px;font-weight:600;margin:16px 0 2px">5</div><p class="m" style="margin:0 0 14px">jobs ready to apply.</p>
-      <p style="font-size:13px;color:rgba(255,255,255,.8);margin:8px 0">◉ Let me check each form before it's sent</p><p style="font-size:13px;color:rgba(255,255,255,.55);margin:8px 0">○ Send automatically when every required field is filled</p>
+      <p style="font-size:13px;color:rgba(255,255,255,.8);margin:8px 0">◉ Let me check each form, I press Submit</p><p style="font-size:13px;color:rgba(255,255,255,.55);margin:8px 0">○ Send each form for me when every required field is filled (5-second countdown, cancel any time)</p>
       <div style="margin-top:16px;border-radius:999px;background:#c96567;text-align:center;padding:12px;font-weight:600">Apply to all 5</div></div></div>`],
   "screenshot-3": [1280, 800, `<div style="height:800px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:0 120px">
     <div class="mochi" style="width:90px;height:86px">${mochi}</div>
