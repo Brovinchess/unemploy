@@ -32,7 +32,7 @@ export default async function YouPage() {
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">You</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-white/55">
           Everything forms ask about you, answered once. Your personal Mind drafts answers from your resume and details; you
-          check each one once, and the extension fills it in from then on.
+          check each one once, and they are ready to paste into any form.
         </p>
 
         <div className="mt-8 space-y-4">
@@ -69,7 +69,7 @@ export default async function YouPage() {
 
           <section id="application" className="scroll-mt-8 rounded-3xl bg-surface p-6 md:p-8">
             <h2 className="font-display font-medium text-white">Application details</h2>
-            <p className="mt-1 mb-5 text-sm text-white/50">Your name, contact details and basics, typed into every form by the extension.</p>
+            <p className="mt-1 mb-5 text-sm text-white/50">Your name, contact details and basics, kept here for every application.</p>
             <ApplicantForm initial={user.applicant ?? null} />
           </section>
         </div>

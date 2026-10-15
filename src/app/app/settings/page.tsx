@@ -1,6 +1,7 @@
 import { and, count, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
+import { extensionLive } from "@/lib/flags";
 import { ExtensionSetup } from "@/components/extension-ui";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { detailsComplete } from "@/lib/extension";
@@ -35,11 +36,21 @@ export default async function Settings() {
 
         <div className="mt-8 space-y-4">
           <Section title="Chrome extension" id="extension">
-            <p className="mb-5 text-sm text-white/55">
-              Opens each job you swiped right on, fills the form with your details, resume, cover letter and answers, and waits
-              for you to press Submit. Works on Greenhouse, Lever and Ashby, in Chrome, Edge and Brave on a computer.
-            </p>
-            <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
+            {extensionLive ? (
+              <>
+                <p className="mb-5 text-sm text-white/55">
+                  Opens each job you swiped right on, fills the form with your details, resume, cover letter and answers, and waits
+                  for you to press Submit. Works on Greenhouse, Lever and Ashby, in Chrome, Edge and Brave on a computer.
+                </p>
+                <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
+              </>
+            ) : (
+              <p className="text-sm text-white/55">
+                <span className="mr-2 rounded-full bg-coral/15 px-2 py-0.5 text-xs font-medium text-rose">Coming soon</span>
+                It will open each job you swiped right on, fill the form with your details, resume, cover letter and answers, and wait for you
+                to press Submit. Until then, apply from each job&rsquo;s page; the application is already written for you.
+              </p>
+            )}
           </Section>
 
           <Section title="Search coach" id="coach">

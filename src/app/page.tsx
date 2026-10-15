@@ -47,7 +47,7 @@ const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] 
   { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
   { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
   { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to pass. Kept jobs line up from To apply to Offer." },
-  { icon: Puzzle, mood: "love", title: "The form fills itself", body: "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit." },
+  { icon: Puzzle, mood: "love", title: "The form fills itself (coming soon)", body: "A Chrome extension will open each application, fill in your details, cover letter and answers, and wait for you to press Submit. Until then, you apply with what it wrote." },
 ];
 
 
@@ -64,7 +64,7 @@ const PAINS = [
 const FAQ = [
   {
     q: "Does it apply for me?",
-    a: "Almost. It finds the job, writes the application, and the Chrome extension fills in the whole form. You read it and press Submit yourself. Nothing is ever sent without you.",
+    a: "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. Nothing is ever sent without you.",
   },
   {
     q: "What is the second agent for?",
@@ -280,9 +280,10 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section id="extension" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
+              <p className="mb-3 inline-block rounded-full bg-coral/15 px-3 py-1 text-xs font-medium text-rose">Coming soon</p>
               <H2>The form fills itself. You press Submit.</H2>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
-                The Chrome extension opens each job you kept and fills in your details, resume, cover letter and answers.
+                The Chrome extension will open each job you kept and fill in your details, resume, cover letter and answers.
                 Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and
                 Ashby.
               </p>
