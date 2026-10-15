@@ -70,7 +70,7 @@ export function ActivityList({ items, limit, compact = false }: { items: Activit
       </div>
     );
   }
-  if (items.length === 0) return <p className="text-sm text-white/50">Nothing yet. Updates show up here as your headhunter works.</p>;
+  if (items.length === 0) return <p className="text-sm text-white/50">Nothing yet.</p>;
   return (
     <ol className={`relative ${compact ? "space-y-3" : "space-y-5"}`} aria-live="polite">
       <span className="absolute bottom-2 left-[13px] top-2 w-px bg-white/[0.07]" aria-hidden />
@@ -140,7 +140,7 @@ export function ActivityPanel({ profileId, live }: { profileId: string; live: bo
       <h2 className="font-display flex items-center gap-2.5 text-lg font-medium text-white">
         {live && <LiveDot />} Activity
       </h2>
-      <p className="mt-1 text-sm text-white/50">{live ? "Live while it searches." : "What it did in recent searches."}</p>
+      <p className="mt-1 text-sm text-white/50">{live ? "Updating as it works." : "From its recent searches."}</p>
       <div className="scroll-fade mt-5 max-h-[400px] overflow-y-auto pr-2">
         <ActivityList items={data?.items ?? null} compact />
       </div>

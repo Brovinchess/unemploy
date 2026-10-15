@@ -12,8 +12,6 @@ import { PreferencesChat } from "@/components/preferences-chat";
 import { SearchButton } from "@/components/search-button";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { coachFor } from "@/lib/coach-ui";
-import { searchPace } from "@/lib/coach";
-import { Coach } from "@/components/coach";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { costModel } from "@/lib/cost";
 import { isSearching } from "@/lib/search";
@@ -38,7 +36,6 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   const searching = isSearching(current);
   const paused = current.status === "paused";
   const coach = user.coachReminders ? await coachFor(current) : null;
-  const pace = await searchPace(current.id);
   const perSearch = current.preferences?.jobsPerDay ?? 5;
 
   return (
@@ -57,7 +54,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                 <span className="font-mono">{current.mindName}</span>
                 <span className="text-white/25">·</span>
                 <span className={searching ? "text-coral" : paused ? "text-white/40" : "text-white/70"}>
-                  {searching ? "Searching now" : paused ? "Paused" : "Ready, switched off until you search"}
+                  {searching ? "Searching now" : paused ? "Paused" : "Ready"}
                 </span>
               </p>
             </div>
@@ -85,7 +82,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             <section className="rise rise-1 rounded-3xl bg-surface p-6">
               <h2 className="font-display text-lg font-medium text-white">Searches</h2>
               {history.length === 0 ? (
-                <p className="mt-3 text-sm text-white/45">None yet. Each one shows here with jobs found and cognition used.</p>
+                <p className="mt-3 text-sm text-white/45">No searches yet.</p>
               ) : (
                 <ul className="mt-3 divide-y divide-white/[0.06]">
                   {history.map((s) => {
@@ -98,7 +95,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                           <p className="mt-0.5 truncate text-xs text-white/45">
                             {s.endedAt ? ENDED[s.endReason ?? "finished"] : "In progress"}
                             {mins != null ? ` · ${mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`}` : ""}
-                            {` · asked for ${s.jobsWanted}`}
+                            {` · wanted ${s.jobsWanted}`}
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
@@ -123,9 +120,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
           <section id="looks-for" className="rise rise-2 scroll-mt-8 rounded-3xl bg-surface p-6">
             <ScrollToHash id="looks-for" />
-            <Coach pace={pace} />
             <h2 className="font-display text-lg font-medium text-white">Search settings</h2>
-            <p className="mt-1 mb-5 text-sm text-white/50">Takes effect on your next search.</p>
+            <p className="mt-1 mb-5 text-sm text-white/50">Changes apply to the next search.</p>
             <PreferencesChat
               tips={(coach?.suggestions ?? []).map((s) => ({ target: s.target, text: s.text }))}
               key={current.id + (current.briefedAt?.getTime() ?? 0)}
@@ -139,7 +135,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               <ScrollToHash id="resume" />
               <h2 className="font-display text-lg font-medium text-white">Resume</h2>
               <p className="mt-1 mb-5 text-sm text-white/55">
-                Current: <span className="text-white">{current.resumeFileName}</span>
+                <span className="text-white">{current.resumeFileName}</span>
               </p>
               <ResumeStep profileId={current.id} submitLabel="Replace resume" />
             </section>
