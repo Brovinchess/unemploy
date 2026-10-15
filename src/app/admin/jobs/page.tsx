@@ -1,34 +1,82 @@
+import Link from "next/link";
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { daysAgo, tally, when } from "@/lib/admin";
-import { Counts, DaysPicker, Table, daysParam } from "../ui";
+import { STAGE_ORDER, daysAgo, directory, host, includes, sortParams, sortRows, stageLabel, tally, when } from "@/lib/admin";
+import { workSettingLabel } from "@/lib/preferences";
+import { Cap, Counts, DaysPicker, Ext, FilterForm, PageHead, Select, SortLink, Table, TextInput, UserLink, daysParam } from "../ui";
 
-export default async function Jobs({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  const days = daysParam(await searchParams, 14);
+const BASE = "/admin/jobs";
+const MAX_ROWS = 500;
+
+export default async function Jobs({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const q = await searchParams;
+  const days = daysParam(q, 14);
   const since = daysAgo(days);
-  const [jobs, profiles, users] = await Promise.all([
-    db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), orderBy: desc(schema.jobs.createdAt) }),
-    db.query.profiles.findMany({ columns: { id: true, userId: true, label: true } }),
-    db.query.users.findMany({ columns: { id: true, username: true } }),
-  ]);
-  const name = new Map(users.map((u) => [u.id, u.username ?? "?"]));
-  const who = new Map(profiles.map((p) => [p.id, `${name.get(p.userId)} · ${p.label}`]));
-  const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
+  const { key, dir } = sortParams(q, "when");
+  const [d, all] = await Promise.all([directory(), db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), orderBy: desc(schema.jobs.createdAt) })]);
+
+  let rows = all.map((j) => ({ ...j, who: d.who(j.profileId), userId: d.userOfProfile(j.profileId), host: host(j.url), place: [j.city, j.country].filter(Boolean).join(", ") }));
+  const user = d.userByName(q.user);
+  if (q.user) rows = user ? rows.filter((r) => r.userId === user.id) : [];
+  if (q.stage) rows = rows.filter((r) => r.status === q.stage);
+  if (q.host) rows = rows.filter((r) => includes(r.host, q.host!));
+  if (q.q) rows = rows.filter((r) => includes(r.company, q.q!) || includes(r.title, q.q!));
+  rows = sortRows(rows, key, dir, {
+    when: (r) => r.createdAt,
+    who: (r) => r.who,
+    match: (r) => r.matchScore,
+    company: (r) => r.company,
+    title: (r) => r.title,
+    place: (r) => r.place,
+    setting: (r) => r.workSetting,
+    posted: (r) => r.postedOn,
+    salary: (r) => r.salary,
+    stage: (r) => STAGE_ORDER.indexOf(r.status),
+    changed: (r) => r.statusChangedAt,
+    host: (r) => r.host,
+  });
+  const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
+  const filtered = !!(q.user || q.stage || q.host || q.q);
+
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <p className="text-sm text-white/45">Jobs</p>
-      <h1 className="font-display mt-1 text-3xl font-medium">{jobs.length} jobs delivered</h1>
-      <div className="mt-2"><DaysPicker days={days} base="/admin/jobs" /></div>
+      <PageHead section="Jobs" title={`${rows.length} jobs delivered`}>
+        <div className="mt-2"><DaysPicker days={days} base={BASE} q={q} /></div>
+      </PageHead>
+      <div className="mt-4">
+        <FilterForm q={q}>
+          <TextInput name="q" value={q.q} placeholder="Company or title" />
+          <TextInput name="user" value={q.user} placeholder="Username" size={12} />
+          <TextInput name="host" value={q.host} placeholder="Link host" size={14} />
+          <Select name="stage" value={q.stage} blank="Any stage" options={STAGE_ORDER.map((s) => [s, stageLabel(s)])} />
+          {filtered && <Link href={`${BASE}?days=${days}`} className="py-1.5 text-white/50 hover:text-white">Clear</Link>}
+        </FilterForm>
+        {q.user && !user && <p className="mt-2 text-sm text-coral">No user called “{q.user}”.</p>}
+      </div>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
-        <Counts title="Stage" total={jobs.length} rows={tally(jobs, (j) => j.status)} />
-        <Counts title="Work setting" total={jobs.length} rows={tally(jobs, (j) => j.workSetting ?? "unknown")} />
-        <Counts title="Where the link lives" total={jobs.length} rows={tally(jobs, (j) => host(j.url)).slice(0, 10)} />
+        <Counts title="Stage" total={rows.length} rows={tally(rows, (j) => stageLabel(j.status))} />
+        <Counts title="Work setting" total={rows.length} rows={tally(rows, (j) => workSettingLabel(j.workSetting ?? "unknown"))} />
+        <Counts title="Where the link lives" total={rows.length} rows={tally(rows, (j) => j.host).slice(0, 10)} />
       </div>
       <div className="mt-6">
         <Table
-          head={["When", "Who", "Match", "Company", "Title", "Place", "Stage", "Link"]}
-          rows={jobs.map((j) => [when(j.createdAt), who.get(j.profileId) ?? "?", `${Math.round(j.matchScore)}%`, j.company, j.title, [j.city, j.country].filter(Boolean).join(", "), j.status, <a key={j.id} href={j.url} target="_blank" rel="noopener noreferrer" className="underline decoration-white/20 underline-offset-2">{host(j.url)}</a>])}
+          head={[col("when", "When"), col("who", "Who"), col("match", "Match"), col("company", "Company"), col("title", "Title"), col("place", "Place"), col("setting", "Setting"), col("posted", "Posted"), col("salary", "Salary"), col("stage", "Stage"), col("changed", "Stage changed"), col("host", "Link")]}
+          rows={rows.slice(0, MAX_ROWS).map((j) => [
+            when(j.createdAt),
+            <UserLink key="u" id={j.userId} name={j.who} />,
+            `${Math.round(j.matchScore)}%`,
+            j.company,
+            <span key="t" className="block max-w-64 truncate" title={j.title}>{j.title}</span>,
+            j.place,
+            workSettingLabel(j.workSetting),
+            j.postedOn ?? j.postedAt ?? "",
+            <span key="s" className="block max-w-40 truncate" title={j.salary ?? ""}>{j.salary ?? ""}{j.salary && j.salaryEstimated ? " (est.)" : ""}</span>,
+            stageLabel(j.status),
+            when(j.statusChangedAt),
+            <Ext key={j.id} href={j.url}>{j.host}</Ext>,
+          ])}
         />
+        <Cap shown={MAX_ROWS} total={rows.length} />
       </div>
     </main>
   );

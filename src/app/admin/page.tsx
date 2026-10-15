@@ -1,69 +1,155 @@
+import Link from "next/link";
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { daysAgo, mins, tally, when } from "@/lib/admin";
-import { Counts, DaysPicker, Stat, Table, daysParam } from "./ui";
+import { APPLIED_PLUS, KEPT, WAITING_QUESTION, dayKeys, daysAgo, directory, hoursAgo, mins, perDay, pct, stageLabel, sum, tally, when } from "@/lib/admin";
+import { DROP_LABELS } from "@/lib/dropped";
+import { Alerts, BarChart, Card, Counts, DaysPicker, Funnel, PageHead, Stat, Table, daysParam } from "./ui";
 
-export default async function Overview({ searchParams }: { searchParams: Promise<{ days?: string }> }) {
-  const days = daysParam(await searchParams, 7);
+export default async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const q = await searchParams;
+  const days = daysParam(q, 7);
   const since = daysAgo(days);
-  const [users, profiles, searches, jobs, leads, tokens, allJobs] = await Promise.all([
-    db.query.users.findMany({ columns: { id: true, username: true, createdAt: true, emailVerifiedAt: true, referredBy: true } }),
-    db.query.profiles.findMany({ columns: { id: true, userId: true, label: true, status: true, mindId: true, createdAt: true, searchStartedAt: true, searchEndedAt: true } }),
-    db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), orderBy: desc(schema.searches.startedAt) }),
-    db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), columns: { id: true, status: true, profileId: true } }),
+  const now = daysAgo(0);
+  const [dir, fullProfiles, allSearches, allJobs, leads, tokens, pushes24h, questions] = await Promise.all([
+    directory(),
+    db.query.profiles.findMany({ columns: { id: true, userId: true, resumeFileName: true, preferences: true, mindId: true, status: true } }),
+    db.query.searches.findMany({ orderBy: desc(schema.searches.startedAt) }),
+    db.query.jobs.findMany({ columns: { id: true, status: true, profileId: true, createdAt: true } }),
     db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { reason: true } }),
-    db.query.extensionTokens.findMany({ columns: { userId: true, lastUsedAt: true } }),
-    db.query.jobs.findMany({ columns: { status: true } }),
+    db.query.extensionTokens.findMany({ columns: { userId: true } }),
+    db.query.ingestLog.findMany({ where: gte(schema.ingestLog.createdAt, daysAgo(1)), columns: { rejected: true, dryRun: true } }),
+    db.query.questions.findMany({ columns: { userId: true, status: true, createdAt: true } }),
   ]);
-  const name = new Map(users.map((u) => [u.id, u.username ?? "?"]));
-  const who = new Map(profiles.map((p) => [p.id, `${name.get(p.userId)} · ${p.label}`]));
+  const { users, profiles, who, userOfProfile } = dir;
+
+  // Window slices.
+  const searches = allSearches.filter((s) => s.startedAt >= since);
+  const jobs = allJobs.filter((j) => j.createdAt >= since);
   const newUsers = users.filter((u) => u.createdAt >= since);
+  const cognition = sum(searches, (s) => s.cognitionUsed);
+  const activeUsers = new Set(searches.map((s) => userOfProfile(s.profileId))).size;
+
+  // All time.
   const deployed = profiles.filter((p) => p.mindId);
   const live = profiles.filter((p) => p.status === "hunting" || p.status === "paused");
   const searchingNow = profiles.filter((p) => p.searchStartedAt && !p.searchEndedAt);
-  const cognition = searches.reduce((a, s) => a + Number(s.cognitionUsed ?? 0), 0);
-  const perJob = jobs.length ? Math.round(cognition / jobs.length) : 0;
-  const activeUsers = new Set(searches.map((s) => profiles.find((p) => p.id === s.profileId)?.userId)).size;
+
+  // Funnel: how many accounts reached each setup step, in order. A step counts any of the
+  // person's headhunters; later steps come from their searches and jobs.
+  const byUser = <T,>(rows: T[], uid: (r: T) => string | undefined) => new Set(rows.map(uid).filter(Boolean));
+  const withResume = byUser(fullProfiles.filter((p) => p.resumeFileName), (p) => p.userId);
+  const withPrefs = byUser(fullProfiles.filter((p) => p.preferences), (p) => p.userId);
+  const withMind = byUser(fullProfiles.filter((p) => p.mindId), (p) => p.userId);
+  const searched = byUser(allSearches, (s) => userOfProfile(s.profileId));
+  const gotJob = byUser(allJobs, (j) => userOfProfile(j.profileId));
+  const kept = byUser(allJobs.filter((j) => KEPT.has(j.status)), (j) => userOfProfile(j.profileId));
+  const applied = byUser(allJobs.filter((j) => APPLIED_PLUS.has(j.status)), (j) => userOfProfile(j.profileId));
+  const funnel = [
+    { label: "Signed up", count: users.length, href: "/admin/users" },
+    { label: "Chose a name", count: users.filter((u) => u.username).length },
+    { label: "Uploaded a resume", count: withResume.size },
+    { label: "Set preferences", count: withPrefs.size },
+    { label: "Deployed a headhunter", count: withMind.size, href: "/admin/users?deployed=1" },
+    { label: "Ran a search", count: searched.size, href: "/admin/searches" },
+    { label: "Got a job", count: gotJob.size, href: "/admin/jobs" },
+    { label: "Kept a job", count: kept.size },
+    { label: "Applied", count: applied.size, href: "/admin/applications" },
+  ];
+
+  // Per-day trend for the window.
+  const keys = dayKeys(days);
+  const trend = {
+    signups: perDay(newUsers, keys, (u) => u.createdAt),
+    searches: perDay(searches, keys, (s) => s.startedAt),
+    jobs: perDay(jobs, keys, (j) => j.createdAt),
+    cognition: perDay(searches, keys, (s) => s.endedAt ?? s.startedAt, (s) => Number(s.cognitionUsed ?? 0)),
+  };
+
+  // Alerts.
+  const stuck = allSearches.filter((s) => !s.endedAt && s.startedAt < hoursAgo(2));
+  const empty = searches.filter((s) => s.endedAt && (s.jobsAdded ?? 0) === 0);
+  const neverSearched = [...withMind].filter((uid) => !searched.has(uid));
+  const keptNothing = [...searched].filter((uid) => !kept.has(uid));
+  const refused24h = sum(pushes24h.filter((p) => !p.dryRun), (p) => p.rejected);
+  const paused = profiles.filter((p) => p.status === "paused");
+  const oldQuestions = questions.filter((x) => WAITING_QUESTION.has(x.status) && x.createdAt < daysAgo(7));
+  const alerts = [
+    { label: "Searches open for more than 2 hours", count: stuck.length, href: "/admin/searches?open=1", hint: stuck.slice(0, 3).map((s) => who(s.profileId)).join(", ") },
+    { label: `Searches that ended with no jobs (last ${days} days)`, count: empty.length, href: `/admin/searches?days=${days}&empty=1` },
+    { label: "Deployed a headhunter but never searched", count: neverSearched.length, href: "/admin/users?idle=1" },
+    { label: "Searched but kept nothing", count: keptNothing.length, href: "/admin/users?nokeep=1" },
+    { label: "Jobs refused by the app, last 24 hours", count: refused24h, href: "/admin/quality?days=1" },
+    { label: "Headhunters paused", count: paused.length, href: "/admin/headhunters?status=paused" },
+    { label: "Questions waiting on people for over a week", count: oldQuestions.length, href: "/admin/applications", hint: `${new Set(oldQuestions.map((x) => x.userId)).size} people` },
+  ];
 
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <p className="text-sm text-white/45">Overview</p>
-      <h1 className="font-display mt-1 text-3xl font-medium">Career Ninja at a glance</h1>
-      <div className="mt-2"><DaysPicker days={days} base="/admin" /></div>
+      <PageHead section="Overview" title="Career Ninja at a glance">
+        <div className="mt-2"><DaysPicker days={days} base="/admin" /></div>
+      </PageHead>
 
       <h2 className="mt-8 text-xs uppercase tracking-wide text-white/45">All time</h2>
       <div className="mt-2 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-        <Stat label="Accounts" value={users.length} />
-        <Stat label="Headhunters deployed" value={deployed.length} hint={`${live.length} live, ${searchingNow.length} searching now`} />
-        <Stat label="Jobs ever delivered" value={allJobs.length} hint={`${allJobs.filter((j) => ["applied", "heard_back", "interview", "offer"].includes(j.status)).length} applied or further`} />
+        <Stat label="Accounts" value={users.length} href="/admin/users" />
+        <Stat label="Headhunters deployed" value={deployed.length} hint={`${live.length} live, ${searchingNow.length} searching now`} href="/admin/headhunters" />
+        <Stat label="Jobs ever delivered" value={allJobs.length} hint={`${allJobs.filter((j) => APPLIED_PLUS.has(j.status)).length} applied or further`} href="/admin/jobs?days=365" />
         <Stat label="Extension connected" value={new Set(tokens.map((t) => t.userId)).size} hint="accounts" />
         <Stat label="Email verified" value={users.filter((u) => u.emailVerifiedAt).length} hint="accounts" />
       </div>
 
       <h2 className="mt-8 text-xs uppercase tracking-wide text-white/45">Last {days} days</h2>
       <div className="mt-2 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        <Stat label="New accounts" value={newUsers.length} hint={`${newUsers.filter((u) => u.referredBy).length} referred`} />
-        <Stat label="Active users" value={activeUsers} hint="ran a search" />
-        <Stat label="Searches" value={searches.length} hint={`${searches.filter((s) => !s.endedAt).length} still open`} />
-        <Stat label="Jobs delivered" value={jobs.length} hint={`${jobs.filter((j) => j.status === "saved" || ["applied", "heard_back", "interview", "offer"].includes(j.status)).length} kept`} />
-        <Stat label="Leads dropped" value={leads.length} hint={jobs.length ? `${Math.round(leads.length / jobs.length)} per job` : undefined} />
-        <Stat label="Cognition" value={Math.round(cognition)} hint={perJob ? `about ${perJob} per job` : undefined} />
+        <Stat label="New accounts" value={newUsers.length} hint={`${newUsers.filter((u) => u.referredBy).length} referred`} href={`/admin/growth?days=${days}`} />
+        <Stat label="Active users" value={activeUsers} hint="ran a search" href={`/admin/users?active=${days}`} />
+        <Stat label="Searches" value={searches.length} hint={`${searches.filter((s) => !s.endedAt).length} still open`} href={`/admin/searches?days=${days}`} />
+        <Stat label="Jobs delivered" value={jobs.length} hint={`${jobs.filter((j) => KEPT.has(j.status)).length} kept`} href={`/admin/jobs?days=${days}`} />
+        <Stat label="Leads dropped" value={leads.length} hint={jobs.length ? `${Math.round(leads.length / jobs.length)} per job` : undefined} href={`/admin/quality?days=${days}`} />
+        <Stat label="Cognition" value={Math.round(cognition)} hint={jobs.length && cognition ? `about ${Math.round(cognition / jobs.length)} per job` : undefined} href={`/admin/costs?days=${days}`} />
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <Card title="Onboarding funnel" hint="All accounts. Each step shows the share of the step before.">
+          <Funnel steps={funnel} />
+        </Card>
+        <Card title="Needs a look" hint="Live checks; each line opens the page to act on.">
+          <Alerts items={alerts} />
+        </Card>
+      </div>
+
+      <h2 className="font-display mt-10 text-xl font-medium">Per day, last {days} days</h2>
+      <div className="mt-3 grid gap-4 md:grid-cols-2">
+        <Card><BarChart title="Signups" keys={keys} series={[{ label: "Signups", values: trend.signups, color: "text-coral" }]} /></Card>
+        <Card><BarChart title="Searches started" keys={keys} series={[{ label: "Searches", values: trend.searches, color: "text-sky-400" }]} /></Card>
+        <Card><BarChart title="Jobs delivered" keys={keys} series={[{ label: "Jobs", values: trend.jobs, color: "text-emerald-400" }]} /></Card>
+        <Card><BarChart title="Cognition used (by search end)" keys={keys} series={[{ label: "Cognition", values: trend.cognition, color: "text-amber-400" }]} /></Card>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
-        <Counts title="Jobs by what the person did" total={jobs.length} rows={tally(jobs, (j) => j.status)} />
-        <Counts title="Why leads were dropped" total={leads.length} rows={tally(leads, (l) => l.reason)} />
+        <Counts title="Jobs by what the person did" total={jobs.length} rows={tally(jobs, (j) => stageLabel(j.status))} />
+        <Counts title="Why leads were dropped" total={leads.length} rows={tally(leads, (l) => DROP_LABELS[l.reason] ?? l.reason)} />
       </div>
 
       <h2 className="font-display mt-10 text-xl font-medium">Recent searches</h2>
       <div className="mt-3">
         <Table
           head={["Started", "Who", "Asked", "Got", "Cognition", "Took", "Ended"]}
-          rows={searches.slice(0, 25).map((s) => {
+          rows={searches.slice(0, 15).map((s) => {
             const m = mins(s.startedAt, s.endedAt);
-            return [when(s.startedAt), who.get(s.profileId) ?? "?", s.jobsWanted, s.jobsAdded ?? (s.endedAt ? 0 : "…"), s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "", m ? `${m} min` : "running", s.endReason ?? (s.endedAt ? "" : "open")];
+            return [
+              <Link key={s.id} href={`/admin/searches/${s.id}`} className="underline decoration-white/20 underline-offset-2 hover:text-white">{when(s.startedAt)}</Link>,
+              who(s.profileId),
+              s.jobsWanted,
+              s.jobsAdded ?? (s.endedAt ? 0 : "…"),
+              s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
+              m ? `${m} min` : `running, ${mins(s.startedAt, now)} min so far`,
+              s.endReason ?? (s.endedAt ? "" : "open"),
+            ];
           })}
         />
+        <p className="mt-2 text-xs text-white/40">
+          <Link href={`/admin/searches?days=${days}`} className="underline underline-offset-2 hover:text-white">All searches</Link> · {pct(searches.filter((s) => (s.jobsAdded ?? 0) > 0).length, searches.filter((s) => s.endedAt).length)} of finished searches delivered at least one job.
+        </p>
       </div>
     </main>
   );

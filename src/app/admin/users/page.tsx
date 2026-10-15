@@ -1,45 +1,137 @@
+import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { when } from "@/lib/admin";
-import { Table } from "../ui";
+import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, directory, includes, sessionCreatedAt, sortParams, sortRows, sum, when } from "@/lib/admin";
+import { Cap, Check, FilterForm, PageHead, SortLink, Table, TextInput, UserLink } from "../ui";
 
-export default async function Users() {
-  const [users, profiles, searches, jobs, tokens] = await Promise.all([
-    db.query.users.findMany({ orderBy: desc(schema.users.createdAt) }),
-    db.query.profiles.findMany(),
-    db.query.searches.findMany({ columns: { profileId: true, startedAt: true, cognitionUsed: true, jobsAdded: true } }),
+const BASE = "/admin/users";
+const MAX_ROWS = 500;
+
+export default async function Users({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
+  const q = await searchParams;
+  const { key, dir } = sortParams(q, "joined");
+  const [d, fullUsers, searches, jobs, tokens, sessions, questions] = await Promise.all([
+    directory(),
+    db.query.users.findMany({ columns: { id: true, savedAnswers: true }, orderBy: desc(schema.users.createdAt) }),
+    db.query.searches.findMany({ columns: { profileId: true, startedAt: true, cognitionUsed: true } }),
     db.query.jobs.findMany({ columns: { profileId: true, status: true } }),
-    db.query.extensionTokens.findMany({ columns: { userId: true, lastUsedAt: true } }),
+    db.query.extensionTokens.findMany({ columns: { userId: true, lastUsedAt: true, createdAt: true } }),
+    db.query.sessions.findMany({ columns: { userId: true, expiresAt: true } }),
+    db.query.questions.findMany({ columns: { userId: true, status: true } }),
   ]);
-  const byUser = new Map(users.map((u) => [u.id, u.username ?? "?"]));
-  const rows = users.map((u) => {
-    const mine = profiles.filter((p) => p.userId === u.id);
-    const ids = new Set(mine.map((p) => p.id));
+  const { users, profiles, profileIdsOf } = d;
+  const answers = new Map(fullUsers.map((u) => [u.id, u.savedAnswers?.length ?? 0]));
+  const codeOwner = new Map(users.filter((u) => u.referralCode).map((u) => [u.referralCode!, u]));
+  const latest = (ds: (Date | null)[]) => ds.filter((x): x is Date => !!x).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
+
+  let rows = users.map((u) => {
+    const ids = profileIdsOf(u.id);
+    const mine = profiles.filter((p) => ids.has(p.id));
     const s = searches.filter((x) => ids.has(x.profileId));
     const j = jobs.filter((x) => ids.has(x.profileId));
-    const last = s.map((x) => x.startedAt).sort((a, b) => b.getTime() - a.getTime())[0];
     const hh = mine.find((p) => p.status === "hunting" || p.status === "paused") ?? mine[0];
-    const tok = tokens.find((t) => t.userId === u.id);
-    const referrer = u.referredBy ? users.find((x) => x.referralCode === u.referredBy) : null;
-    return [
-      u.username ?? "(no name yet)",
-      when(u.createdAt).slice(0, 10),
-      hh ? `${hh.label} · ${hh.status}${hh.mindName ? ` · ${hh.mindName}` : ""}` : "none",
-      s.length,
-      j.length,
-      j.filter((x) => ["applied", "heard_back", "interview", "offer"].includes(x.status)).length,
-      Math.round(s.reduce((a, x) => a + Number(x.cognitionUsed ?? 0), 0)),
-      last ? when(last) : "",
-      [u.emailVerifiedAt ? "email" : null, tok ? "extension" : null, referrer ? `via ${byUser.get(referrer.id)}` : null].filter(Boolean).join(", "),
-    ];
+    const tok = tokens.filter((t) => t.userId === u.id);
+    const lastSearch = latest(s.map((x) => x.startedAt));
+    // Sessions only store their expiry; the newest one tells us when the person last signed in.
+    const lastSession = latest(sessions.filter((x) => x.userId === u.id).map((x) => sessionCreatedAt(x.expiresAt)));
+    const referrer = u.referredBy ? codeOwner.get(u.referredBy) : undefined;
+    return {
+      ...u,
+      name: u.username ?? "(no name yet)",
+      deployed: mine.some((p) => p.mindId),
+      hhStatus: hh ? hh.status.replace(/_/g, " ") : "",
+      searches: s.length,
+      jobs: j.length,
+      kept: j.filter((x) => KEPT.has(x.status)).length,
+      applied: j.filter((x) => APPLIED_PLUS.has(x.status)).length,
+      cognition: Math.round(sum(s, (x) => x.cognitionUsed)),
+      lastSearch,
+      lastSeen: latest([lastSession, lastSearch]),
+      extension: tok.length > 0,
+      extensionUsed: latest(tok.map((t) => t.lastUsedAt ?? t.createdAt)),
+      referrer: referrer ? (referrer.username ?? "(no name yet)") : u.referredBy ? `code ${u.referredBy}` : "",
+      referrerId: referrer?.id,
+      waiting: questions.filter((x) => x.userId === u.id && WAITING_QUESTION.has(x.status)).length,
+      answers: answers.get(u.id) ?? 0,
+    };
   });
+
+  if (q.q) rows = rows.filter((r) => includes(r.username, q.q!) || includes(r.email, q.q!));
+  if (q.deployed) rows = rows.filter((r) => r.deployed);
+  if (q.active) {
+    const since = daysAgo(Math.max(1, Number(q.active) || 7));
+    rows = rows.filter((r) => r.lastSearch && r.lastSearch >= since);
+  }
+  if (q.idle) rows = rows.filter((r) => r.deployed && r.searches === 0);
+  if (q.nokeep) rows = rows.filter((r) => r.searches > 0 && r.kept === 0);
+  rows = sortRows(rows, key, dir, {
+    name: (r) => r.username,
+    joined: (r) => r.createdAt,
+    email: (r) => r.email,
+    status: (r) => r.hhStatus,
+    searches: (r) => r.searches,
+    jobs: (r) => r.jobs,
+    kept: (r) => r.kept,
+    applied: (r) => r.applied,
+    cognition: (r) => r.cognition,
+    lastSearch: (r) => r.lastSearch,
+    lastSeen: (r) => r.lastSeen,
+    extension: (r) => r.extensionUsed,
+    referrer: (r) => r.referrer,
+    waiting: (r) => r.waiting,
+    answers: (r) => r.answers,
+  });
+  const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
+  const filtered = !!(q.q || q.deployed || q.active || q.idle || q.nokeep);
+
   return (
     <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <p className="text-sm text-white/45">Users</p>
-      <h1 className="font-display mt-1 text-3xl font-medium">{users.length} accounts</h1>
-      <p className="mt-2 text-sm text-white/55">{users.filter((u) => profiles.some((p) => p.userId === u.id && p.mindId)).length} deployed a headhunter. {users.filter((u) => !u.username).length} never finished the name step.</p>
-      <div className="mt-6">
-        <Table head={["User", "Joined", "Headhunter", "Searches", "Jobs", "Applied+", "Cognition", "Last search", "Flags"]} rows={rows} />
+      <PageHead section="Users" title={`${rows.length} accounts`}>
+        <p className="mt-2 text-sm text-white/55">
+          {users.length} in total. {users.filter((u) => profiles.some((p) => p.userId === u.id && p.mindId)).length} deployed a headhunter. {users.filter((u) => !u.username).length} never finished the name step.
+        </p>
+      </PageHead>
+      <div className="mt-4">
+        <FilterForm q={q}>
+          <TextInput name="q" value={q.q} placeholder="Username or email" />
+          <TextInput name="active" value={q.active} placeholder="Searched in last N days" size={20} />
+          <Check name="deployed" checked={!!q.deployed} label="Deployed" />
+          <Check name="idle" checked={!!q.idle} label="Deployed, never searched" />
+          <Check name="nokeep" checked={!!q.nokeep} label="Searched, kept nothing" />
+          {filtered && <Link href={BASE} className="py-1.5 text-white/50 hover:text-white">Clear</Link>}
+        </FilterForm>
+      </div>
+      <div className="mt-4">
+        <Table
+          head={[
+            col("name", "User"), col("joined", "Joined"), col("email", "Email"), col("status", "Headhunter"), col("searches", "Searches"), col("jobs", "Jobs"), col("kept", "Kept"), col("applied", "Applied+"),
+            col("cognition", "Cognition"), col("lastSearch", "Last search"), col("lastSeen", "Last seen"), col("extension", "Extension"), col("referrer", "Referred by"), col("waiting", "Questions waiting"), col("answers", "Saved answers"),
+          ]}
+          rows={rows.slice(0, MAX_ROWS).map((r) => [
+            <UserLink key={r.id} id={r.id} name={r.name} />,
+            when(r.createdAt).slice(0, 10),
+            r.email ? (
+              <span key="e" title={r.email}>
+                {r.email.length > 28 ? `${r.email.slice(0, 26)}…` : r.email} <span className={r.emailVerifiedAt ? "text-emerald-400" : "text-white/35"}>{r.emailVerifiedAt ? "✓" : "unverified"}</span>
+              </span>
+            ) : (
+              ""
+            ),
+            r.hhStatus || <span key="n" className="text-white/30">none</span>,
+            r.searches,
+            r.jobs,
+            r.kept,
+            r.applied,
+            r.cognition,
+            when(r.lastSearch),
+            when(r.lastSeen),
+            r.extension ? `yes${r.extensionUsed ? `, ${when(r.extensionUsed).slice(0, 10)}` : ""}` : <span key="x" className="text-white/30">no</span>,
+            r.referrerId ? <UserLink key="r" id={r.referrerId} name={r.referrer} /> : r.referrer,
+            r.waiting || <span key="w" className="text-white/25">0</span>,
+            r.answers || <span key="a" className="text-white/25">0</span>,
+          ])}
+        />
+        <Cap shown={MAX_ROWS} total={rows.length} />
       </div>
     </main>
   );
