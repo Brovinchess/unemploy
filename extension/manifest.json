@@ -2,11 +2,27 @@
   "manifest_version": 3,
   "name": "Career Ninja",
   "version": "1.0.0",
-  "description": "Fills job application forms with the answers your Career Ninja headhunter prepared. You check each form and press Submit, or choose to let it send for you.",
-  "icons": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png", "128": "icons/128.png" },
-  "action": { "default_popup": "popup.html", "default_icon": { "16": "icons/16.png", "32": "icons/32.png", "48": "icons/48.png" } },
-  "background": { "service_worker": "background.js" },
-  "permissions": ["storage"],
+  "description": "Fills job application forms with the answers your Career Ninja headhunter prepared. You check each one and press Submit.",
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png",
+      "48": "icons/48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "https://careerninja.app/*",
     "https://boards.greenhouse.io/*",
@@ -17,13 +33,26 @@
   ],
   "content_scripts": [
     {
-      "matches": ["https://careerninja.app/*"],
-      "js": ["app-bridge.js"],
+      "matches": [
+        "https://careerninja.app/*"
+      ],
+      "js": [
+        "app-bridge.js"
+      ],
       "run_at": "document_start"
     },
     {
-      "matches": ["https://boards.greenhouse.io/*", "https://job-boards.greenhouse.io/*", "https://jobs.lever.co/*", "https://jobs.eu.lever.co/*", "https://jobs.ashbyhq.com/*"],
-      "js": ["fill-core.js", "filler.js"],
+      "matches": [
+        "https://boards.greenhouse.io/*",
+        "https://job-boards.greenhouse.io/*",
+        "https://jobs.lever.co/*",
+        "https://jobs.eu.lever.co/*",
+        "https://jobs.ashbyhq.com/*"
+      ],
+      "js": [
+        "fill-core.js",
+        "filler.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle"
     }
