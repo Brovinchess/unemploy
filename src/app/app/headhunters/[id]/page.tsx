@@ -99,7 +99,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                           </p>
                         </div>
                         <div className="shrink-0 text-right">
-                          <p className="text-white">{s.jobsAdded ?? "–"} jobs</p>
+                          <p className="text-white">{s.jobsAdded == null ? "–" : `${s.jobsAdded} ${s.jobsAdded === 1 ? "job" : "jobs"}`}</p>
                           {used != null && <p className="mt-0.5 text-xs text-white/45">{used} cognition</p>}
                         </div>
                       </li>
