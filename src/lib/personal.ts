@@ -12,7 +12,9 @@ import { humanise } from "./text";
 
 // Questions the extension already fills from the person's details or the job's pack.
 const HANDLED =
-  /first name|last name|full name|^name$|legal name|preferred name|e-?mail|phone|mobile|resume|\bcv\b|cover letter|linkedin|github|portfolio|website|personal (site|url)/i;
+  /first name|last name|full name|^name$|legal name|preferred name|e-?mail|phone|mobile|resume|\bcv\b|cover letter|linkedin|github|portfolio|website|personal (site|url)|twitter|\bx\.com|instagram|facebook|dribbble|behance|other (url|link)/i;
+// Consent boxes and acknowledgements are ticked on the form, never asked or remembered.
+const CONSENT = /i (agree|accept|acknowledge|consent|certify|confirm)|terms (and|&) conditions|privacy (policy|notice)|data (protection|processing)|by (submitting|checking)/i;
 // Questions about the job or company, or about how the person fits it: the headhunter
 // answers those in each pack, because only it has read the posting.
 export const ABOUT_THE_JOB =
@@ -58,7 +60,7 @@ export async function queueQuestions(userId: string, company: string, formQuesti
   let added = 0;
   for (const f of formQuestions) {
     const q = f.question.replace(/\s+/g, " ").trim().slice(0, 300);
-    if (q.length < 3 || HANDLED.test(q) || ABOUT_THE_JOB.test(q) || sensitiveQuestion(q) || coveredByDetails(q, user)) continue;
+    if (q.length < 3 || HANDLED.test(q) || CONSENT.test(q) || ABOUT_THE_JOB.test(q) || sensitiveQuestion(q) || coveredByDetails(q, user)) continue;
     if (known.some((k) => similarity(q, k) >= SAME)) continue;
     const options = (f.options ?? []).map((o) => o.trim().slice(0, 120)).filter(Boolean).slice(0, 30);
     const guess = packAnswers.find((p) => similarity(q, p.question) >= SAME)?.answer.trim() || null;

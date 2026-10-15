@@ -52,6 +52,8 @@
   }
 
   const SENSITIVE = /gender|\bsex\b|pronoun|race|ethnic|hispanic|latino|veteran|disab|sexual orientation|religio|marital|\bage\b|date of birth|birthday|social security|passport|national id|password/i;
+  // Consent boxes are the person's to tick on each form; never learned as an answer.
+  const CONSENT = /i (agree|accept|acknowledge|consent|certify|confirm)|terms (and|&) conditions|privacy (policy|notice)|data (protection|processing)|by (submitting|checking)/i;
 
   const visible = (el) => {
     if (el.type === "file") return !el.disabled; // Greenhouse and Ashby hide the real input behind a styled button
@@ -365,7 +367,7 @@
       if (el.type === "file" || !el.isConnected) continue;
       const question = el.type === "radio" ? groupLabel(el) : questionText(el);
       const answer = currentValue(el);
-      if (!question || question.length < 3 || !answer || SENSITIVE.test(question)) continue;
+      if (!question || question.length < 3 || !answer || SENSITIVE.test(question) || CONSENT.test(question)) continue;
       // Prefilled and left alone: nothing new to learn. Prefilled and changed: learn the correction.
       if (auto && (was == null || answer === was)) continue;
       if (el.tagName === "TEXTAREA" && answer.length > 400) continue; // job-specific essays

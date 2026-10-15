@@ -83,7 +83,9 @@ export const questionKey = (q: string) => q.toLowerCase().replace(/[^a-z0-9]+/g,
 
 // Demographic and identity questions are never stored, even if the person answered them.
 const SENSITIVE = /gender|sex\b|pronoun|race|ethnic|hispanic|latino|veteran|disab|sexual orientation|religio|marital|age\b|date of birth|birthday|social security|passport|national id|password/i;
-export const sensitiveQuestion = (q: string) => SENSITIVE.test(q);
+// Consent boxes aren't answers about the person; they're ticked on each form.
+const CONSENT = /i (agree|accept|acknowledge|consent|certify|confirm)|terms (and|&) conditions|privacy (policy|notice)|data (protection|processing)|by (submitting|checking)/i;
+export const sensitiveQuestion = (q: string) => SENSITIVE.test(q) || CONSENT.test(q);
 
 // Newer answers replace older ones to the same question.
 export function mergeAnswers(existing: SavedAnswer[], incoming: { question: string; answer: string }[]) {
