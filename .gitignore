@@ -43,3 +43,6 @@ next-env.d.ts
 data/
 .env*.local
 .ext-build
+
+# built by scripts/extension-dev.mjs
+/extension-dev/

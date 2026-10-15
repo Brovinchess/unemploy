@@ -9,6 +9,20 @@ export type ExtensionStatus = {
   supported?: number; // To-apply jobs on sites the extension can fill
   detailsComplete?: boolean;
   running?: boolean;
+  unreachable?: boolean;
+  version?: string;
+  needsUpdate?: boolean; // older than the app supports
+};
+
+// "1.0.0" >= "0.9.5"
+const atLeast = (v: string | undefined, min: string | undefined) => {
+  if (!v || !min) return true;
+  const a = v.split(".").map(Number), b = min.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) > (b[i] ?? 0)) return true;
+    if ((a[i] ?? 0) < (b[i] ?? 0)) return false;
+  }
+  return true;
 };
 
 function ask<T>(type: string, extra: Record<string, unknown> = {}, timeout = 4000): Promise<T | null> {
@@ -35,8 +49,17 @@ export function useExtension() {
 
   const refresh = useCallback(async () => {
     if (!extensionInstalled()) return setStatus({ installed: false, connected: false });
-    const r = await ask<ExtensionStatus>("hello");
-    setStatus({ installed: true, connected: !!r?.connected, supported: r?.supported, detailsComplete: r?.detailsComplete, running: r?.running });
+    const r = await ask<ExtensionStatus & { minVersion?: string }>("hello");
+    setStatus({
+      installed: true,
+      connected: !!r?.connected,
+      unreachable: !!r?.unreachable,
+      supported: r?.supported,
+      detailsComplete: r?.detailsComplete,
+      running: r?.running,
+      version: r?.version,
+      needsUpdate: !atLeast(r?.version, r?.minVersion),
+    });
   }, []);
 
   useEffect(() => {

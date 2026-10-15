@@ -1,28 +1,66 @@
-# Chrome Web Store listing (Career Ninja)
+# Chrome Web Store listing notes
 
-Package: `npm run ext:store` → store/career-ninja-extension-<version>.zip (no localhost permission)
-Images: `node store/assets/make.mjs` → store/assets/screenshot-1..3.png (1280×800), promo-tile.png (440×280)
-Icon: extension/icons/128.png · Category: Productivity · Language: English
+Everything the dashboard asks for, ready to paste. Keep this in step with `extension/manifest.json`.
 
-## Short description (≤132 chars)
-Your AI headhunter's applications, filled in for you. Apply to all the jobs you picked in one go. You check, then press Submit.
+## Package
 
-## Description
-Career Ninja finds jobs that fit you, checks they're open and that you can apply, and writes each application from your real resume. This extension handles the forms.
+- Upload the zip from `npm run ext:store` → `store/career-ninja-extension-<version>.zip` (manifest at the root of the zip).
+- Screenshots and promo tile: `node store/assets/make.mjs` → `store/assets/` (regenerate after UI changes).
+- Local testing: `npm run ext:dev` builds `extension-dev/` with localhost added; load that unpacked. The shipped manifest never carries a dev host.
+- Version 1.0.0. Bump the manifest and rebuild before every upload.
 
-• Fills Greenhouse, Lever and Ashby application forms with your details, resume, cover letter and answers
-• Apply to all: opens each job you swiped right on, fills it in and moves to the next
-• Review every form yourself, or send automatically only when every required field is filled
-• Marks each job "Applied" in Career Ninja when the company confirms
-• Never presses Submit on forms with an "are you human?" check, and never overwrites what you typed
+## Store listing
 
-Requires a Career Ninja account.
+**Name:** Career Ninja
 
-## Privacy practices
-Single purpose: fill in job application forms with the user's Career Ninja details and application packs, and apply to jobs the user chose.
-- storage: keeps the account sign-in token and the review/auto setting.
-- tabs: opens each chosen job's application page in turn during "Apply to all" and closes it when done.
-- Host permissions (careerninja.app, *.greenhouse.io, jobs.lever.co, jobs.ashbyhq.com): read the user's jobs from Career Ninja and fill forms on the supported application sites only.
-- Remote code: none.
-Data use: personally identifiable info and authentication info (to fill forms and sign in to Career Ninja). Not sold, not used for unrelated purposes, not used for credit.
-Privacy policy: https://careerninja.app/privacy
+**Summary (132 chars max):**
+Fills job application forms with the answers your Career Ninja headhunter prepared. You check each one and press Submit.
+
+**Description:**
+Career Ninja is your own AI headhunter: it finds open jobs that fit you and writes each application from your resume. This extension does the last step. When you say yes to a job in Career Ninja, the extension opens its application form and fills in your details, resume, cover letter and the answers your headhunter prepared.
+
+What it does
+- Fills forms on Greenhouse, Lever and Ashby job boards, one job at a time.
+- Highlights anything it could not fill, so you can finish it in seconds.
+- Remembers answers you type, so the next form asks you less.
+- Never fills or stores questions about gender, ethnicity, disability or veteran status.
+- Leaves Submit to you. If you prefer, switch on auto-send: it then sends a form only when every required field is filled and there is no human check, after a 5-second countdown you can cancel. Off by default.
+
+What it needs
+- A Career Ninja account (free to start) connected from careerninja.app, Settings.
+- Nothing else. It does not read other websites or your browsing history.
+
+**Category:** Productivity. **Language:** English.
+
+## Privacy practices (dashboard tab)
+
+Single purpose: fill job application forms with the user's own Career Ninja application data, on the job boards it supports.
+
+Permission justifications
+- `storage`: keeps the sign-in token for the user's Career Ninja account and the user's settings (review or auto-send) in the browser.
+- Host `careerninja.app`: lets the Career Ninja website hand the extension its sign-in token and start "Apply to all"; all data the extension uses comes from this host.
+- Hosts `boards.greenhouse.io`, `job-boards.greenhouse.io`, `jobs.lever.co`, `jobs.eu.lever.co`, `jobs.ashbyhq.com`: the job application pages it fills. `all_frames` because Greenhouse forms are embedded in iframes on company career pages.
+- No remote code. No `tabs`, `scripting`, `webRequest` or `<all_urls>`.
+
+Data collected (tick in the dashboard)
+- Personally identifiable information: name, email, phone, location, LinkedIn or website, current employer and title, right to work, notice period, salary expectation. Used only to fill the form the user chose to apply to.
+- Authentication information: the Career Ninja sign-in token, stored locally.
+- User activity / website content: the extension reads the fields of the application form it is filling, and the answers the user types into fields it could not fill. Those answers are saved to the user's Career Ninja account for reuse. Nothing from other pages.
+- Not collected: health, financial, location tracking, browsing history, personal communications.
+
+Certifications: data is not sold, not used for purposes unrelated to the single purpose, not used for creditworthiness or lending.
+
+Privacy policy URL: https://careerninja.app/privacy (section "The Chrome extension").
+
+## Assets to prepare
+
+- Screenshots, 1280×800 or 640×400, at least one: the popup over a Greenhouse form being filled, the panel saying what still needs the person, the Career Ninja jobs board with "Apply to all".
+- Small promo tile 440×280 (Mochi + wordmark on navy, from `brand-kit/`).
+- Icon 128×128: `extension/icons/128.png`.
+
+## Go-live checklist (after approval)
+
+1. In Vercel production set `NEXT_PUBLIC_EXTENSION_LIVE=1` and `NEXT_PUBLIC_EXTENSION_STORE_URL=<listing url>`, then redeploy (build-time variables).
+2. Landing page: remove the three "coming soon" lines in `src/app/page.tsx` (feature card, FAQ, extension section pill and future tense).
+3. Remove `public/career-ninja-extension.zip` and the `ext:zip` script; Settings then shows "Add to Chrome".
+4. Raise `MIN_EXTENSION_VERSION` in `src/lib/extension.ts` only when an app change needs a newer build; older installs then see an update nudge.

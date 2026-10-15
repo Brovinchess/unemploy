@@ -54,14 +54,21 @@
   const SENSITIVE = /gender|\bsex\b|pronoun|race|ethnic|hispanic|latino|veteran|disab|sexual orientation|religio|marital|\bage\b|date of birth|birthday|social security|passport|national id|password/i;
 
   const visible = (el) => {
+    if (el.type === "file") return !el.disabled; // Greenhouse and Ashby hide the real input behind a styled button
     const r = el.getBoundingClientRect();
     const st = getComputedStyle(el);
-    return (r.width > 0 || r.height > 0 || el.type === "file") && st.visibility !== "hidden" && st.display !== "none";
+    return (r.width > 0 || r.height > 0) && st.visibility !== "hidden" && st.display !== "none";
   };
 
+  // Only the field's own label counts for the "*": the nearest div on Greenhouse is the whole form.
   function isRequired(el, label) {
-    return el.required || el.getAttribute("aria-required") === "true" || /\*/.test(el.closest("label, div")?.innerText?.slice(0, 200) || "") || /required/.test(label);
+    if (el.required || el.getAttribute("aria-required") === "true") return true;
+    const own = [el.id && document.querySelector(`label[for="${CSS.escape(el.id)}"]`), el.closest("label")].filter(Boolean);
+    return own.some((l) => /[*✱]/.test(l.innerText || "")) || /\brequired\b/.test(label);
   }
+
+  // Demographic and identity questions are never filled, whatever we know.
+  const isSensitive = (label) => SENSITIVE.test(label);
 
   // React and friends ignore plain .value writes; use the native setter and fire events.
   function setValue(el, value) {
@@ -113,6 +120,18 @@
     return true;
   }
 
+  // Is this a plain yes/no choice (select options or a radio group)?
+  function yesNoControl(el) {
+    const texts =
+      el.tagName === "SELECT"
+        ? [...el.options].map((o) => o.text)
+        : el.type === "radio"
+          ? [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)].map((r) => r.closest("label")?.innerText || document.querySelector(`label[for="${CSS.escape(r.id)}"]`)?.innerText || r.value)
+          : [];
+    const t = texts.map((x) => norm(x)).filter((x) => x && !/select|choose|--/.test(x));
+    return t.length >= 2 && t.length <= 4 && t.some((x) => /^yes\b/.test(x)) && t.some((x) => /^no\b/.test(x));
+  }
+
   // What to put in a field, from its label.
   function answerFor(label, el, d, job) {
     const a = d.applicant || {};
@@ -142,11 +161,21 @@
     if (has(/twitter|\bx\.com|instagram|facebook|dribbble|behance/)) return null;
     if (has(/github/)) return a.website && /github\.com/i.test(a.website) ? a.website : null;
     if (has(/portfolio|website|personal (site|url)|other (url|website)|\burl\b/)) return a.website || null;
-    if (has(/\bcountry\b/) && !has(/countries/)) return (a.location || "").split(",").pop().trim() || null;
+    if (has(/\bcountry\b/) && !has(/countries/)) {
+      const last = (a.location || "").split(",").pop().trim();
+      const short = { us: "United States", usa: "United States", uk: "United Kingdom", my: "Malaysia", sg: "Singapore", hk: "Hong Kong", au: "Australia", ca: "Canada", nl: "Netherlands", de: "Germany", in: "India", id: "Indonesia", ph: "Philippines", th: "Thailand", vn: "Vietnam" };
+      return short[last.toLowerCase()] || (last.length > 3 ? last : null);
+    }
     if (has(/location|city|where are you (based|located)|current address|country of residence/)) return pick(a.location);
     if (has(/cover letter/)) return job.coverLetter;
     if (has(/sponsor/)) return pick(a.workAuthorization && /no sponsorship|not need|don.?t need|without sponsorship/i.test(a.workAuthorization) ? "No" : a.workAuthorization);
-    if (has(/authori[sz]ed|right to work|eligible to work|work permit|visa/)) return pick(a.workAuthorization);
+    if (has(/authori[sz]ed|right to work|eligible to work|work permit|visa/)) {
+      // A yes/no control wants "Yes", not the sentence from the details.
+      const wa = a.workAuthorization || "";
+      const positive = /citizen|permanent resident|authori[sz]ed|no sponsorship|right to work|eligible|allowed to work/i.test(wa) && !/not (authori|eligible|allowed)|need(s|ed)? (a )?(visa|sponsorship)|requires? sponsorship/i.test(wa);
+      if (wa && yesNoControl(el)) return positive ? "Yes" : pick(null);
+      return pick(wa);
+    }
     if (has(/notice period|start date|when can you start|available to start|availability/)) return pick(a.noticePeriod);
     if (has(/current (company|employer)|(company|employer) name|employer|most recent company|where do you (currently )?work/) && !has(/previous|former|reference/)) return pick(a.currentCompany);
     if (has(/current (job )?title|current (role|position)|job title|most recent (title|role)/) && !has(/desired|target|applying/)) return pick(a.currentTitle);
@@ -209,8 +238,11 @@
     );
   }
 
-  const SUCCESS = /thank you for (applying|your application|your interest)|application (has been )?(submitted|received)|we('ve| have) received your application|application complete|successfully submitted/i;
-  const submitted = () => SUCCESS.test(document.body?.innerText?.slice(0, 20000) || "");
+  // A confirmation page says thanks AND no longer shows the form. Job descriptions say
+  // "thank you for your interest" too, so the words alone never count.
+  const SUCCESS = /thank you for (applying|your application|submitting)|application (has been )?(submitted|received)|we('ve| have) received your application|application complete|successfully submitted/i;
+  const formGone = () => [...document.querySelectorAll("input, textarea, select")].filter((el) => !["hidden", "submit", "button"].includes(el.type) && visible(el)).length < 3;
+  const submitted = () => SUCCESS.test(document.body?.innerText?.slice(0, 20000) || "") && formGone() && !submitButton();
 
   // Fill the form. data = { applicant, job, resume: {fileName, mime, data} }.
   // With dryRun, nothing is typed: it only reports what it would do (for testing).
@@ -225,8 +257,9 @@
       const label = labelFor(el);
       if (!label || seen.has(el)) continue;
       seen.add(el);
+      if (isSensitive(label)) continue;
       const required = isRequired(el, label);
-      if (el.type !== "file" && el.value && el.value.trim()) continue; // never overwrite what's there
+      if (el.type === "file" ? el.files?.length : el.value && el.value.trim()) continue; // never overwrite what's there
       const ans = answerFor(label, el, data, job);
       let ok = false;
       if (dryRun) {
@@ -249,24 +282,75 @@
       const name = label.slice(0, 60);
       // Remember what we put there: if the person changes it before submitting, that's the answer to keep.
       runInfo.push({ el, auto: ok, was: ok && typeof ans === "string" ? ans.trim() : null });
-      if (ok) filled.push(name);
-      else if (required) {
+      if (ok) {
+        filled.push(name);
+        el.style.outline = "";
+      } else if (required) {
         missing.push(name);
         el.style.outline = "2px solid #c96567";
         el.style.outlineOffset = "2px";
       }
     }
-    // Required checkbox/radio groups (consent, demographics) are always the person's call.
+    // Yes/no radio groups (right to work, relocation): pick the option that matches what we know.
+    // Consent boxes and anything demographic stay the person's call.
+    if (!dryRun) {
+      const groups = new Map();
+      document.querySelectorAll('input[type="radio"]').forEach((r) => {
+        if (!r.name || !visible(r) || r.disabled) return;
+        if (!groups.has(r.name)) groups.set(r.name, []);
+        groups.get(r.name).push(r);
+      });
+      for (const radios of groups.values()) {
+        if (radios.some((r) => r.checked) || radios.some((r) => seen.has(r))) continue;
+        radios.forEach((r) => seen.add(r));
+        const question = groupLabel(radios[0]);
+        if (!question || isSensitive(question)) continue;
+        const ans = answerFor(question, radios[0], data, job);
+        if (typeof ans !== "string" || !ans.trim()) continue;
+        const want = norm(ans), yes = /^(yes|y)\b/.test(want), no = /^(no|n)\b/.test(want);
+        const text = (r) => norm(r.closest("label")?.innerText || document.querySelector(`label[for="${CSS.escape(r.id)}"]`)?.innerText || r.value);
+        const hit =
+          radios.find((r) => text(r) === want) ||
+          radios.find((r) => want && (text(r).includes(want) || want.includes(text(r)))) ||
+          (yes && radios.find((r) => /^yes/.test(text(r)))) ||
+          (no && radios.find((r) => /^no/.test(text(r))));
+        if (hit) {
+          hit.click();
+          hit.dispatchEvent(new Event("change", { bubbles: true }));
+          filled.push(question.slice(0, 60));
+          runInfo.push({ el: hit, auto: true, was: text(hit) });
+        }
+      }
+    }
     document.querySelectorAll('input[type="checkbox"][required], input[type="radio"][required]').forEach((el) => {
-      if (visible(el) && !el.checked) missing.push(labelFor(el).slice(0, 60) || "a required checkbox");
+      if (visible(el) && !el.checked && ![...el.form?.elements || []].some((o) => o.name === el.name && o.checked)) missing.push(labelFor(el).slice(0, 60) || "a required checkbox");
     });
     return { filled, missing: [...new Set(missing)], captcha: captchaPresent(), canSubmit: !!submitButton() };
+  }
+
+  // The question a radio group answers: its fieldset legend or the label above the group.
+  function groupLabel(radio) {
+    const fs = radio.closest("fieldset");
+    const legend = fs?.querySelector("legend");
+    if (legend?.innerText?.trim()) return norm(legend.innerText).slice(0, 300);
+    const by = radio.closest("[role='radiogroup']")?.getAttribute("aria-labelledby");
+    if (by) return norm(document.getElementById(by)?.innerText || "").slice(0, 300);
+    let box = radio.parentElement;
+    for (let i = 0; i < 5 && box; i++, box = box.parentElement) {
+      const t = box.querySelector("legend, .application-label, [class*='label'], [class*='question']");
+      if (t && !t.contains(radio) && t.innerText.trim()) return norm(t.innerText).slice(0, 300);
+    }
+    return "";
   }
 
   // Fields the extension left for the person and what they typed there, plus prefilled fields
   // they corrected before submitting. Both become saved answers.
   let runInfo = [];
   function currentValue(el) {
+    if (el.type === "radio") {
+      const on = [...document.querySelectorAll(`input[type="radio"][name="${CSS.escape(el.name)}"]`)].find((r) => r.checked);
+      return on ? (on.closest("label")?.innerText || document.querySelector(`label[for="${CSS.escape(on.id)}"]`)?.innerText || on.value || "").trim() : "";
+    }
     if (el.tagName === "SELECT") return el.selectedOptions[0]?.text?.trim() || "";
     if (isCombo(el)) {
       const box = el.closest('[class*="select__control"], [class*="Select-control"], [role="combobox"]')?.parentElement;
@@ -279,7 +363,7 @@
     const out = [];
     for (const { el, auto, was } of runInfo) {
       if (el.type === "file" || !el.isConnected) continue;
-      const question = questionText(el);
+      const question = el.type === "radio" ? groupLabel(el) : questionText(el);
       const answer = currentValue(el);
       if (!question || question.length < 3 || !answer || SENSITIVE.test(question)) continue;
       // Prefilled and left alone: nothing new to learn. Prefilled and changed: learn the correction.
@@ -290,5 +374,5 @@
     return out;
   }
 
-  window.CareerNinjaFill = { fill, submitButton, submitted, captchaPresent, labelFor, learned };
+  window.CareerNinjaFill = { fill, submitButton, submitted, captchaPresent, labelFor, learned, isSensitive };
 })();

@@ -4,9 +4,10 @@
   const send = (msg) => chrome.runtime.sendMessage(msg).catch(() => null);
   const ctx = await send({ type: "whatToFill" });
   if (!ctx?.job) return;
+  const F = window.CareerNinjaFill;
 
-  // Already on the company's "thanks, we got it" page (e.g. after a redirect).
-  if (window.CareerNinjaFill.submitted()) return send({ type: "submitted" });
+  // Back on this tab after the person pressed Submit (a full-page redirect to "thanks").
+  if (ctx.submitClicked && F.submitted()) return finish("Application sent.");
 
   const ui = panel(ctx);
   ui.say("Filling in your application…");
@@ -15,22 +16,26 @@
   for (let i = 0; i < 40 && document.querySelectorAll("input, textarea").length < 3; i++) await new Promise((r) => setTimeout(r, 250));
   await new Promise((r) => setTimeout(r, 600));
 
-  const result = await window.CareerNinjaFill.fill({
-    applicant: ctx.applicant,
-    job: ctx.job,
-    resume: ctx.resume,
-    savedAnswers: ctx.savedAnswers,
-  });
+  const data = { applicant: ctx.applicant, job: ctx.job, resume: ctx.resume, savedAnswers: ctx.savedAnswers };
+  let result = await F.fill(data);
+  let submitClicked = false, done = false;
   watchForConfirmation();
-  captureAnswersOnSubmit();
+  captureSubmit();
+  refillLateFields();
 
-  const needs = [...result.missing];
-  if (result.captcha) needs.unshift("the “are you human?” check");
-  if (!result.canSubmit) needs.push("find the Submit button");
+  const needs = () => {
+    const n = [...result.missing];
+    if (result.captcha) n.unshift("the “are you human?” check");
+    if (!result.canSubmit) n.push("find the Submit button");
+    return n;
+  };
 
-  if (ctx.mode === "auto" && !needs.length) {
+  // Auto-send is the person's choice, switched on in the popup. It only runs when every
+  // required field is filled and there is no captcha, and it can be cancelled on each form.
+  if (ctx.mode === "auto" && !needs().length) {
     let n = 5;
-    ui.say(`Filled ${result.filled.length} fields. Submitting in ${n}s…`, [{ label: "Cancel", act: () => (n = -1) }]);
+    const tick = () => ui.say(`Filled ${result.filled.length} fields. Sending in ${n}s…`, [{ label: "Cancel, let me check", act: () => (n = -1) }]);
+    tick();
     const t = setInterval(() => {
       if (n < 0) {
         clearInterval(t);
@@ -38,55 +43,96 @@
       }
       if (--n === 0) {
         clearInterval(t);
-        ui.say("Submitting…");
-        window.CareerNinjaFill.submitButton()?.click();
-      } else ui.say(`Filled ${result.filled.length} fields. Submitting in ${n}s…`, [{ label: "Cancel", act: () => (n = -1) }]);
+        ui.say("Sending…");
+        markClicked();
+        F.submitButton()?.click();
+      } else tick();
     }, 1000);
   } else review();
 
   function review() {
+    const n = needs();
     ui.say(
-      needs.length
-        ? `Filled ${result.filled.length} fields. Please check the form and complete: ${needs.slice(0, 4).join(", ")}${needs.length > 4 ? "…" : ""}. Then press Submit.`
+      n.length
+        ? `Filled ${result.filled.length} fields. Please check the form and complete: ${n.slice(0, 4).join(", ")}${n.length > 4 ? "…" : ""}. Then press Submit.`
         : `Filled ${result.filled.length} fields. Check everything, then press the form's Submit button.`,
       [
-        { label: "I've submitted", act: () => (learn(), send({ type: "submitted" })) },
-        { label: "Skip this job", act: () => send({ type: "skip" }) },
+        { label: "I've submitted", act: () => finish() },
+        { label: "Skip this job", act: () => !done && ((done = true), send({ type: "skip" })) },
       ],
     );
   }
 
-  // Remember what the person typed into fields the extension couldn't fill.
-  let learnt = false;
-  function learn() {
-    if (learnt) return;
-    learnt = true;
-    const answers = window.CareerNinjaFill.learned();
-    if (answers.length) send({ type: "learn", answers });
+  // Fields the form adds later ("enter manually" cover letter, conditional questions) get one more pass.
+  function refillLateFields() {
+    let timer;
+    const obs = new MutationObserver(() => {
+      if (done || submitClicked) return obs.disconnect();
+      clearTimeout(timer);
+      timer = setTimeout(async () => {
+        const again = await F.fill(data);
+        if (!again.filled.length) return;
+        result = {
+          filled: [...new Set([...result.filled, ...again.filled])],
+          missing: again.missing,
+          captcha: again.captcha,
+          canSubmit: again.canSubmit,
+        };
+        if (ctx.mode !== "auto") review();
+      }, 800);
+    });
+    obs.observe(document.body, { childList: true, subtree: true });
   }
-  function captureAnswersOnSubmit() {
-    document.addEventListener("submit", learn, true);
+
+  // Remember what the person typed into fields the extension couldn't fill.
+  let learnt = 0;
+  async function learn() {
+    if (learnt) return learnt;
+    const answers = F.learned();
+    learnt = answers.length || -1;
+    if (answers.length) await send({ type: "learn", answers });
+    return answers.length;
+  }
+  function markClicked() {
+    if (submitClicked) return;
+    submitClicked = true;
+    send({ type: "submitClicked" });
+    learn();
+  }
+  function captureSubmit() {
+    document.addEventListener("submit", markClicked, true);
     document.addEventListener(
       "click",
       (e) => {
-        const btn = window.CareerNinjaFill.submitButton();
-        if (btn && (e.target === btn || btn.contains(e.target))) learn();
+        const btn = F.submitButton();
+        if (btn && (e.target === btn || btn.contains(e.target))) markClicked();
       },
       true,
     );
   }
 
-  // Single-page forms swap in a confirmation without reloading.
+  // Single-page forms swap in a confirmation without reloading. Only counts after Submit was pressed.
   function watchForConfirmation() {
-    const check = () => {
-      if (window.CareerNinjaFill.submitted()) {
+    const obs = new MutationObserver(() => {
+      if (done) return obs.disconnect();
+      if (submitClicked && F.submitted()) {
         obs.disconnect();
-        ui.say("Application sent! Marking it as applied and moving on…");
-        send({ type: "submitted" });
+        finish("Application sent.");
       }
-    };
-    const obs = new MutationObserver(() => check());
+    });
     obs.observe(document.body, { childList: true, subtree: true, characterData: true });
+  }
+
+  // One exit per tab: tells the person what was kept, then hands over to the next job.
+  async function finish(lead = "") {
+    if (done) return;
+    done = true;
+    const n = await learn();
+    const kept = n > 0 ? ` Saved ${n} ${n === 1 ? "answer" : "answers"} for next time.` : "";
+    try {
+      ui.say(`${lead || "Marked as applied."}${kept} Moving on…`);
+    } catch {}
+    send({ type: "submitted" });
   }
 
   function panel(c) {
@@ -100,7 +146,8 @@
       .m{color:rgba(255,255,255,.8)} .a{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
       button{border:0;border-radius:999px;padding:8px 14px;font:600 13px system-ui;cursor:pointer;background:rgba(255,255,255,.08);color:#fff}
       button:first-child{background:#c96567}
-    </style><div class="p"><div class="h"><div>careerninja<b>.</b></div><span>Job ${c.position} of ${c.total}</span></div><div class="m"></div><div class="a"></div></div>`;
+    </style><div class="p"><div class="h"><div>careerninja<b>.</b></div><span></span></div><div class="m"></div><div class="a"></div></div>`;
+    root.querySelector(".h span").textContent = `Job ${c.position} of ${c.total}`;
     document.documentElement.appendChild(host);
     const m = root.querySelector(".m"), a = root.querySelector(".a");
     return {

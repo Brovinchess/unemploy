@@ -6,20 +6,48 @@ import type { ApplicantDetails, SavedAnswer } from "@/db/schema";
 import { detailFieldFor, usableAsDetail, withDetail } from "./answers";
 import { hashKey } from "./keys";
 
-// The Chrome extension authenticates with a token the signed-in web app hands it.
+// The Chrome extension authenticates with a token the signed-in web app hands it. One per
+// account: connecting again replaces the old one, so a forgotten install stops working.
 export async function createExtensionToken(userId: string) {
   const token = `cx_${randomBytes(24).toString("base64url")}`;
+  await db.delete(schema.extensionTokens).where(eq(schema.extensionTokens.userId, userId));
   await db.insert(schema.extensionTokens).values({ userId, tokenHash: hashKey(token) });
   return token;
 }
 
+export const bearerToken = (request: Request) => request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+
+// Disconnect from the extension, or sign-out from the app: the token stops working at once.
+export async function revokeExtensionToken(token: string) {
+  if (!token.startsWith("cx_")) return;
+  await db.delete(schema.extensionTokens).where(eq(schema.extensionTokens.tokenHash, hashKey(token)));
+}
+export async function revokeExtensionTokens(userId: string) {
+  await db.delete(schema.extensionTokens).where(eq(schema.extensionTokens.userId, userId));
+}
+
+const TOUCH_EVERY_MS = 60 * 60 * 1000;
 export async function extensionUser(request: Request) {
-  const token = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
-  if (!token?.startsWith("cx_")) return null;
+  const token = bearerToken(request);
+  if (!token.startsWith("cx_")) return null;
   const row = await db.query.extensionTokens.findFirst({ where: eq(schema.extensionTokens.tokenHash, hashKey(token)) });
   if (!row) return null;
-  await db.update(schema.extensionTokens).set({ lastUsedAt: new Date() }).where(eq(schema.extensionTokens.id, row.id));
+  // "Last used" only needs to be roughly right; one write an hour, not one per request.
+  if (!row.lastUsedAt || Date.now() - row.lastUsedAt.getTime() > TOUCH_EVERY_MS) {
+    await db.update(schema.extensionTokens).set({ lastUsedAt: new Date() }).where(eq(schema.extensionTokens.id, row.id));
+  }
   return db.query.users.findFirst({ where: eq(schema.users.id, row.userId) });
+}
+
+// The oldest extension build the app still works with (semver "major.minor.patch").
+export const MIN_EXTENSION_VERSION = "1.0.0";
+export function versionAtLeast(v: string | undefined, min: string) {
+  const a = (v ?? "0").split(".").map(Number), b = min.split(".").map(Number);
+  for (let i = 0; i < 3; i++) {
+    if ((a[i] ?? 0) > (b[i] ?? 0)) return true;
+    if ((a[i] ?? 0) < (b[i] ?? 0)) return false;
+  }
+  return true;
 }
 
 export const REQUIRED_DETAILS: (keyof ApplicantDetails)[] = ["firstName", "lastName", "email", "phone", "location"];
@@ -29,7 +57,7 @@ export const detailsComplete = (d: ApplicantDetails | null | undefined) => !!d &
 export function applyUrl(url: string) {
   try {
     const u = new URL(url);
-    if (u.hostname === "jobs.lever.co" && !u.pathname.endsWith("/apply")) u.pathname = u.pathname.replace(/\/$/, "") + "/apply";
+    if ((u.hostname === "jobs.lever.co" || u.hostname === "jobs.eu.lever.co") && !u.pathname.endsWith("/apply")) u.pathname = u.pathname.replace(/\/$/, "") + "/apply";
     if (u.hostname === "jobs.ashbyhq.com" && !u.pathname.endsWith("/application")) u.pathname = u.pathname.replace(/\/$/, "") + "/application";
     return u.toString();
   } catch {
@@ -37,7 +65,7 @@ export function applyUrl(url: string) {
   }
 }
 
-export const SUPPORTED_HOSTS = ["greenhouse.io", "jobs.lever.co", "jobs.ashbyhq.com"];
+export const SUPPORTED_HOSTS = ["boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.lever.co", "jobs.eu.lever.co", "jobs.ashbyhq.com"];
 export const isSupported = (url: string) => {
   try {
     const h = new URL(url).hostname;

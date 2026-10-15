@@ -64,7 +64,7 @@ const PAINS = [
 const FAQ = [
   {
     q: "Does it apply for me?",
-    a: "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. Nothing is ever sent without you.",
+    a: "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the whole form for you is coming soon. It leaves Submit to you unless you choose to let it send.",
   },
   {
     q: "What about the questions only I can answer?",

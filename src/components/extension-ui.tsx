@@ -27,7 +27,7 @@ export function ApplyAllButton({
   const [pending, start] = useTransition();
   if (!count) return null;
 
-  const ready = status?.installed && status.connected && detailsComplete;
+  const ready = status?.installed && status.connected && detailsComplete && !status.needsUpdate;
   const needDetails = !detailsComplete && status?.installed && status.connected;
   const one = count === 1;
 
@@ -73,7 +73,9 @@ export function ApplyAllButton({
               {msg ??
                 (ready
                   ? "The extension opens each one, fills it in and waits for you to submit."
-                  : needDetails
+                  : status.needsUpdate
+                    ? "Your Career Ninja extension is out of date. Chrome updates it by itself; open chrome://extensions and press Update to do it now."
+                    : needDetails
                     ? "Add your application details and the extension can fill them in for you."
                     : "Set up the Chrome extension and apply to all of them in one go.")}
             </p>
@@ -207,6 +209,12 @@ export function ExtensionSetup({
           >
             I&rsquo;ve installed it, check again
           </button>
+        )}
+        {installed && status?.needsUpdate && (
+          <p className="mt-3 text-sm text-rose">
+            Version {status.version} is out of date. Chrome updates extensions by itself within a day; to do it now, open{" "}
+            <span className="font-mono text-white">chrome://extensions</span> and press Update.
+          </p>
         )}
       </Step>
 

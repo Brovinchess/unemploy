@@ -26,10 +26,9 @@ export async function GET(request: Request) {
       applicant: user.applicant ?? null,
       savedAnswers: (user.savedAnswers ?? []).map(({ question, answer }) => ({ question, answer })),
       detailsComplete: detailsComplete(user.applicant),
+      // Names only; the file itself comes from /api/extension/resume when a job needs it.
       resumes: Object.fromEntries(
-        profiles
-          .filter((p) => p.resumeData && jobs.some((j) => j.profileId === p.id))
-          .map((p) => [p.id, { fileName: p.resumeFileName, mime: p.resumeMime, data: p.resumeData }]),
+        profiles.filter((p) => p.resumeData && jobs.some((j) => j.profileId === p.id)).map((p) => [p.id, { fileName: p.resumeFileName, mime: p.resumeMime }]),
       ),
       jobs: jobs.map((j) => {
         const pack = packFor.get(j.id);
