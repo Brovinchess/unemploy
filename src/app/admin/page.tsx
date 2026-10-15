@@ -3,7 +3,7 @@ import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { APPLIED_PLUS, KEPT, WAITING_QUESTION, dayKeys, daysAgo, directory, hoursAgo, mins, perDay, pct, stageLabel, sum, tally, when } from "@/lib/admin";
 import { DROP_LABELS } from "@/lib/dropped";
-import { Alerts, BarChart, Card, Counts, DaysPicker, Funnel, PageHead, Stat, Table, daysParam } from "./ui";
+import { Alerts, Badge, BarChart, CHART, Card, Counts, DaysPicker, Funnel, GroupLabel, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, daysParam, endTone } from "./ui";
 
 export default async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
@@ -84,45 +84,43 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   ];
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Overview" title="Career Ninja at a glance">
-        <div className="mt-2"><DaysPicker days={days} base="/admin" /></div>
-      </PageHead>
+    <Page>
+      <PageHead section="Overview" title="Career Ninja at a glance" description="What happened, what needs a look, and how people move through setup." controls={<DaysPicker days={days} base="/admin" />} />
 
-      <h2 className="mt-8 text-xs uppercase tracking-wide text-white/45">All time</h2>
-      <div className="mt-2 grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <GroupLabel>All time</GroupLabel>
+      <Tiles cols={5} className="mt-2">
         <Stat label="Accounts" value={users.length} href="/admin/users" />
         <Stat label="Headhunters deployed" value={deployed.length} hint={`${live.length} live, ${searchingNow.length} searching now`} href="/admin/headhunters" />
         <Stat label="Jobs ever delivered" value={allJobs.length} hint={`${allJobs.filter((j) => APPLIED_PLUS.has(j.status)).length} applied or further`} href="/admin/jobs?days=365" />
         <Stat label="Extension connected" value={new Set(tokens.map((t) => t.userId)).size} hint="accounts" />
         <Stat label="Email verified" value={users.filter((u) => u.emailVerifiedAt).length} hint="accounts" />
-      </div>
+      </Tiles>
 
-      <h2 className="mt-8 text-xs uppercase tracking-wide text-white/45">Last {days} days</h2>
-      <div className="mt-2 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <GroupLabel>Last {days} days</GroupLabel>
+      <Tiles cols={6} className="mt-2">
         <Stat label="New accounts" value={newUsers.length} hint={`${newUsers.filter((u) => u.referredBy).length} referred`} href={`/admin/growth?days=${days}`} />
         <Stat label="Active users" value={activeUsers} hint="ran a search" href={`/admin/users?active=${days}`} />
         <Stat label="Searches" value={searches.length} hint={`${searches.filter((s) => !s.endedAt).length} still open`} href={`/admin/searches?days=${days}`} />
         <Stat label="Jobs delivered" value={jobs.length} hint={`${jobs.filter((j) => KEPT.has(j.status)).length} kept`} href={`/admin/jobs?days=${days}`} />
         <Stat label="Leads dropped" value={leads.length} hint={jobs.length ? `${Math.round(leads.length / jobs.length)} per job` : undefined} href={`/admin/quality?days=${days}`} />
         <Stat label="Cognition" value={Math.round(cognition)} hint={jobs.length && cognition ? `about ${Math.round(cognition / jobs.length)} per job` : undefined} href={`/admin/costs?days=${days}`} />
-      </div>
+      </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <Card title="Onboarding funnel" hint="All accounts. Each step shows the share of the step before.">
+        <Card title="Onboarding funnel" hint="All accounts. Each step shows the share of the step before." className="rise rise-1">
           <Funnel steps={funnel} />
         </Card>
-        <Card title="Needs a look" hint="Live checks; each line opens the page to act on.">
+        <Card title="Needs a look" hint="Live checks; each line opens the page to act on." className="rise rise-2">
           <Alerts items={alerts} />
         </Card>
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Per day, last {days} days</h2>
+      <SectionTitle title={`Per day, last ${days} days`} />
       <div className="mt-3 grid gap-4 md:grid-cols-2">
-        <Card><BarChart title="Signups" keys={keys} series={[{ label: "Signups", values: trend.signups, color: "text-coral" }]} /></Card>
-        <Card><BarChart title="Searches started" keys={keys} series={[{ label: "Searches", values: trend.searches, color: "text-sky-400" }]} /></Card>
-        <Card><BarChart title="Jobs delivered" keys={keys} series={[{ label: "Jobs", values: trend.jobs, color: "text-emerald-400" }]} /></Card>
-        <Card><BarChart title="Cognition used (by search end)" keys={keys} series={[{ label: "Cognition", values: trend.cognition, color: "text-amber-400" }]} /></Card>
+        <Card><BarChart title="Signups" keys={keys} series={[{ label: "Signups", values: trend.signups, color: CHART.coral }]} /></Card>
+        <Card><BarChart title="Searches started" keys={keys} series={[{ label: "Searches", values: trend.searches, color: CHART.teal }]} /></Card>
+        <Card><BarChart title="Jobs delivered" keys={keys} series={[{ label: "Jobs", values: trend.jobs, color: CHART.slate }]} /></Card>
+        <Card><BarChart title="Cognition used (by search end)" keys={keys} series={[{ label: "Cognition", values: trend.cognition, color: CHART.amber }]} /></Card>
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
@@ -130,27 +128,33 @@ export default async function Overview({ searchParams }: { searchParams: Promise
         <Counts title="Why leads were dropped" total={leads.length} rows={tally(leads, (l) => DROP_LABELS[l.reason] ?? l.reason)} />
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Recent searches</h2>
+      <SectionTitle
+        title="Recent searches"
+        hint={
+          <>
+            <Link href={`/admin/searches?days=${days}`} className="underline underline-offset-2 hover:text-white">All searches</Link> · {pct(searches.filter((s) => (s.jobsAdded ?? 0) > 0).length, searches.filter((s) => s.endedAt).length)} of finished searches delivered at least one job.
+          </>
+        }
+      />
       <div className="mt-3">
         <Table
           head={["Started", "Who", "Asked", "Got", "Cognition", "Took", "Ended"]}
+          empty="No searches in this window."
+          emptyMood="sleeping"
           rows={searches.slice(0, 15).map((s) => {
             const m = mins(s.startedAt, s.endedAt);
             return [
-              <Link key={s.id} href={`/admin/searches/${s.id}`} className="underline decoration-white/20 underline-offset-2 hover:text-white">{when(s.startedAt)}</Link>,
-              who(s.profileId),
+              <Link key={s.id} href={`/admin/searches/${s.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{when(s.startedAt)}</Link>,
+              <UserLink key="u" id={userOfProfile(s.profileId)} name={who(s.profileId)} />,
               s.jobsWanted,
               s.jobsAdded ?? (s.endedAt ? 0 : "…"),
               s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
               m ? `${m} min` : `running, ${mins(s.startedAt, now)} min so far`,
-              s.endReason ?? (s.endedAt ? "" : "open"),
+              <Badge key="e" tone={endTone(s.endReason, !s.endedAt)}>{s.endReason ?? (s.endedAt ? "ended" : "open")}</Badge>,
             ];
           })}
         />
-        <p className="mt-2 text-xs text-white/40">
-          <Link href={`/admin/searches?days=${days}`} className="underline underline-offset-2 hover:text-white">All searches</Link> · {pct(searches.filter((s) => (s.jobsAdded ?? 0) > 0).length, searches.filter((s) => s.endedAt).length)} of finished searches delivered at least one job.
-        </p>
       </div>
-    </main>
+    </Page>
   );
 }

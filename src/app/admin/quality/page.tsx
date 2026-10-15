@@ -2,7 +2,7 @@ import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DropReason } from "@/db/schema";
 import { MIND_MISTAKES, dayKeys, daysAgo, directory, perDay, pushDetails, sortParams, sortRows, sum, tally, when } from "@/lib/admin";
-import { BarChart, Cap, Card, Counts, DaysPicker, Ext, PageHead, SortLink, Stat, Table, UserLink, daysParam } from "../ui";
+import { BarChart, CHART, Cap, Card, Clamp, Counts, DaysPicker, Ext, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
 const BASE = "/admin/quality";
 const MAX_ROWS = 500;
@@ -19,14 +19,14 @@ const REASON_LABEL: Record<DropReason, string> = {
   pay: "Other (legacy pay)",
 };
 const REASON_COLOR: Record<DropReason, string> = {
-  not_eligible: "text-coral",
-  too_old: "text-amber-400",
-  closed: "text-white/40",
-  poor_fit: "text-sky-400",
-  duplicate: "text-violet-400",
-  work_setting: "text-emerald-400",
-  other: "text-white/70",
-  pay: "text-white/70",
+  not_eligible: CHART.coral,
+  too_old: CHART.amber,
+  closed: CHART.mist,
+  poor_fit: CHART.blue,
+  duplicate: CHART.plum,
+  work_setting: CHART.teal,
+  other: CHART.slate,
+  pay: CHART.slate,
 };
 const REASONS = Object.keys(REASON_LABEL) as DropReason[];
 // Sub-buckets read from the Mind's note, so the two vague reasons say something.
@@ -95,18 +95,16 @@ export default async function Quality({ searchParams }: { searchParams: Promise<
   const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Quality" title="What the headhunters threw out, and what we refused">
-        <div className="mt-2"><DaysPicker days={days} base={BASE} q={q} /></div>
-      </PageHead>
+    <Page>
+      <PageHead section="Quality" title="What the headhunters threw out, and what we refused" description="For reading the market and tuning the brief." controls={<DaysPicker days={days} base={BASE} q={q} />} />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-5">
+      <Tiles cols={5} className="mt-6">
         <Stat label="Searches" value={searches.length} />
         <Stat label="Leads opened and dropped" value={leads.length} hint={delivered ? `${Math.round(leads.length / delivered)} per delivered job` : undefined} />
         <Stat label="Jobs delivered" value={delivered} />
         <Stat label="Refused by the app" value={refused.length} hint="jobs in pushes that failed a check" />
         <Stat label="Mind mistakes" value={mistakes.length} hint="refusals the brief should have prevented" />
-      </div>
+      </Tiles>
 
       <div className="mt-6">
         <Card>
@@ -122,38 +120,43 @@ export default async function Quality({ searchParams }: { searchParams: Promise<
         <Counts title="Refused by the app, by code" total={refused.length} rows={tally(refused, (r) => r.code)} />
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">The Mind&apos;s mistakes, per headhunter</h2>
-      <p className="mt-1 text-sm text-white/50">Jobs the app refused for reasons the brief already covers: bad data, a non-employer link, a closed or stale posting, a repeat, or sending when no search was asked for.</p>
+      <SectionTitle title="The Mind's mistakes, per headhunter" hint="Jobs the app refused for reasons the brief already covers: bad data, a non-employer link, a closed or stale posting, a repeat, or sending when no search was asked for." />
       <div className="mt-3">
         <Table
           head={["Headhunter", "Total", ...MIND_MISTAKES.map((c) => c.replace(/_/g, " "))]}
           rows={mistakeRows.map((r) => [<UserLink key={r.pid} id={r.userId} name={r.who} />, r.total, ...r.counts.map((n) => (n ? n : <span key="z" className="text-white/25">0</span>))])}
           empty="No mistakes of these kinds in this window."
+          emptyMood="happy"
         />
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Every dropped lead ({leads.length})</h2>
+      <SectionTitle title={`Every dropped lead (${leads.length})`} />
       <div className="mt-3">
         <Table
           head={[col("when", "When"), col("who", "Headhunter"), col("reason", "Reason"), col("company", "Company"), "Title", "The Mind's note"]}
+          empty="No leads were dropped in this window."
           rows={rows.slice(0, MAX_ROWS).map((l) => [
             when(l.createdAt),
             <UserLink key="u" id={l.userId} name={l.who} />,
             REASON_LABEL[l.reason] ?? l.reason,
             l.company,
             l.url ? <Ext key={l.id} href={l.url}>{l.title}</Ext> : l.title,
-            l.note ?? "",
+            <Clamp key="n" text={l.note} />,
           ])}
         />
         <Cap shown={MAX_ROWS} total={rows.length} />
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Pushes the app refused or adjusted ({refused.length})</h2>
-      <p className="mt-1 text-sm text-white/50">Jobs the Mind sent that failed our checks, with the reason it was told.</p>
+      <SectionTitle title={`Pushes the app refused or adjusted (${refused.length})`} hint="Jobs the Mind sent that failed our checks, with the reason it was told." />
       <div className="mt-3">
-        <Table head={["When", "Headhunter", "Code", "Link", "What it was told"]} rows={refused.slice(0, MAX_ROWS).map((r) => [when(r.at), r.who, r.code, r.url.replace(/^https?:\/\//, "").slice(0, 60), r.hint.slice(0, 220)])} />
+        <Table
+          head={["When", "Headhunter", "Code", "Link", "What it was told"]}
+          empty="Nothing was refused in this window."
+          emptyMood="happy"
+          rows={refused.slice(0, MAX_ROWS).map((r) => [when(r.at), r.who, r.code, r.url.replace(/^https?:\/\//, "").slice(0, 60), <Clamp key="h" text={r.hint.slice(0, 220)} />])}
+        />
         <Cap shown={MAX_ROWS} total={refused.length} />
       </div>
-    </main>
+    </Page>
   );
 }

@@ -1,7 +1,7 @@
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { dayKeys, daysAgo, directory, perDay, pct, sum, tally, when } from "@/lib/admin";
-import { BarChart, Card, Counts, DaysPicker, PageHead, Stat, Table, UserLink, daysParam } from "../ui";
+import { Badge, BarChart, CHART, Card, Counts, DaysPicker, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
 const BASE = "/admin/growth";
 
@@ -22,8 +22,8 @@ export default async function Growth({ searchParams }: { searchParams: Promise<R
   const keys = dayKeys(days);
   const recent = users.filter((u) => u.createdAt >= since);
   const series = [
-    { label: "Organic", color: "text-sky-400", values: perDay(recent.filter((u) => !u.referredBy), keys, (u) => u.createdAt) },
-    { label: "Referred", color: "text-coral", values: perDay(recent.filter((u) => u.referredBy), keys, (u) => u.createdAt) },
+    { label: "Organic", color: CHART.slate, values: perDay(recent.filter((u) => !u.referredBy), keys, (u) => u.createdAt) },
+    { label: "Referred", color: CHART.coral, values: perDay(recent.filter((u) => u.referredBy), keys, (u) => u.createdAt) },
   ];
 
   const deployedUser = (uid: string) => profiles.some((p) => p.userId === uid && p.mindId);
@@ -39,19 +39,17 @@ export default async function Growth({ searchParams }: { searchParams: Promise<R
   const converted = waitlist.filter((w) => signedUp.has(w.email.toLowerCase()));
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Growth" title="Signups, referrals and the waitlist">
-        <div className="mt-2"><DaysPicker days={days} base={BASE} q={q} /></div>
-      </PageHead>
+    <Page>
+      <PageHead section="Growth" title="Signups, referrals and the waitlist" description="Where people come from: organic signups, friends via links, and the pre-launch waitlist." controls={<DaysPicker days={days} base={BASE} q={q} />} />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <Tiles cols={6} className="mt-6">
         <Stat label={`Signups, ${days}d`} value={recent.length} hint={`${recent.filter((u) => u.referredBy).length} referred`} />
         <Stat label="Accounts, all time" value={users.length} />
         <Stat label="Friends via links" value={refs.length} hint={`${byReferrer.length} referrers`} />
         <Stat label="Friends who deployed" value={refs.filter((r) => deployedUser(r.referredId)).length} />
         <Stat label="Waitlist" value={waitlist.length} hint={`${waitlist.filter((w) => w.verifiedAt).length} verified`} />
         <Stat label="Waitlist → signed up" value={converted.length} hint={pct(converted.length, waitlist.length)} />
-      </div>
+      </Tiles>
 
       <div className="mt-6">
         <Card>
@@ -59,24 +57,28 @@ export default async function Growth({ searchParams }: { searchParams: Promise<R
         </Card>
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Referrals ({refs.length})</h2>
+      <SectionTitle title={`Referrals (${refs.length})`} />
       <div className="mt-3 grid gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <Table
             head={["Joined", "Friend", "Referred by", "Status", "Deployed", "Cognition spent"]}
-            rows={refs.map((r) => [when(r.createdAt), <UserLink key="f" id={r.referredId} name={nameOf(r.referredId)} />, <UserLink key="r" id={r.referrerId} name={nameOf(r.referrerId)} />, r.status, deployedUser(r.referredId) ? "yes" : "no", spent(r.referredId)])}
+            rows={refs.map((r) => [
+              when(r.createdAt),
+              <UserLink key="f" id={r.referredId} name={nameOf(r.referredId)} />,
+              <UserLink key="r" id={r.referrerId} name={nameOf(r.referrerId)} />,
+              <Badge key="s" tone="slate">{r.status}</Badge>,
+              deployedUser(r.referredId) ? <Badge key="d" tone="green">yes</Badge> : <span key="d" className="text-white/30">no</span>,
+              spent(r.referredId),
+            ])}
             empty="Nobody has joined through a link yet."
           />
         </div>
         <Card title="Top referrers">
-          <Table head={["User", "Friends", "Link"]} rows={byReferrer.map(([id, n]) => [<UserLink key={id} id={id} name={nameOf(id)} />, n, `careerninja.app/r/${codeOf.get(id) ?? ""}`])} empty="No referrers yet." />
+          <Table head={["User", "Friends", "Link"]} rows={byReferrer.map(([id, n]) => [<UserLink key={id} id={id} name={nameOf(id)} />, n, <span key="l" className="admin-text-2 font-mono text-xs">careerninja.app/r/{codeOf.get(id) ?? ""}</span>])} empty="No referrers yet." />
         </Card>
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Waitlist ({waitlist.length})</h2>
-      <p className="mt-1 text-sm text-white/50">
-        {waitlist.filter((w) => w.verifiedAt).length} verified their email. {converted.length} have since signed up with the same email.
-      </p>
+      <SectionTitle title={`Waitlist (${waitlist.length})`} hint={`${waitlist.filter((w) => w.verifiedAt).length} verified their email. ${converted.length} have since signed up with the same email.`} />
       <div className="mt-3 grid gap-4 md:grid-cols-3">
         <Counts title="Country" total={waitlist.length} rows={tally(waitlist, (w) => w.country ?? "unknown")} />
         <Counts title="Role area" total={waitlist.length} rows={tally(waitlist, (w) => w.roleArea ?? "unknown")} />
@@ -94,9 +96,20 @@ export default async function Growth({ searchParams }: { searchParams: Promise<R
       <div className="mt-4">
         <Table
           head={["Joined", "Name", "Email", "Country", "Role area", "Verified", "Came with code", "Signed up"]}
-          rows={waitlist.map((w) => [when(w.createdAt), w.name ?? "", w.email, w.country ?? "", w.roleArea ?? "", w.verifiedAt ? "yes" : "no", w.referredBy ?? "", signedUp.has(w.email.toLowerCase()) ? "yes" : ""])}
+          empty="The waitlist is empty."
+          emptyMood="sleeping"
+          rows={waitlist.map((w) => [
+            when(w.createdAt),
+            w.name ?? "",
+            w.email,
+            w.country ?? "",
+            w.roleArea ?? "",
+            w.verifiedAt ? <Badge key="v" tone="green">yes</Badge> : <span key="v" className="text-white/30">no</span>,
+            w.referredBy ?? "",
+            signedUp.has(w.email.toLowerCase()) ? <Badge key="s" tone="teal">yes</Badge> : "",
+          ])}
         />
       </div>
-    </main>
+    </Page>
   );
 }

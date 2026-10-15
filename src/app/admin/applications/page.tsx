@@ -2,7 +2,7 @@ import Link from "next/link";
 import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { APPLIED_PLUS_LIST, PIPELINE, STAGE_ORDER, WAITING_QUESTION_LIST, daysAgo, daysBetween, directory, sortParams, sortRows, stageLabel, when } from "@/lib/admin";
-import { Cap, Card, Ext, PageHead, SortLink, Stat, Table, UserLink } from "../ui";
+import { Badge, Cap, Card, Ext, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, stageTone } from "../ui";
 
 const BASE = "/admin/applications";
 const MAX_ROWS = 500;
@@ -49,32 +49,34 @@ export default async function Applications({ searchParams }: { searchParams: Pro
     .sort((a, b) => a.oldest.getTime() - b.oldest.getTime());
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Applications" title="Pipeline across all users">
-        <p className="mt-2 text-sm text-white/55">Every job someone kept, by where it is now. “Stale” means applied more than {STALE_DAYS} days ago with no change since.</p>
-      </PageHead>
+    <Page>
+      <PageHead section="Applications" title="Pipeline across all users" description={`Every job someone kept, by where it is now. “Stale” means applied more than ${STALE_DAYS} days ago with no change since.`} />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <Tiles cols={6} className="mt-6">
         {PIPELINE.map((s) => (
           <Stat key={s} label={stageLabel(s)} value={byStage.get(s) ?? 0} href={s === "saved" ? `/admin/jobs?days=365&stage=saved` : `${BASE}?stage=${s}`} />
         ))}
-      </div>
+      </Tiles>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Applied or further ({rows.length})</h2>
-      <p className="mt-1 text-sm text-white/50">
-        {rows.filter((r) => r.stale).length} stale.{" "}
-        {q.stale ? (
-          <Link href={BASE} className="underline underline-offset-2 hover:text-white">Show all</Link>
-        ) : (
-          <Link href={`${BASE}?stale=1`} className="underline underline-offset-2 hover:text-white">Only stale</Link>
-        )}
-        {q.stage && (
+      <SectionTitle
+        title={`Applied or further (${rows.length})`}
+        hint={
           <>
-            {" · "}
-            <Link href={BASE} className="underline underline-offset-2 hover:text-white">Clear stage filter</Link>
+            {rows.filter((r) => r.stale).length} stale.{" "}
+            {q.stale ? (
+              <Link href={BASE} className="underline underline-offset-2 hover:text-white">Show all</Link>
+            ) : (
+              <Link href={`${BASE}?stale=1`} className="underline underline-offset-2 hover:text-white">Only stale</Link>
+            )}
+            {q.stage && (
+              <>
+                {" · "}
+                <Link href={BASE} className="underline underline-offset-2 hover:text-white">Clear stage filter</Link>
+              </>
+            )}
           </>
-        )}
-      </p>
+        }
+      />
       <div className="mt-3">
         <Table
           head={[col("who", "User"), col("company", "Company"), col("title", "Title"), col("stage", "Stage"), col("changed", "Stage changed"), col("age", "Days since"), "Flag"]}
@@ -82,10 +84,10 @@ export default async function Applications({ searchParams }: { searchParams: Pro
             <UserLink key="u" id={r.userId} name={r.who} />,
             r.company,
             <Ext key={r.id} href={r.url}>{r.title}</Ext>,
-            stageLabel(r.status),
+            <Badge key="s" tone={stageTone(r.status)}>{stageLabel(r.status)}</Badge>,
             when(r.changed),
             r.age,
-            r.stale ? <span key="s" className="rounded-full bg-amber-400/15 px-2 py-0.5 text-xs text-amber-300">stale</span> : "",
+            r.stale ? <Badge key="f" tone="amber">stale</Badge> : "",
           ])}
           empty="Nobody has applied yet."
         />
@@ -94,9 +96,9 @@ export default async function Applications({ searchParams }: { searchParams: Pro
 
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
         <Card title={`Questions waiting on people (${questions.length})`} hint="Form questions the headhunter could not answer from the person's facts.">
-          <Table head={["User", "Waiting", "Oldest"]} rows={waiting.map((w) => [<UserLink key={w.uid} id={w.uid} name={w.name} />, w.n, `${when(w.oldest)} (${daysBetween(w.oldest, now)} days)`])} empty="Nothing waiting." />
+          <Table head={["User", "Waiting", "Oldest"]} rows={waiting.map((w) => [<UserLink key={w.uid} id={w.uid} name={w.name} />, <Badge key="n" tone="amber">{w.n}</Badge>, `${when(w.oldest)} (${daysBetween(w.oldest, now)} days)`])} empty="Nothing waiting." emptyMood="happy" />
         </Card>
       </div>
-    </main>
+    </Page>
   );
 }

@@ -1,8 +1,7 @@
-import Link from "next/link";
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, directory, includes, sessionCreatedAt, sortParams, sortRows, sum, when } from "@/lib/admin";
-import { Cap, Check, FilterForm, PageHead, SortLink, Table, TextInput, UserLink } from "../ui";
+import { Badge, Cap, Check, ClearLink, FilterForm, Page, PageHead, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
 
 const BASE = "/admin/users";
 const MAX_ROWS = 500;
@@ -40,6 +39,7 @@ export default async function Users({ searchParams }: { searchParams: Promise<Re
       name: u.username ?? "(no name yet)",
       deployed: mine.some((p) => p.mindId),
       hhStatus: hh ? hh.status.replace(/_/g, " ") : "",
+      hhRaw: hh?.status ?? "",
       searches: s.length,
       jobs: j.length,
       kept: j.filter((x) => KEPT.has(x.status)).length,
@@ -85,39 +85,40 @@ export default async function Users({ searchParams }: { searchParams: Promise<Re
   const filtered = !!(q.q || q.deployed || q.active || q.idle || q.nokeep);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Users" title={`${rows.length} accounts`}>
-        <p className="mt-2 text-sm text-white/55">
-          {users.length} in total. {users.filter((u) => profiles.some((p) => p.userId === u.id && p.mindId)).length} deployed a headhunter. {users.filter((u) => !u.username).length} never finished the name step.
-        </p>
-      </PageHead>
-      <div className="mt-4">
-        <FilterForm q={q}>
-          <TextInput name="q" value={q.q} placeholder="Username or email" />
-          <TextInput name="active" value={q.active} placeholder="Searched in last N days" size={20} />
-          <Check name="deployed" checked={!!q.deployed} label="Deployed" />
-          <Check name="idle" checked={!!q.idle} label="Deployed, never searched" />
-          <Check name="nokeep" checked={!!q.nokeep} label="Searched, kept nothing" />
-          {filtered && <Link href={BASE} className="py-1.5 text-white/50 hover:text-white">Clear</Link>}
-        </FilterForm>
-      </div>
-      <div className="mt-4">
+    <Page>
+      <PageHead
+        section="Users"
+        title={`${rows.length} accounts`}
+        description={`${users.length} in total. ${users.filter((u) => profiles.some((p) => p.userId === u.id && p.mindId)).length} deployed a headhunter. ${users.filter((u) => !u.username).length} never finished the name step.`}
+        controls={
+          <FilterForm q={q}>
+            <TextInput name="q" value={q.q} placeholder="Username or email" />
+            <TextInput name="active" value={q.active} placeholder="Searched in last N days" size={20} />
+            <Check name="deployed" checked={!!q.deployed} label="Deployed" />
+            <Check name="idle" checked={!!q.idle} label="Deployed, never searched" />
+            <Check name="nokeep" checked={!!q.nokeep} label="Searched, kept nothing" />
+            {filtered && <ClearLink href={BASE} />}
+          </FilterForm>
+        }
+      />
+      <div className="mt-6">
         <Table
           head={[
             col("name", "User"), col("joined", "Joined"), col("email", "Email"), col("status", "Headhunter"), col("searches", "Searches"), col("jobs", "Jobs"), col("kept", "Kept"), col("applied", "Applied+"),
             col("cognition", "Cognition"), col("lastSearch", "Last search"), col("lastSeen", "Last seen"), col("extension", "Extension"), col("referrer", "Referred by"), col("waiting", "Questions waiting"), col("answers", "Saved answers"),
           ]}
+          empty="No accounts match these filters."
           rows={rows.slice(0, MAX_ROWS).map((r) => [
             <UserLink key={r.id} id={r.id} name={r.name} />,
             when(r.createdAt).slice(0, 10),
             r.email ? (
               <span key="e" title={r.email}>
-                {r.email.length > 28 ? `${r.email.slice(0, 26)}…` : r.email} <span className={r.emailVerifiedAt ? "text-emerald-400" : "text-white/35"}>{r.emailVerifiedAt ? "✓" : "unverified"}</span>
+                {r.email.length > 28 ? `${r.email.slice(0, 26)}…` : r.email} <span className={r.emailVerifiedAt ? "text-emerald-300" : "text-white/35"}>{r.emailVerifiedAt ? "✓" : "unverified"}</span>
               </span>
             ) : (
               ""
             ),
-            r.hhStatus || <span key="n" className="text-white/30">none</span>,
+            r.hhStatus ? <Badge key="h" tone={hhTone(r.hhRaw)}>{r.hhStatus}</Badge> : <span key="n" className="text-white/30">none</span>,
             r.searches,
             r.jobs,
             r.kept,
@@ -127,12 +128,12 @@ export default async function Users({ searchParams }: { searchParams: Promise<Re
             when(r.lastSeen),
             r.extension ? `yes${r.extensionUsed ? `, ${when(r.extensionUsed).slice(0, 10)}` : ""}` : <span key="x" className="text-white/30">no</span>,
             r.referrerId ? <UserLink key="r" id={r.referrerId} name={r.referrer} /> : r.referrer,
-            r.waiting || <span key="w" className="text-white/25">0</span>,
+            r.waiting ? <Badge key="w" tone="amber">{r.waiting}</Badge> : <span key="w" className="text-white/25">0</span>,
             r.answers || <span key="a" className="text-white/25">0</span>,
           ])}
         />
         <Cap shown={MAX_ROWS} total={rows.length} />
       </div>
-    </main>
+    </Page>
   );
 }

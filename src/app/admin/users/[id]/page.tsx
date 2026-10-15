@@ -4,7 +4,7 @@ import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, maskEmail, maskPhone, mins, stageLabel, sum, when } from "@/lib/admin";
 import { summarizePreferences } from "@/lib/preferences";
-import { Card, Ext, Facts, PageHead, Stat, Table } from "../../ui";
+import { Badge, Breadcrumb, Card, Clamp, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
 
 const MAX_ROWS = 500;
 
@@ -36,29 +36,41 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const waiting = questions.filter((x) => WAITING_QUESTION.has(x.status));
   const QUESTION_LABEL: Record<string, string> = { review: "Answered, waiting for a check", needs_you: "Needs the person", ignored: "Ignored", new: "Needs the person (legacy)", asked: "Needs the person (legacy)" };
 
-  return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Users" title={user.username ?? "(no name yet)"}>
-        <p className="mt-2 text-sm text-white/55">
-          <Link href="/admin/users" className="underline underline-offset-2 hover:text-white">All users</Link> · joined {when(user.createdAt)}
-          {referrer && (
-            <>
-              {" · referred by "}
-              <Link href={`/admin/users/${referrer.id}`} className="underline underline-offset-2 hover:text-white">{referrer.username ?? "(no name yet)"}</Link>
-            </>
-          )}
-        </p>
-        <p className="mt-1 text-xs text-white/40">Read-only. Impersonation is not available: there is no way to act as this person from the admin.</p>
-      </PageHead>
+  const keptN = jobs.filter((j) => KEPT.has(j.status)).length;
+  const appliedN = jobs.filter((j) => APPLIED_PLUS.has(j.status)).length;
+  const displayName = user.username ?? "(no name yet)";
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+  return (
+    <Page>
+      <PageHead section="Users" title={displayName} description={`Joined ${when(user.createdAt)}. Read-only: there is no way to act as this person from the admin.`} />
+      <div className="mt-5">
+        <Breadcrumb items={[["Users", "/admin/users"], [displayName]]} />
+      </div>
+      <Hero
+        mood={keptN > 0 ? "happy" : "thinking"}
+        title={keptN > 0 ? `Kept ${keptN} ${keptN === 1 ? "job" : "jobs"}` : jobs.length ? "Got jobs, kept none yet" : searches.length ? "Searched, nothing delivered yet" : main?.mindId ? "Deployed, never searched" : "Still setting up"}
+        subtitle={main ? `${main.label}${main.mindName ? ` (${main.mindName})` : ""} · ${main.status.replace(/_/g, " ")}` : "No headhunter yet."}
+        badge={main ? <Badge tone={hhTone(main.status)}>{main.status.replace(/_/g, " ")}</Badge> : undefined}
+      >
+        <div className="mt-3">
+          <Facts
+            rows={[
+              ["Email", user.email ? <span key="e">{user.email} <Badge tone={user.emailVerifiedAt ? "green" : "muted"}>{user.emailVerifiedAt ? "verified" : "not verified"}</Badge></span> : ""],
+              ["Referred by", referrer ? <Link key="r" href={`/admin/users/${referrer.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{referrer.username ?? "(no name yet)"}</Link> : user.referredBy ? `code ${user.referredBy}` : ""],
+              ["Extension", tokens.length ? `connected, ${tokens.length} ${tokens.length === 1 ? "token" : "tokens"}` : "not connected"],
+            ]}
+          />
+        </div>
+      </Hero>
+
+      <Tiles cols={6} className="mt-6">
         <Stat label="Searches" value={searches.length} />
         <Stat label="Jobs" value={jobs.length} />
-        <Stat label="Kept" value={jobs.filter((j) => KEPT.has(j.status)).length} />
-        <Stat label="Applied+" value={jobs.filter((j) => APPLIED_PLUS.has(j.status)).length} />
+        <Stat label="Kept" value={keptN} />
+        <Stat label="Applied+" value={appliedN} />
         <Stat label="Cognition" value={Math.round(sum(searches, (s) => s.cognitionUsed))} />
         <Stat label="Sessions" value={sessions.length} hint={`${sessions.filter((s) => s.expiresAt > now).length} still valid`} />
-      </div>
+      </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card title="Account">
@@ -94,18 +106,27 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
               ]}
             />
           ) : (
-            <p className="text-sm text-white/40">Not filled in yet.</p>
+            <Empty mood="thinking">Not filled in yet.</Empty>
           )}
         </Card>
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Headhunter{profiles.length > 1 ? `s (${profiles.length})` : ""}</h2>
+      <SectionTitle title={`Headhunter${profiles.length > 1 ? `s (${profiles.length})` : ""}`} />
       <div className="mt-3 grid gap-4 lg:grid-cols-2">
         {profiles.map((p) => (
-          <Card key={p.id} title={`${p.label}${p.mindName ? ` · ${p.mindName}` : ""}`} hint={p.id === main?.id && profiles.length > 1 ? "Main headhunter" : undefined}>
+          <Card
+            key={p.id}
+            title={
+              <span className="flex flex-wrap items-center gap-2">
+                {p.label}
+                {p.mindName && <span className="admin-text-3 font-mono text-sm">{p.mindName}</span>}
+                <Badge tone={hhTone(p.status)}>{p.status.replace(/_/g, " ")}</Badge>
+              </span>
+            }
+            hint={p.id === main?.id && profiles.length > 1 ? "Main headhunter" : undefined}
+          >
             <Facts
               rows={[
-                ["Status", p.status.replace(/_/g, " ")],
                 ["Deployed", p.mindId ? "yes" : "no"],
                 ["Resume", p.resumeFileName ?? ""],
                 ["Briefed", when(p.briefedAt)],
@@ -118,50 +139,60 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
             />
           </Card>
         ))}
-        {!profiles.length && <p className="text-sm text-white/40">No headhunter yet.</p>}
+        {!profiles.length && (
+          <div className="admin-panel rounded-2xl">
+            <Empty mood="sleeping">No headhunter yet.</Empty>
+          </div>
+        )}
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Searches ({searches.length})</h2>
+      <SectionTitle title={`Searches (${searches.length})`} />
       <div className="mt-3">
         <Table
           head={["Started", "Headhunter", "Asked", "Got", "Cognition", "Took", "Ended", "Focus"]}
+          empty="No searches yet."
+          emptyMood="sleeping"
           rows={searches.map((s) => {
             const m = mins(s.startedAt, s.endedAt);
             return [
-              <Link key={s.id} href={`/admin/searches/${s.id}`} className="underline decoration-white/20 underline-offset-2 hover:text-white">{when(s.startedAt)}</Link>,
+              <Link key={s.id} href={`/admin/searches/${s.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{when(s.startedAt)}</Link>,
               label.get(s.profileId) ?? "?",
               s.jobsWanted,
               s.jobsAdded ?? (s.endedAt ? 0 : "…"),
               s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
               m ? `${m} min` : "running",
-              s.endReason ?? (s.endedAt ? "" : "open"),
-              s.focus ?? "",
+              <Badge key="e" tone={endTone(s.endReason, !s.endedAt)}>{s.endReason ?? (s.endedAt ? "ended" : "open")}</Badge>,
+              <Clamp key="f" text={s.focus} className="max-w-xs" />,
             ];
           })}
         />
-        {searches.length >= MAX_ROWS && <p className="mt-2 text-xs text-white/40">Showing the latest {MAX_ROWS}.</p>}
+        {searches.length >= MAX_ROWS && <p className="admin-text-3 mt-2 text-xs">Showing the latest {MAX_ROWS}.</p>}
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Jobs ({jobs.length})</h2>
+      <SectionTitle title={`Jobs (${jobs.length})`} />
       <div className="mt-3">
         <Table
           head={["When", "Company", "Title", "Match", "Place", "Stage", "Stage changed"]}
-          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, [j.city, j.country].filter(Boolean).join(", "), stageLabel(j.status), when(j.statusChangedAt)])}
+          empty="No jobs delivered yet."
+          emptyMood="sleeping"
+          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, [j.city, j.country].filter(Boolean).join(", "), <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>, when(j.statusChangedAt)])}
         />
-        {jobs.length >= MAX_ROWS && <p className="mt-2 text-xs text-white/40">Showing the latest {MAX_ROWS}.</p>}
+        {jobs.length >= MAX_ROWS && <p className="admin-text-3 mt-2 text-xs">Showing the latest {MAX_ROWS}.</p>}
       </div>
 
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
         <div>
-          <h2 className="font-display text-xl font-medium">Questions ({questions.length})</h2>
-          <p className="mt-1 text-sm text-white/50">{waiting.length} waiting on the person.</p>
+          <SectionTitle className="" title={`Questions (${questions.length})`} hint={`${waiting.length} waiting on the person.`} />
           <div className="mt-3">
-            <Table head={["Status", "Question", "Company", "Asked"]} rows={questions.map((x) => [QUESTION_LABEL[x.status] ?? x.status, x.question, x.company ?? "", when(x.askedAt ?? x.createdAt)])} empty="No form questions yet." />
+            <Table
+              head={["Status", "Question", "Company", "Asked"]}
+              rows={questions.map((x) => [<Badge key="s" tone={WAITING_QUESTION.has(x.status) ? "amber" : x.status === "ignored" ? "muted" : "teal"}>{QUESTION_LABEL[x.status] ?? x.status}</Badge>, <Clamp key="q" text={x.question} />, x.company ?? "", when(x.askedAt ?? x.createdAt)])}
+              empty="No form questions yet."
+            />
           </div>
         </div>
         <div>
-          <h2 className="font-display text-xl font-medium">Saved answers ({user.savedAnswers?.length ?? 0})</h2>
-          <p className="mt-1 text-sm text-white/50">Reused by the extension on later forms.</p>
+          <SectionTitle className="" title={`Saved answers (${user.savedAnswers?.length ?? 0})`} hint="Reused by the extension on later forms." />
           <div className="mt-3">
             <Table head={["Question", "Answer", "Updated"]} rows={(user.savedAnswers ?? []).map((x) => [x.question, <span key="a" className="block max-w-md whitespace-pre-wrap">{x.answer}</span>, x.updatedAt.slice(0, 10)])} empty="No saved answers." />
           </div>
@@ -170,15 +201,15 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
 
       <div className="mt-10 grid gap-4 lg:grid-cols-3">
         <Card title={`Referrals made (${made.length})`}>
-          <Table head={["Friend", "Status", "Joined"]} rows={made.map((r) => [<Link key={r.id} href={`/admin/users/${r.referredId}`} className="underline decoration-white/20 underline-offset-2">{name.get(r.referredId) ?? "?"}</Link>, r.status, when(r.createdAt)])} empty="Nobody yet." />
+          <Table head={["Friend", "Status", "Joined"]} rows={made.map((r) => [<UserLink key={r.id} id={r.referredId} name={name.get(r.referredId) ?? "?"} />, r.status, when(r.createdAt)])} empty="Nobody yet." />
         </Card>
         <Card title="Referred by">
-          <Table head={["Referrer", "Status", "Joined"]} rows={received.map((r) => [<Link key={r.id} href={`/admin/users/${r.referrerId}`} className="underline decoration-white/20 underline-offset-2">{name.get(r.referrerId) ?? "?"}</Link>, r.status, when(r.createdAt)])} empty="Signed up without a link." />
+          <Table head={["Referrer", "Status", "Joined"]} rows={received.map((r) => [<UserLink key={r.id} id={r.referrerId} name={name.get(r.referrerId) ?? "?"} />, r.status, when(r.createdAt)])} empty="Signed up without a link." />
         </Card>
         <Card title={`Extension tokens (${tokens.length})`} hint="Only when they were made and last used; never the token itself.">
           <Table head={["Created", "Last used"]} rows={tokens.map((t) => [when(t.createdAt), when(t.lastUsedAt) || "never"])} empty="Extension not connected." />
         </Card>
       </div>
-    </main>
+    </Page>
   );
 }

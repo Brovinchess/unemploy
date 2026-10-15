@@ -2,7 +2,7 @@ import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { dayKeys, daysAgo, directory, median, perDay, ratio, sortParams, sortRows, sum } from "@/lib/admin";
 import { COGNITION_USD } from "@/lib/preferences";
-import { BarChart, Card, DaysPicker, PageHead, SortLink, Stat, Table, UserLink, daysParam } from "../ui";
+import { BarChart, CHART, Card, DaysPicker, Empty, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
 const BASE = "/admin/costs";
 
@@ -45,62 +45,62 @@ export default async function Costs({ searchParams }: { searchParams: Promise<Re
   const usd = (c: number) => `$${(c * COGNITION_USD).toFixed(2)}`;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Costs" title="Cognition spent by headhunters">
-        <div className="mt-2"><DaysPicker days={days} base={BASE} q={q} /></div>
-        <p className="mt-2 text-sm text-white/55">
-          Cognition is read from the Mind&apos;s ledger on Hello Minds when a search ends, so searches still running show nothing yet. Dollar figures use the current rate of {usd(1)} per unit.
-        </p>
-      </PageHead>
+    <Page>
+      <PageHead
+        section="Costs"
+        title="Cognition spent by headhunters"
+        description={`Read from the Mind's ledger when a search ends, so running searches show nothing yet. Dollar figures use the current rate of ${usd(1)} per unit.`}
+        controls={<DaysPicker days={days} base={BASE} q={q} />}
+      />
 
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+      <Tiles cols={6} className="mt-6">
         <Stat label="Cognition" value={Math.round(cognition)} hint={usd(cognition)} />
         <Stat label="Searches" value={searches.length} hint={`${costed.length} with a cost recorded`} />
         <Stat label="Jobs delivered" value={jobs} />
         <Stat label="Per search" value={costed.length ? Math.round(cognition / costed.length) : "–"} hint={costed.length ? usd(cognition / costed.length) : undefined} />
         <Stat label="Per job" value={jobs ? Math.round(cognition / jobs) : "–"} hint={jobs ? usd(cognition / jobs) : undefined} />
         <Stat label="Per day" value={Math.round(cognition / (days + 1))} hint={usd(cognition / (days + 1))} />
-      </div>
+      </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <BarChart title="Cognition per day (by search end)" keys={keys} series={[{ label: "Cognition", values: perDayCog, color: "text-amber-400" }]} height={170} />
+          <BarChart title="Cognition per day (by search end)" keys={keys} series={[{ label: "Cognition", values: perDayCog, color: CHART.amber }]} height={170} />
         </Card>
         <Card title="Cost per search" hint={`${costs.length} finished searches with a cost.`}>
           {costs.length ? (
-            <dl className="grid grid-cols-3 gap-2 text-center">
+            <dl className="grid grid-cols-3 gap-4 text-center">
               {[
                 ["Min", costs[0]],
                 ["Median", med ?? 0],
                 ["Max", costs[costs.length - 1]],
               ].map(([k, v]) => (
-                <div key={k} className="rounded-2xl bg-white/[0.04] p-3">
-                  <dt className="text-xs uppercase tracking-wide text-white/45">{k}</dt>
-                  <dd className="font-display mt-1 text-xl">{Math.round(Number(v))}</dd>
-                  <dd className="text-xs text-white/40">{usd(Number(v))}</dd>
+                <div key={k}>
+                  <dt className="admin-text-3 text-[11px] font-semibold uppercase tracking-wide">{k}</dt>
+                  <dd className="font-display mt-1 text-xl tabular-nums text-white">{Math.round(Number(v))}</dd>
+                  <dd className="admin-text-3 text-xs">{usd(Number(v))}</dd>
                 </div>
               ))}
             </dl>
           ) : (
-            <p className="text-sm text-white/40">No finished searches in this window.</p>
+            <Empty mood="sleeping">No finished searches in this window.</Empty>
           )}
           {costs.length > 0 && (
-            <p className="mt-3 text-xs text-white/40">
+            <p className="admin-text-3 mt-4 text-xs">
               {costs.filter((c) => c === 0).length} searches recorded zero cognition (the Mind did nothing, or the ledger was empty).
             </p>
           )}
         </Card>
       </div>
 
-      <h2 className="font-display mt-10 text-xl font-medium">Per user</h2>
+      <SectionTitle title="Per user" hint={`Jobs here are the searches' own counts (jobs added by the end of each search); the Jobs page counts by delivery time. Jobs per search overall: ${ratio(jobs, searches.length)}.`} />
       <div className="mt-3">
         <Table
           head={[col("name", "User"), col("searches", "Searches"), col("jobs", "Jobs"), col("cognition", "Cognition"), col("perJob", "Per job"), col("perSearch", "Per search"), "Cost"]}
           rows={rows.map((r) => [<UserLink key={r.uid} id={r.uid} name={r.name} />, r.searches, r.jobs, r.cognition, r.perJob != null ? Math.round(r.perJob) : "–", r.perSearch != null ? Math.round(r.perSearch) : "–", usd(r.cognition)])}
           empty="No searches in this window."
+          emptyMood="sleeping"
         />
       </div>
-      <p className="mt-2 text-xs text-white/40">Jobs here are the searches&apos; own counts (jobs added by the end of each search); the Jobs page counts by delivery time. Jobs per search overall: {ratio(jobs, searches.length)}.</p>
-    </main>
+    </Page>
   );
 }

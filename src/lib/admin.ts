@@ -31,6 +31,24 @@ export const daysBetween = (a: Date, b: Date) => Math.floor(Math.abs(b.getTime()
 export const SESSION_TTL_MS = 30 * 86_400_000;
 export const sessionCreatedAt = (expiresAt: Date) => new Date(expiresAt.getTime() - SESSION_TTL_MS);
 
+// Morning, afternoon or evening in the admin's own timezone (UTC when none is set): the
+// sidebar's Mochi caption. Computed here so no component reads the clock itself.
+export type TimeOfDay = "morning" | "afternoon" | "evening";
+export function timeOfDay(timeZone: string | null | undefined, now = new Date()): TimeOfDay {
+  let hour = now.getUTCHours();
+  try {
+    hour = Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hour12: false, timeZone: timeZone || "UTC" }).format(now)) % 24;
+  } catch {
+    // Unknown timezone string: fall back to UTC.
+  }
+  return hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
+}
+export const MOCHI_CAPTION: Record<TimeOfDay, string> = {
+  morning: "Mochi is still waking up.",
+  afternoon: "Mochi is napping between searches.",
+  evening: "Mochi has clocked off for the day.",
+};
+
 // ---- counting --------------------------------------------------------------------------
 
 export function tally<T>(rows: T[], key: (r: T) => string): [string, number][] {

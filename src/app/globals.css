@@ -337,3 +337,56 @@ body {
 .orbit .spark:nth-child(2) { animation: spark-twinkle 1.6s .5s ease-in-out infinite; }
 .orbit .spark:nth-child(3) { animation: spark-twinkle 1.6s 1s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { .orbit, .orbit .spark { animation: none; } }
+
+/* ---------- Admin (admin.careerninja.app) ----------
+   The control room: a slightly lighter, cooler navy than the app, hairline borders, one
+   accent (coral) for actions, active nav and alerts. Scoped to .admin so the public app's
+   look is untouched. Motion: entrance only (rise, bars growing, funnel widening), hover,
+   and Mochi's bob; everything off under reduced motion. Classes sit in the components
+   layer so Tailwind utilities on the same element still win. */
+@layer components {
+  .admin {
+    --admin-bg: #0d1117;
+    --admin-panel: #131a22;
+    --admin-panel-2: #18212b;
+    --admin-line: rgba(255, 255, 255, 0.06);
+    --admin-text-1: #e6edf3;
+    --admin-text-2: rgba(230, 237, 243, 0.62);
+    --admin-text-3: rgba(230, 237, 243, 0.4);
+    background: var(--admin-bg);
+    color: var(--admin-text-1);
+    font-size: 0.875rem;
+  }
+  .admin-panel { background: var(--admin-panel); border: 1px solid var(--admin-line); }
+  .admin-panel-2 { background: var(--admin-panel-2); }
+  .admin-line { border-color: var(--admin-line); }
+  .admin-text-2 { color: var(--admin-text-2); }
+  .admin-text-3 { color: var(--admin-text-3); }
+  /* Sticky page head: content scrolls under a blurred strip. */
+  .admin-head { background: color-mix(in srgb, var(--admin-bg) 82%, transparent); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+  /* Tables: sticky header inside the scroll box, zebra rows at 3%, hover at 6%. */
+  .admin-table thead th { position: sticky; top: 0; z-index: 1; background: var(--admin-panel-2); }
+  .admin-table tbody tr:nth-child(even) { background: rgba(255, 255, 255, 0.03); }
+  .admin-table tbody tr:hover { background: rgba(255, 255, 255, 0.06); }
+  /* Long text (the Mind's notes) stops at two lines; the title attribute has the rest. */
+  .admin-clamp { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* KPI tiles rise in one after another. */
+  .admin-tiles > * { animation: rise .45s cubic-bezier(.2,.8,.2,1) both; }
+  .admin-tiles > :nth-child(2) { animation-delay: .04s; }
+  .admin-tiles > :nth-child(3) { animation-delay: .08s; }
+  .admin-tiles > :nth-child(4) { animation-delay: .12s; }
+  .admin-tiles > :nth-child(5) { animation-delay: .16s; }
+  .admin-tiles > :nth-child(6) { animation-delay: .2s; }
+  .admin-tiles > :nth-child(n+7) { animation-delay: .24s; }
+  /* Chart bars grow up from the baseline, staggered by column via --i. */
+  .admin-grow { transform-box: fill-box; transform-origin: bottom; animation: admin-grow .6s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 14ms); }
+  /* Funnel and count bars widen from the left. */
+  .admin-widen { transform-origin: left; animation: admin-widen .7s cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(var(--i, 0) * 50ms); }
+  /* Sidebar: the active item carries a coral bar on its left. */
+  .admin-nav-active::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 999px; background: var(--coral); }
+  @media (prefers-reduced-motion: reduce) {
+    .admin-tiles > *, .admin-grow, .admin-widen { animation: none; }
+  }
+}
+@keyframes admin-grow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes admin-widen { from { transform: scaleX(0); } to { transform: scaleX(1); } }

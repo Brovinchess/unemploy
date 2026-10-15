@@ -4,7 +4,7 @@ import { daysAgo, when } from "@/lib/admin";
 import { extensionLive } from "@/lib/flags";
 import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
-import { Card, Counts, PageHead, Stat } from "../ui";
+import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles } from "../ui";
 
 // Health counters and the environment switches. No secrets: only which mode each one is in.
 export default async function System() {
@@ -46,10 +46,16 @@ export default async function System() {
   const questionTotal = qStatus.reduce((a, r) => a + r.n, 0);
   const tokOlder = Math.max(0, tokens - tok7 - tok30 - tokNever);
 
+  const stale = (hoursSince(checkedAt) ?? 0) > 48;
+  const fresh = (d: Date | null) => {
+    const h = hoursSince(d);
+    return h == null ? "muted" : h < 30 ? "green" : h < 72 ? "amber" : "rose";
+  };
+
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="System" title="Health and switches" />
-      <div className="mt-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-4">
+    <Page>
+      <PageHead section="System" title="Health and switches" description="Counters that should move, the watchdog's freshness, and which mode each switch is in. No secrets." />
+      <Tiles cols={4} className="mt-6">
         <Stat label="Active sessions" value={sessions} />
         <Stat label="Extension tokens" value={tokens} />
         <Stat label="Questions waiting on people" value={questions} href="/admin/applications" />
@@ -57,27 +63,29 @@ export default async function System() {
         <Stat label="Pushes from Minds, 24h" value={logs24h} />
         <Stat label="Pool: open postings" value={poolOpen} hint={`${poolFresh} seen this week`} />
         <Stat label="Pool: closed postings" value={poolClosed} />
-      </div>
+      </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card title="Watchdog" hint="The daily recheck of postings. Proxies: the newest things it touched.">
-          <ul className="space-y-1.5 text-sm text-white/75">
-            <li>Last posting verified open: <b className="text-white">{freshness(verifiedAt)}</b> <span className="text-white/40">{when(verifiedAt)}</span></li>
-            <li>Last posting checked: <b className="text-white">{freshness(checkedAt)}</b> <span className="text-white/40">{when(checkedAt)}</span></li>
-            <li>Last job marked closed: <b className="text-white">{freshness(expiredAt)}</b> <span className="text-white/40">{when(expiredAt)}</span></li>
-          </ul>
-          {(hoursSince(checkedAt) ?? 0) > 48 && <p className="mt-3 text-sm text-coral">Nothing checked in two days: is the cron running?</p>}
+          <Facts
+            rows={[
+              ["Verified open", <span key="v"><Badge tone={fresh(verifiedAt)}>{freshness(verifiedAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(verifiedAt)}</span></span>],
+              ["Checked", <span key="c"><Badge tone={fresh(checkedAt)}>{freshness(checkedAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(checkedAt)}</span></span>],
+              ["Job marked closed", <span key="e"><Badge tone={fresh(expiredAt)}>{freshness(expiredAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(expiredAt)}</span></span>],
+            ]}
+          />
+          {stale && <p className="mt-4 text-sm text-rose-300">Nothing checked in two days: is the cron running?</p>}
         </Card>
         <Card title="Pool by country" hint="Top 10 by postings; open ones in brackets.">
-          <ul className="space-y-1.5 text-sm">
+          <ul className="space-y-2 text-sm">
             {pool.map((r) => (
               <li key={r.country ?? "none"} className="flex justify-between gap-4">
-                <span className="text-white/75">{r.country ?? "unknown"}</span>
-                <span className="tabular-nums text-white/50">{r.total} <span className="text-white/30">({r.open} open)</span></span>
+                <span className="admin-text-2">{r.country ?? "unknown"}</span>
+                <span className="tabular-nums text-white">{r.total} <span className="admin-text-3">({r.open} open)</span></span>
               </li>
             ))}
-            {!pool.length && <li className="text-white/40">The pool is empty.</li>}
           </ul>
+          {!pool.length && <Empty mood="sleeping">The pool is empty.</Empty>}
         </Card>
         <Counts title="Questions by status" total={questionTotal} rows={qStatus.map((r) => [QUESTION_LABEL[r.status] ?? r.status, r.n] as [string, number]).sort((a, b) => b[1] - a[1])} />
       </div>
@@ -85,16 +93,18 @@ export default async function System() {
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Counts title="Extension tokens by last use" total={tokens} rows={[["Used in the last 7 days", tok7], ["Used 7 to 30 days ago", tok30], ["Older", tokOlder], ["Never used", tokNever]]} />
         <Card title="Switches" className="lg:col-span-2">
-          <ul className="space-y-2 text-sm text-white/75">
-            <li>Minds mode: <b className="text-white">{mindsMode}</b></li>
-            <li>Launch mode: <b className="text-white">{launchMode}</b></li>
-            <li>Extension shown as live: <b className="text-white">{extensionLive ? "yes" : "no, coming soon"}</b></li>
-            <li>Admins: <b className="text-white">{process.env.ADMIN_USERS ?? "rovinc (default)"}</b></li>
-            <li>Database: <b className="text-white">{process.env.DATABASE_URL || process.env.POSTGRES_URL ? "configured" : "not set"}</b></li>
-            <li>Vercel environment: <b className="text-white">{process.env.VERCEL_ENV ?? "local"}</b></li>
-          </ul>
+          <Facts
+            rows={[
+              ["Minds mode", <Badge key="m" tone="slate">{mindsMode}</Badge>],
+              ["Launch mode", <Badge key="l" tone="slate">{launchMode}</Badge>],
+              ["Extension shown as live", <Badge key="x" tone={extensionLive ? "green" : "amber"}>{extensionLive ? "yes" : "no, coming soon"}</Badge>],
+              ["Admins", process.env.ADMIN_USERS ?? "rovinc (default)"],
+              ["Database", <Badge key="d" tone={process.env.DATABASE_URL || process.env.POSTGRES_URL ? "green" : "rose"}>{process.env.DATABASE_URL || process.env.POSTGRES_URL ? "configured" : "not set"}</Badge>],
+              ["Vercel environment", <Badge key="v" tone={process.env.VERCEL_ENV === "production" ? "green" : "slate"}>{process.env.VERCEL_ENV ?? "local"}</Badge>],
+            ]}
+          />
         </Card>
       </div>
-    </main>
+    </Page>
   );
 }

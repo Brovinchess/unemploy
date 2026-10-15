@@ -1,9 +1,8 @@
-import Link from "next/link";
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { STAGE_ORDER, daysAgo, directory, host, includes, sortParams, sortRows, stageLabel, tally, when } from "@/lib/admin";
 import { workSettingLabel } from "@/lib/preferences";
-import { Cap, Counts, DaysPicker, Ext, FilterForm, PageHead, Select, SortLink, Table, TextInput, UserLink, daysParam } from "../ui";
+import { Badge, Cap, ClearLink, Counts, DaysPicker, Ext, FilterForm, Page, PageHead, Select, SortLink, Table, TextInput, UserLink, daysParam, stageTone } from "../ui";
 
 const BASE = "/admin/jobs";
 const MAX_ROWS = 500;
@@ -39,20 +38,26 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<Rec
   const filtered = !!(q.user || q.stage || q.host || q.q);
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-5 py-8">
-      <PageHead section="Jobs" title={`${rows.length} jobs delivered`}>
-        <div className="mt-2"><DaysPicker days={days} base={BASE} q={q} /></div>
+    <Page>
+      <PageHead
+        section="Jobs"
+        title={`${rows.length} jobs delivered`}
+        description="Every job a headhunter sent, and what the person did with it."
+        controls={
+          <>
+            <DaysPicker days={days} base={BASE} q={q} />
+            <FilterForm q={q}>
+              <TextInput name="q" value={q.q} placeholder="Company or title" />
+              <TextInput name="user" value={q.user} placeholder="Username" size={12} />
+              <TextInput name="host" value={q.host} placeholder="Link host" size={14} />
+              <Select name="stage" value={q.stage} blank="Any stage" options={STAGE_ORDER.map((s) => [s, stageLabel(s)])} />
+              {filtered && <ClearLink href={`${BASE}?days=${days}`} />}
+            </FilterForm>
+          </>
+        }
+      >
+        {q.user && !user && <p className="mt-2 text-sm text-rose-300">No user called “{q.user}”.</p>}
       </PageHead>
-      <div className="mt-4">
-        <FilterForm q={q}>
-          <TextInput name="q" value={q.q} placeholder="Company or title" />
-          <TextInput name="user" value={q.user} placeholder="Username" size={12} />
-          <TextInput name="host" value={q.host} placeholder="Link host" size={14} />
-          <Select name="stage" value={q.stage} blank="Any stage" options={STAGE_ORDER.map((s) => [s, stageLabel(s)])} />
-          {filtered && <Link href={`${BASE}?days=${days}`} className="py-1.5 text-white/50 hover:text-white">Clear</Link>}
-        </FilterForm>
-        {q.user && !user && <p className="mt-2 text-sm text-coral">No user called “{q.user}”.</p>}
-      </div>
       <div className="mt-6 grid gap-4 md:grid-cols-3">
         <Counts title="Stage" total={rows.length} rows={tally(rows, (j) => stageLabel(j.status))} />
         <Counts title="Work setting" total={rows.length} rows={tally(rows, (j) => workSettingLabel(j.workSetting ?? "unknown"))} />
@@ -61,6 +66,8 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<Rec
       <div className="mt-6">
         <Table
           head={[col("when", "When"), col("who", "Who"), col("match", "Match"), col("company", "Company"), col("title", "Title"), col("place", "Place"), col("setting", "Setting"), col("posted", "Posted"), col("salary", "Salary"), col("stage", "Stage"), col("changed", "Stage changed"), col("host", "Link")]}
+          empty="No jobs in this window."
+          emptyMood="sleeping"
           rows={rows.slice(0, MAX_ROWS).map((j) => [
             when(j.createdAt),
             <UserLink key="u" id={j.userId} name={j.who} />,
@@ -71,13 +78,13 @@ export default async function Jobs({ searchParams }: { searchParams: Promise<Rec
             workSettingLabel(j.workSetting),
             j.postedOn ?? j.postedAt ?? "",
             <span key="s" className="block max-w-40 truncate" title={j.salary ?? ""}>{j.salary ?? ""}{j.salary && j.salaryEstimated ? " (est.)" : ""}</span>,
-            stageLabel(j.status),
+            <Badge key="st" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>,
             when(j.statusChangedAt),
             <Ext key={j.id} href={j.url}>{j.host}</Ext>,
           ])}
         />
         <Cap shown={MAX_ROWS} total={rows.length} />
       </div>
-    </main>
+    </Page>
   );
 }
