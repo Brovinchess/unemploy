@@ -9,6 +9,16 @@ import { db, schema } from "@/db";
 const COOKIE = "unemploy_session";
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
+// On production the cookie covers every subdomain, so admin.careerninja.app shares the sign-in.
+function cookieDomain() {
+  try {
+    const host = new URL(process.env.APP_URL ?? "").hostname;
+    return host && host !== "localhost" && !/^\d+\.\d+\.\d+\.\d+$/.test(host) ? `.${host.replace(/^www\./, "")}` : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export async function createSession(userId: string) {
   const id = randomBytes(32).toString("base64url");
   const expiresAt = new Date(Date.now() + TTL_MS);
@@ -19,6 +29,7 @@ export async function createSession(userId: string) {
     sameSite: "lax",
     path: "/",
     expires: expiresAt,
+    domain: cookieDomain(),
   });
 }
 
@@ -27,6 +38,9 @@ export async function destroySession() {
   const id = jar.get(COOKIE)?.value;
   if (id) await db.delete(schema.sessions).where(eq(schema.sessions.id, id));
   jar.delete(COOKIE);
+  // Sessions from before the domain-wide cookie were host-only; clear that shape too.
+  const domain = cookieDomain();
+  if (domain) jar.set(COOKIE, "", { path: "/", domain, maxAge: 0 });
 }
 
 export const getCurrentUser = cache(async () => {
