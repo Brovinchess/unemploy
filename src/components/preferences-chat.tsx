@@ -8,6 +8,7 @@ import { JobsSlider } from "@/components/jobs-slider";
 import { CognitionNote } from "@/components/cognition-note";
 import { UsernameRow } from "@/components/username-row";
 import { FormError } from "@/components/onboarding-shell";
+import { checkRoles, type RoleCheck } from "@/lib/job-titles";
 import {
   JOB_TYPES,
   RECOMMENDED_JOBS_PER_SEARCH,
@@ -180,7 +181,7 @@ export function PreferencesChat({
           {current && (
             <div className="space-y-3">
               <Bubble from="mind">{current.ask(draft)}</Bubble>
-              <AnswerInput key={current.key} question={current} draft={draft} onAnswer={answer} />
+              <AnswerInput key={current.key} question={current} draft={draft} onAnswer={answer} seedRoles={seed?.targetRoles} />
             </div>
           )}
           <div ref={bottom} />
@@ -260,10 +261,12 @@ function AnswerInput({
   question,
   draft,
   onAnswer,
+  seedRoles,
 }: {
   question: Question;
   draft: Draft;
   onAnswer: (p: Draft) => void;
+  seedRoles?: string | null; // the resume's own guess at the title, offered first in the nudge
 }) {
   const key = question.key;
 
@@ -275,6 +278,7 @@ function AnswerInput({
         initial={key === "country" ? [draft.city, draft.country].filter(Boolean).join(", ") : ((draft[key] as string) ?? "")}
         required={required}
         list={key === "country" ? COUNTRIES : undefined}
+        check={key === "targetRoles" ? (v) => checkRoles(v, seedRoles) : undefined}
         placeholder={
           {
             targetRoles: "e.g. Product manager, Product owner",
@@ -365,43 +369,69 @@ function TextAnswer({
   required,
   placeholder,
   list,
+  check,
   onSubmit,
 }: {
   initial: string;
   required: boolean;
   placeholder?: string;
   list?: string[];
+  check?: (v: string) => RoleCheck; // a nudge when the answer isn't something employers post
   onSubmit: (v: string) => void;
 }) {
   const [value, setValue] = useState(initial);
   const ok = !required || value.trim().length >= 2;
+  const nudge = check && value.trim().length >= 3 ? check(value) : undefined;
+  // A tapped suggestion replaces the vague part, keeping any real titles typed beside it.
+  const take = (title: string) => {
+    if (!nudge) return setValue(title);
+    const keep = value.split(/,|\/| or /i).map((s) => s.trim()).filter((p) => p && !nudge.vague.includes(p));
+    setValue([...keep, title].join(", "));
+  };
   return (
     <form
-      className="flex gap-2"
+      className="w-full"
       onSubmit={(e) => {
         e.preventDefault();
         if (ok) onSubmit(value.trim());
       }}
     >
-      <input
-        className="field"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        placeholder={placeholder}
-        list={list ? "unemploy-countries" : undefined}
-        autoFocus
-        aria-label="Your answer"
-      />
-      {list && (
-        <datalist id="unemploy-countries">
-          {list.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
+      <div className="flex gap-2">
+        <input
+          className="field"
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          placeholder={placeholder}
+          list={list ? "unemploy-countries" : undefined}
+          autoFocus
+          aria-label="Your answer"
+        />
+        {list && (
+          <datalist id="unemploy-countries">
+            {list.map((c) => (
+              <option key={c} value={c} />
+            ))}
+          </datalist>
+        )}
+        <button className="btn btn-primary shrink-0" disabled={!ok}>
+          {!required && !value.trim() ? "Skip" : "Next"}
+        </button>
+      </div>
+      {nudge && !nudge.ok && (
+        <div className="mt-3 rounded-2xl bg-coral/10 px-4 py-3 text-sm" role="status">
+          <p className="text-white/80">
+            &ldquo;{nudge.vague[0]}&rdquo; isn&rsquo;t a title employers post, so the search would come back empty. Did you mean one of these?
+          </p>
+          <div className="mt-2.5 flex flex-wrap gap-2">
+            {nudge.suggestions.map((s) => (
+              <button key={s} type="button" className="chip min-h-9 px-3.5 text-sm" onClick={() => take(s)}>
+                {s}
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-white/45">Or keep your own words and press Next.</p>
+        </div>
       )}
-      <button className="btn btn-primary shrink-0" disabled={!ok}>
-        {!required && !value.trim() ? "Skip" : "Next"}
-      </button>
     </form>
   );
 }

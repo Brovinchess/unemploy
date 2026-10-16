@@ -1,11 +1,19 @@
 import type { Preferences } from "./preferences";
 import { ladderText } from "./discovery";
 import { FACTS_RULE } from "./facts";
+import { checkRoles } from "./job-titles";
 import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel } from "./preferences";
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
 export const BRIEF_VERSION = 4;
+
+// "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
+function rolesNote(roles: string) {
+  const c = checkRoles(roles);
+  if (c.ok) return "";
+  return ` (${c.vague.map((v) => `"${v}"`).join(", ")} is a field, not a job title: search real titles within it, such as ${c.suggestions.join(", ")}, and judge fit by the work, not the word)`;
+}
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -42,7 +50,7 @@ HOW WE WORK
   7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
 WHAT I WANT
-- Roles: ${prefs.targetRoles}
+- Roles: ${prefs.targetRoles}${rolesNote(prefs.targetRoles)}
 - I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
 - Pay: not a filter. Never drop a job over pay; just copy what the posting shows onto the card. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
