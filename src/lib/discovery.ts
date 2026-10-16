@@ -57,31 +57,31 @@ export function ladder(prefs: { targetRoles: string; country: string; city: stri
     rungs.push({
       n: 1, name: `${city}`, minutes: 20,
       lines: [
-        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h} "${city}"`).join(", ")} with ${q(main)}.`,
+        `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "${city}" ${q(main)}.`,
         `Your employer list: companies in ${city} that hire ${main[0] ?? "my role"}s. Keep it in memory, reuse it, add to it each search; open each one's careers page directly.`,
-        `Web search: ${q(main)} ${city} careers.`,
+        `One web search: ${q(main)} ${city} careers.`,
       ],
     });
   }
   rungs.push({
     n: 2, name: `The rest of ${prefs.country}`, minutes: 20,
     lines: [
-      `Job systems: ${SYSTEMS.map((h) => `site:${h} "${prefs.country}"`).join(", ")} with ${q(main)}.`,
-      `Web search: ${q(main)} ${prefs.country} careers${remoteOk ? `, and ${q(main)} remote ${prefs.country}` : ""}.`,
+      `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "${prefs.country}" ${q(main)}.`,
+      `One web search: ${q(main)} ${prefs.country} careers${remoteOk ? `, plus one for ${q(main)} remote ${prefs.country}` : ""}.`,
     ],
   });
   rungs.push({
     n: 3, name: "Wider titles, same places", minutes: 15,
     lines: [
-      `Same searches as rungs ${city ? "1 and 2" : "2"} with the wider title family: ${wider.length ? wider.join("; ") : "the same titles one level up or down"}. Include one level up and one level down from my current level.`,
+      `One or two of the rung ${city ? "1 and 2" : "2"} searches again with the wider title family: ${wider.length ? wider.slice(0, 5).join("; ") : "the same titles one level up or down"}.`,
     ],
   });
   if (remoteOk && prefs.remoteScope !== "country") {
     rungs.push({
       n: 4, name: `Remote in ${region}`, minutes: 20,
       lines: [
-        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h}`).join(", ")} "remote" with ${q(main)} and the region's name or its countries.`,
-        `Web search: ${q(main)} remote ${region.split(",")[0]} "apply".`,
+        `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "remote" ${q(main)} ${region.split(",")[0]}.`,
+        `One web search: ${q(main)} remote ${region.split(",")[0]} "apply".`,
         `Only postings whose location line names ${prefs.country}, the region, or anywhere; "remote" alone is not enough.`,
       ],
     });
@@ -90,8 +90,8 @@ export function ladder(prefs: { targetRoles: string; country: string; city: stri
     rungs.push({
       n: 5, name: "Remote from anywhere", minutes: 20,
       lines: [
-        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h}`).join(", ")} "remote" "worldwide" OR "anywhere" with ${q(main)}.`,
-        `Web search: ${q(main)} remote worldwide "apply".`,
+        `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "remote" "worldwide" ${q(main)}.`,
+        `One web search: ${q(main)} remote worldwide "apply".`,
         `Only postings open to applicants from ${prefs.country}: worldwide, anywhere, or a list that includes ${prefs.country}. "US remote", "EU only" and the like are not for me.`,
       ],
     });
@@ -103,7 +103,7 @@ export function ladderText(prefs: Parameters<typeof ladder>[0]) {
   const rungs = ladder(prefs);
   const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
   return [
-    `Go rung by rung, nearest first. Stay on a rung until its time box is up or you have opened 15 postings in a row from it without sending a job, then move to the next. Never skip ahead because the first results look thin. Send each job as soon as it passes; nearer jobs reach me first that way.`,
+    `Go rung by rung, nearest first. Stay on a rung until its time box is up or you have opened 8 postings in a row from it without sending a job, then move to the next. Never skip ahead because the first results look thin. Send each job as soon as it passes; nearer jobs reach me first that way. The BUDGET below caps the whole search.`,
     ...rungs.map((r) => `Rung ${r.n}: ${r.name} (${r.minutes} min)\n${r.lines.map((l) => `   ${l}`).join("\n")}`),
     `Nothing past the last rung. Jobs in other countries, or remote jobs not open to ${place}, are never worth opening.`,
     `Job sites (LinkedIn, Indeed, JobStreet and the like) only to find leads, never as the link you send. Many block automated reading: if one will not open, move on; do not retry.`,

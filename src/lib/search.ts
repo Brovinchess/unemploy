@@ -96,7 +96,7 @@ export function searchRequestText(args: {
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
     `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
     `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Cards only: no cover letter, answers or form questions during the search. I ask for packs separately, for the jobs I keep.`,
-    `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, with "posting" attached whenever you opened the page.`,
+    `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, one short line each; a "posting" only as step 5 of your brief says. Keep to the BUDGET in your brief: at most 12 web searches and 40 opened postings.`,
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
     focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies.` : "",
     lastTime,
@@ -217,7 +217,9 @@ export async function ingestReachable() {
 
 // Ends the active search, switches the Mind off and, unless the user stopped it
 // themselves, emails them what it found. Only the first call for a search does anything.
-export async function endSearch(profile: Profile, reason: "finished" | "stopped" | "timeout" = "finished") {
+export type EndReason = "finished" | "stopped" | "timeout" | "no_cognition";
+
+export async function endSearch(profile: Profile, reason: EndReason = "finished") {
   const ended = await db
     .update(schema.profiles)
     .set({ searchEndedAt: new Date() })
@@ -226,14 +228,14 @@ export async function endSearch(profile: Profile, reason: "finished" | "stopped"
   if (!ended.length) return;
   await switchOff(profile);
   await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
-  if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
+  if (reason !== "stopped") await emailResults(profile, reason).catch((e) => console.error("[search] email failed", profile.id, e));
   // Jobs kept during the search still need their packs; that wakes the Mind again briefly.
   await requestPacks(profile.id).catch((e) => console.error("[search] pack request failed", profile.id, e));
 }
 
 // Closes the search's history row: when, why, jobs added, what it opened, the balance after,
 // and one line about how it went that the next request carries back to the Mind.
-async function recordEnd(profile: Profile, reason: "finished" | "stopped" | "timeout") {
+async function recordEnd(profile: Profile, reason: EndReason) {
   const row = await db.query.searches.findFirst({
     where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
     orderBy: desc(schema.searches.startedAt),
@@ -285,7 +287,7 @@ async function recordEnd(profile: Profile, reason: "finished" | "stopped" | "tim
   });
 }
 
-async function emailResults(profile: Profile, timedOut: boolean) {
+async function emailResults(profile: Profile, reason: EndReason) {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user?.email || !user.emailVerifiedAt || !user.emailOnSearchDone) return;
   const since = profile.searchStartedAt ?? new Date(Date.now() - SEARCH_TIMEOUT_MS);
@@ -299,7 +301,8 @@ async function emailResults(profile: Profile, timedOut: boolean) {
     to: user.email,
     mindName: profile.mindName ?? "Your headhunter",
     label: profile.label,
-    timedOut,
+    timedOut: reason === "timeout",
+    noCognition: reason === "no_cognition",
     short,
     link: `${mindsConfig.appUrl}/app?profile=${profile.id}`,
     jobs: jobs.map((j) => ({

@@ -12,7 +12,7 @@ import { isPublicHttpUrl } from "./ingest";
 // re-checks each one is open and judges fit itself; nothing here is pre-approved, and the
 // text never mentions where the postings came from.
 const POOL_DAYS = 60;
-const MAX_ROWS = 100;
+const MAX_ROWS = 30;
 
 export async function poolFor(profile: Profile) {
   const prefs = profile.preferences;
@@ -80,7 +80,7 @@ export async function poolFor(profile: Profile) {
 // the Mind spends no time on dead pages. Postings verified open in the last 12 hours are
 // trusted; the rest are checked a few at a time, with a short timeout each.
 const FRESH_MS = 12 * 3_600_000;
-const CHECK_MAX = 40;
+const CHECK_MAX = 30;
 const CHECK_WIDTH = 8;
 async function stillOpen<T extends { postingKey: string; url: string; lastVerifiedOpenAt: Date | null }>(rows: T[]) {
   const now = Date.now();
@@ -109,7 +109,7 @@ export function poolText(rows: Awaited<ReturnType<typeof poolFor>>) {
   const line = (p: (typeof rows)[number]) =>
     [p.title, p.company, [p.city, p.country].filter(Boolean).join(", ") || p.workSetting || "", p.postedOn ?? "", p.url].join(" | ");
   return [
-    `${rows.length} postings seen open recently that may fit. Check each one first: confirm it is open today, judge fit against my resume and every check in the brief, and send the ones that pass before you search anywhere else. None is pre-approved.`,
+    `${rows.length} postings seen open recently that may fit. Check these first, within your budget: open only the ones whose title fits my roles, confirm each is open today, judge fit against my resume and every check in the brief, and send the ones that pass before you search anywhere else. None is pre-approved.`,
     "title | company | place | posted | link",
     ...rows.map(line),
   ].join("\n");

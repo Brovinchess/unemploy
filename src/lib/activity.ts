@@ -146,7 +146,7 @@ export async function buildActivity(
     if (!s.endedAt) continue;
     const mins = Math.max(1, Math.round((s.endedAt.getTime() - s.startedAt.getTime()) / 60_000));
     const took = mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`;
-    const title = s.endReason === "timeout" ? "Search timed out" : s.endReason === "stopped" ? "Search stopped" : "Finished searching";
+    const title = s.endReason === "timeout" ? "Search timed out" : s.endReason === "stopped" ? "Search stopped" : s.endReason === "no_cognition" ? "Ran out of cognition" : "Finished searching";
     items.push({ id: `s${s.id}`, at: s.endedAt.toISOString(), kind: "delivery", title, detail: `${plural(s.jobsAdded ?? 0, "job")} in ${took}` });
   }
 

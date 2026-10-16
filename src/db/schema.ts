@@ -339,7 +339,7 @@ export const searches = pgTable(
     focus: text("focus"),
     startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
     endedAt: timestamp("ended_at", { withTimezone: true }),
-    endReason: text("end_reason").$type<"finished" | "stopped" | "timeout">(),
+    endReason: text("end_reason").$type<"finished" | "stopped" | "timeout" | "no_cognition">(),
     // When the app asked the headhunter to send what it had so far (at most once per search).
     nudgedAt: timestamp("nudged_at", { withTimezone: true }),
     jobsAdded: integer("jobs_added"),

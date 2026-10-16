@@ -163,7 +163,7 @@ export function Badge({ tone = "slate", children, title }: { tone?: Tone; childr
 const STAGE_TONE: Record<string, Tone> = { new: "slate", saved: "slate", applied: "teal", heard_back: "blue", interview: "amber", offer: "green", rejected: "rose", skipped: "muted", expired: "muted" };
 export const stageTone = (status: string): Tone => STAGE_TONE[status] ?? "slate";
 // Why a search ended: finished green, stopped amber, timeout rose; still open is teal.
-export const endTone = (reason: string | null | undefined, open: boolean): Tone => (open ? "teal" : reason === "finished" ? "green" : reason === "stopped" ? "amber" : reason === "timeout" ? "rose" : "slate");
+export const endTone = (reason: string | null | undefined, open: boolean): Tone => (open ? "teal" : reason === "finished" ? "green" : reason === "stopped" ? "amber" : reason === "timeout" || reason === "no_cognition" ? "rose" : "slate");
 // Headhunter status: hunting green, paused amber, the needs_* and draft steps slate.
 export const hhTone = (status: string): Tone => (status === "hunting" ? "green" : status === "paused" ? "amber" : "slate");
 

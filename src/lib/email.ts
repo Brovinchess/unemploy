@@ -47,16 +47,18 @@ export async function sendSearchDoneEmail(args: {
   jobs: DigestJob[]; // the jobs this search added, best first
   link: string;
   timedOut?: boolean;
+  noCognition?: boolean; // the headhunter's cognition ran out mid-search
   short?: string; // one sentence on why it came back short, when it did
 }) {
-  const { to, label, jobs, link, timedOut, short } = args;
+  const { to, label, jobs, link, timedOut, noCognition, short } = args;
   const n = jobs.length;
   const subject =
     n === 0
       ? "Career Ninja: no new jobs this time"
       : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
-  const intro =
-    n === 0
+  const intro = noCognition
+    ? `Your ${label} headhunter ran out of cognition before it finished${n ? `, after finding ${n} ${n === 1 ? "job" : "jobs"}` : ""}. Top it up on Hello Minds and ask again.`
+    : n === 0
       ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page and ask again.`
       : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Keep the ones you like and your headhunter writes each application.${short ? ` ${short}` : ""}`;
   const top = jobs.slice(0, 5);

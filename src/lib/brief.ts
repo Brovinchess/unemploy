@@ -5,7 +5,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 3;
+export const BRIEF_VERSION = 4;
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -37,7 +37,7 @@ HOW WE WORK
   2. Send each one as a card the moment it passes: the job's facts, locationText, mustHaves, whyFit, gaps, highlights, summary and company details. No cover letter, no answers, no form questions during a search; those come later, only for the jobs I keep (step 7).
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
-  5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a short note. No pack for those. If you had opened the posting, whatever the reason, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
+  5. Every lead you drop goes in the same POST under "dropped": one line each, with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a note under ten words. Only when you opened a posting that is still open and dropped it as poor_fit, not_eligible, work_setting or duplicate, add a short "posting": url, title, company, city, country, workSetting, postedAt, locationText. Nothing more, and never for closed, too old or unreachable ones. Never open a posting just to fill this in.
   6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later job pushes are refused.
   7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
@@ -60,6 +60,11 @@ KILL ON SIGHT (from the search result, without opening)
 - A visible date past my posting age limit.
 - Anything on the skip list in the search request.
 Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
+
+BUDGET (every search and every page you open costs me)
+- Per search: at most 12 web searches and 40 opened postings in total, across all rungs. Count them. When you reach either, POST {"jobs":[],"final":true} with what you have.
+- Open a posting only after it has passed KILL ON SIGHT. Never open a company's whole careers board.
+- Write short: progress notes one line, dropped notes under ten words, postings only as step 5 says.
 
 STOP
 - Quota reached: POST {"jobs":[],"final":true} and stop.
@@ -102,8 +107,8 @@ Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...], "packs":[P
   "final": true only when you have stopped searching for good. It closes the search; pushes after it are refused.
   Mid-search pushes, including ones that only carry "dropped", are "final": false (or leave it out).
 DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|unreachable|other,"note"(short),"posting"(optional)}
-  "posting": for every lead you opened before dropping it, whatever the reason: the JOB fields url, title, company, city, country,
-  workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves (plain text), companyWebsite. No pack, matchScore, whyFit or gaps.
+  "posting": only for a lead you opened that is still open and dropped as poor_fit, not_eligible, work_setting or duplicate:
+  url, title, company, city, country, workSetting, postedAt, locationText. Nothing else. Never for closed, too_old or unreachable.
   Every lead you looked at and dropped. Send them with the next push (or on their own with "jobs":[]).
   unreachable: the page blocked you or would not load. Hosts that blocked you are skipped for a week.
 Send each job as soon as it passes every check (one per push is fine) so the user sees it straight away. Don't hold jobs for one batch at the end.

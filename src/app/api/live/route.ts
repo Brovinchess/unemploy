@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   // Housekeeping that shouldn't wait for a page load or the daily job.
   after(async () => {
     if (profile.searchStartedAt && !profile.searchEndedAt && !isSearching(profile)) await endSearch(profile, "timeout").catch(() => {});
+    else if (live.profile.searching && live.profile.balance != null && live.profile.balance <= 0) await endSearch(profile, "no_cognition").catch(() => {});
     else {
       await nudgeIfQuiet(profile).catch(() => {});
       await sleepIfPacksDone(profile).catch(() => {});
