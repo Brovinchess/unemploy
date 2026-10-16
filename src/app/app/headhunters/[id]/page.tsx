@@ -98,7 +98,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
 
   return (
     <AppShell tab="headhunter" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
-      <main className="w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         {/* Who it is, what it's after, and the one action. Mochi sits on a radar that sweeps while it searches. */}
         <section className="rise flex flex-wrap items-center justify-between gap-6 rounded-3xl bg-surface p-6 sm:p-8">
           <div className="flex min-w-0 max-w-full items-center gap-5">

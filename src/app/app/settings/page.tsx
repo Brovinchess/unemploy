@@ -29,7 +29,7 @@ export default async function Settings() {
 
   return (
     <AppShell tab="settings" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
-      <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+      <main className="mx-auto w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <p className="text-sm text-white/45">Your account</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">Settings</h1>
         <p className="mt-2 text-white/55">To change what your headhunter looks for or its resume, open its page.</p>

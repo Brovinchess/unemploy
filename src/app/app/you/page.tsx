@@ -36,7 +36,7 @@ export default async function YouPage() {
 
   return (
     <AppShell tab="you" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
-      <main className="w-full max-w-5xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-5 py-8 sm:px-8 lg:px-10 lg:py-10">
         <p className="text-sm text-white/45">About you</p>
         <h1 className="font-display mt-1 text-3xl font-medium tracking-tight text-white">You</h1>
         <p className="mt-2 max-w-2xl leading-relaxed text-white/55">
