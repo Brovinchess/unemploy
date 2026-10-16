@@ -90,7 +90,7 @@ export async function renameUsername(username: string): Promise<FormState & { us
   const parsed = usernameSchema.safeParse(username);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const deployed = await db.query.profiles.findFirst({ where: and(eq(schema.profiles.userId, user.id), isNotNull(schema.profiles.mindId)), columns: { id: true } });
-  if (deployed) return { error: "Your headhunter is already deployed under this name." };
+  if (deployed) return { error: "Your headhunter already has this name." };
   const taken = await db.query.users.findFirst({ where: eq(schema.users.username, parsed.data), columns: { id: true } });
   if (taken && taken.id !== user.id) return { error: "That name is taken. Try another one." };
   await db.update(schema.users).set({ username: parsed.data }).where(eq(schema.users.id, user.id));
@@ -389,7 +389,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
     return { error: "Your headhunter can't reach this computer from the internet, so it wasn't started. (Local setup: INGEST_URL must be a public address.)" };
   }
   if (mindsMode === "live" && !(await ingestReachable())) {
-    return { error: `Your headhunter couldn't reach ${mindsConfig.ingestUrl}, so it wasn't started. If you're running locally, check the tunnel is up.` };
+    return { error: "Your headhunter couldn't reach Career Ninja just now, so the search wasn't started. Try again in a minute." };
   }
   const api = minds(user);
   try {

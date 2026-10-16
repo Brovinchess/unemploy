@@ -57,8 +57,8 @@ export async function sendSearchDoneEmail(args: {
       : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
   const intro =
     n === 0
-      ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page, or try again tomorrow.`
-      : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Each one has a cover letter and answers ready to paste.${short ? ` ${short}` : ""}`;
+      ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page and ask again.`
+      : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Keep the ones you like and your headhunter writes each application.${short ? ` ${short}` : ""}`;
   const top = jobs.slice(0, 5);
   const text =
     `${intro}\n\n` +
@@ -89,7 +89,7 @@ function codeEmailHtml(code: string, heading: string) {
         <table role="presentation" cellpadding="0" cellspacing="0"><tr>${digits}</tr></table>
         <p style="margin:28px 0 0;font-family:${font};font-size:14px;line-height:1.6;color:#8b98a5">It expires in 10 minutes. If you didn't ask for it, you can ignore this email.</p>
       </td></tr>
-      <tr><td style="padding:24px 8px 0;font-family:${font};font-size:12px;color:#5f6d7a">© ${new Date().getFullYear()} Career Ninja · <a href="https://careerninja.app" style="color:#8b98a5;text-decoration:none">careerninja.app</a> · powered by Hello Minds</td></tr>
+      <tr><td style="padding:24px 8px 0;font-family:${font};font-size:12px;color:#5f6d7a">© ${new Date().getFullYear()} Career Ninja · <a href="https://careerninja.app" style="color:#8b98a5;text-decoration:none">careerninja.app</a> · in partnership with Hello Minds</td></tr>
     </table>
   </td></tr>
 </table>
@@ -124,7 +124,7 @@ export function searchDoneHtml({ intro, jobs, more, link, empty }: { intro: stri
           <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">See your jobs</a>
         </td></tr></table>
       </td></tr>
-      <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#5f6d7a">You get this because you asked for a search. Turn these emails off in Settings. © ${new Date().getFullYear()} Career Ninja · powered by Hello Minds</td></tr>
+      <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#5f6d7a">You get this because you asked for a search. Turn these emails off in Settings. © ${new Date().getFullYear()} Career Ninja · in partnership with Hello Minds</td></tr>
     </table>
   </td></tr>
 </table>

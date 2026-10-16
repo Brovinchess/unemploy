@@ -7,7 +7,7 @@ Everything the dashboard asks for, ready to paste. Keep this in step with `exten
 - Upload the zip from `npm run ext:store` → `store/career-ninja-extension-<version>.zip` (manifest at the root of the zip).
 - Screenshots and promo tile: `node store/assets/make.mjs` → `store/assets/` (regenerate after UI changes).
 - Local testing: `npm run ext:dev` builds `extension-dev/` with localhost added; load that unpacked. The shipped manifest never carries a dev host.
-- Version 1.0.0. Bump the manifest and rebuild before every upload.
+- Version 1.1.0 (1.0.0 is the published one). Bump the manifest and rebuild before every upload.
 
 ## Store listing
 

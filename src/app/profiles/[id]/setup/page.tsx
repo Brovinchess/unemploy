@@ -57,7 +57,7 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     return (
       <OnboardingShell step={2} wide>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
-          Two quick questions, then deploy. Everything else starts wide, and you can tighten it any time.
+          Two quick questions, then your headhunter is ready. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
         <PreferencesChat
           profileId={profile.id}
@@ -71,10 +71,10 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
 
   return (
     <OnboardingShell step={2}>
-      <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Deploy your headhunter"}>
+      <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Get your headhunter"}>
         {profile.mindName
-          ? "Waiting for its cognition to land. This usually takes a few seconds."
-          : "We'll deploy your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
+          ? "Waiting for its first cognition to arrive. This usually takes a few seconds."
+          : "We'll set up your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}

@@ -121,7 +121,7 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
 
         {!pack && job.status === "saved" && (
           <section className="rounded-2xl bg-mist-soft p-5 text-sm">
-            <p className="font-medium text-ink">Your application pack is being written.</p>
+            <p className="font-medium text-ink">Your application is being written.</p>
             <p className="mt-1 text-muted">Your headhunter is opening the application form and writing your cover letter and answers. They appear here, usually within a few minutes.</p>
           </section>
         )}
@@ -133,7 +133,7 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
         )}
         {pack && (
           <section className="border-t border-line pt-8">
-            <h2 className="font-display text-lg font-medium text-ink">Your application pack</h2>
+            <h2 className="font-display text-lg font-medium text-ink">Your application</h2>
             <p className="mt-1 text-sm text-muted">
               {isSupported(job.url)
                 ? "The Chrome extension can fill this form for you from the Jobs page. Or copy these in yourself."

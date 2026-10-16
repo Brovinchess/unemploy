@@ -17,7 +17,7 @@ export function RemoveHeadhunter({ profileId, mindName }: { profileId: string; m
   return (
     <div className="w-full rounded-2xl bg-coral-soft px-5 py-4">
       <p>
-        This turns off <span className="font-mono">{mindName}</span> and deletes your jobs and tracker. Any cognition left on it
+        This turns off <span className="font-mono">{mindName}</span> and deletes its jobs and applications. Any cognition left on it
         stays on Hello Minds. This can&rsquo;t be undone.
       </p>
       <div className="mt-4 flex gap-3">

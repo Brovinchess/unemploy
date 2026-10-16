@@ -167,7 +167,7 @@ export function SwipeDeck({ jobs, after }: { jobs: CardJob[]; after?: React.Reac
             ) : (
               <span /> /* Reveal lives on the card itself */
             )}
-            <Control label="Apply" onClick={() => decide("apply")} title="Apply (→)">
+            <Control label="Keep" onClick={() => decide("apply")} title="Keep (→)">
               <span className="flex size-[62px] items-center justify-center rounded-full bg-gradient-to-b from-[#d27375] to-coral text-white shadow-[0_14px_30px_-10px_rgba(201,101,103,0.8)]">
                 <Check className="size-6" strokeWidth={2.4} />
               </span>
@@ -295,7 +295,7 @@ function Front({ onReveal, n }: { onReveal?: () => void; n?: number }) {
           <Ninja mood="surprised" className="float relative size-32" />
         </div>
         <p className="font-display mt-6 text-[22px] font-medium tracking-tight">Found one for you</p>
-        <p className="mt-1.5 text-sm text-white/50">Checked open today. Application written.</p>
+        <p className="mt-1.5 text-sm text-white/50">Checked open today. Keep it and your headhunter writes the application.</p>
       </div>
       <div className="relative px-6 pb-6">
         <button
@@ -319,7 +319,7 @@ function Back({ job }: { job: CardJob }) {
   return (
     <div className="deck-face deck-back">
       <div className="deck-stamp yes">APPLY</div>
-      <div className="deck-stamp no">NOPE</div>
+      <div className="deck-stamp no">PASS</div>
       <div className="px-6 pt-6">
         <div className="deck-pop flex items-center gap-3.5">
           <CompanyLogo name={job.company} domain={job.domain} size="lg" />
@@ -413,7 +413,7 @@ function Back({ job }: { job: CardJob }) {
 
       <div className="px-6 pb-6 pt-3">
         <div className="flex items-center justify-between gap-3 rounded-2xl border border-coral/25 bg-coral/10 px-4 py-3.5 text-[13px]">
-          <span>Your application is written and ready.</span>
+          <span>Keep it and your headhunter writes the application.</span>
           <Link href={`/app/jobs/${job.id}`} className="inline-flex shrink-0 items-center gap-1 text-rose hover:text-white">
             Open <ArrowUpRight className="size-3.5" />
           </Link>

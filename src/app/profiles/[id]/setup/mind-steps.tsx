@@ -69,7 +69,7 @@ export function ActivateStep({
             })
           }
         >
-          {pending ? "Deploying your headhunter…" : "Deploy my headhunter"}
+          {pending ? "Setting up your headhunter…" : "Get my headhunter"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
@@ -86,9 +86,9 @@ export function ActivateStep({
       <div className="rounded-3xl bg-night-2 p-6">
         <ol className="space-y-4">
           <Step n={1} done>
-            <span className="font-medium text-white">{mindName}</span> is deployed.
+            <span className="font-medium text-white">{mindName}</span> is set up.
           </Step>
-          <Step n={2}>As soon as its cognition lands, it gets your brief and you&rsquo;re in.</Step>
+          <Step n={2}>As soon as its cognition arrives, it gets your brief and you&rsquo;re in.</Step>
         </ol>
         <div className="mt-5 border-t border-white/[0.08] pt-4">{costLine}</div>
       </div>
@@ -99,7 +99,7 @@ export function ActivateStep({
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-coral opacity-60" />
             <span className="relative inline-flex size-2 rounded-full bg-coral" />
           </span>
-          Waiting for its cognition…
+          Waiting for its cognition to arrive…
           <button
             className="text-white/80 underline decoration-white/30 underline-offset-4 hover:text-white"
             disabled={pending}

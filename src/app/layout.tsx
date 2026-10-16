@@ -8,9 +8,16 @@ import { getCurrentUser } from "@/lib/session";
 const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin"] });
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
+const SITE = process.env.APP_URL || "https://careerninja.app";
+const TITLE = "Career Ninja, your own AI headhunter";
+const DESCRIPTION = "It finds real, open jobs you'd get, writes each application from your resume, and fills in the form. You read it and press Submit.";
+
 export const metadata: Metadata = {
-  title: "Career Ninja, your own AI headhunter",
-  description: "Your own AI headhunter: it finds the jobs that fit you and writes each application from your resume.",
+  metadataBase: new URL(SITE),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: { title: TITLE, description: DESCRIPTION, url: SITE, siteName: "Career Ninja", type: "website" },
+  twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {

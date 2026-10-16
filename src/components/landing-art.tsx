@@ -86,7 +86,7 @@ export function CardMock() {
         ))}
       </div>
       <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border border-coral/25 bg-coral/10 px-4 py-3.5 text-[13px]">
-        <span>Your application is written and ready.</span>
+        <span>Keep it and your headhunter writes the application.</span>
         <span className="text-rose">Open ↗</span>
       </div>
     </div>

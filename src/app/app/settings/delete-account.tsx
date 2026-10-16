@@ -17,8 +17,8 @@ export function DeleteAccount() {
   return (
     <div className="w-full rounded-2xl bg-coral-soft px-5 py-4">
       <p>
-        This deletes your resume, jobs and tracker, and turns off your headhunter. Hello Minds keeps the
-        Mind itself. This can&rsquo;t be undone.
+        This deletes your resume, your jobs and your applications, and turns off your headhunter. Hello Minds keeps the
+        headhunter&rsquo;s own account. This can&rsquo;t be undone.
       </p>
       <div className="mt-4 flex gap-3">
         <button className="btn btn-accent" disabled={pending} onClick={() => start(() => deleteAccount())}>

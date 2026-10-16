@@ -1,6 +1,5 @@
 import { when } from "@/lib/admin";
 import { system, type Freshness } from "@/lib/admin-data";
-import { extensionLive } from "@/lib/flags";
 import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
 import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles, type Tone } from "../ui";
@@ -61,7 +60,6 @@ export default async function System() {
             rows={[
               ["Minds mode", <Badge key="m" tone="slate">{mindsMode}</Badge>],
               ["Launch mode", <Badge key="l" tone="slate">{launchMode}</Badge>],
-              ["Extension shown as live", <Badge key="x" tone={extensionLive ? "green" : "amber"}>{extensionLive ? "yes" : "no, coming soon"}</Badge>],
               ["Admins", process.env.ADMIN_USERS ?? "rovinc (default)"],
               ["Database", <Badge key="d" tone={process.env.DATABASE_URL || process.env.POSTGRES_URL ? "green" : "rose"}>{process.env.DATABASE_URL || process.env.POSTGRES_URL ? "configured" : "not set"}</Badge>],
               ["Vercel environment", <Badge key="v" tone={process.env.VERCEL_ENV === "production" ? "green" : "slate"}>{process.env.VERCEL_ENV ?? "local"}</Badge>],

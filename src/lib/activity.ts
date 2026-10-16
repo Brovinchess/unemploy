@@ -188,7 +188,7 @@ export async function buildActivity(
     const written = rejected.find((r) => r.code === "packs_written");
     if (written) {
       const n = Number(written.hint.match(/\d+/)?.[0] ?? 1);
-      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: `Wrote ${plural(n, "application pack")}` });
+      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: `Wrote ${plural(n, "application")}` });
       continue;
     }
     if (d.accepted + d.rejected === 0) {
@@ -200,7 +200,7 @@ export async function buildActivity(
       at: d.createdAt.toISOString(),
       kind: "delivery",
       title: `Sent ${plural(d.accepted + d.rejected, "job")}`,
-      detail: [`${d.accepted} added to your shortlist`, why && `${d.rejected} left out: ${why}`].filter(Boolean).join(" · "),
+      detail: [`${d.accepted} added to your new jobs`, why && `${d.rejected} left out: ${why}`].filter(Boolean).join(" · "),
     });
   }
 

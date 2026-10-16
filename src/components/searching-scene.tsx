@@ -15,7 +15,7 @@ export function SearchingScene({ profileId, startedAt, notifyEmail }: { profileI
       <h2 className="font-display mt-4 text-3xl font-medium tracking-tight text-white">Your headhunter is out searching</h2>
       <SearchingPulse profileId={profileId} startedAt={startedAt} />
       <p className="mx-auto mt-3 max-w-sm leading-relaxed text-white/55">
-        It takes time for your headhunter to look for jobs.
+        A search takes a while.
         {notifyEmail ? <> You&rsquo;ll get an email when it finds some.</> : <> Check back in a while.</>}
       </p>
       <Link href="/app/you#application" className="mt-7 text-sm text-white/50 underline underline-offset-4 hover:text-white">

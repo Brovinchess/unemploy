@@ -231,7 +231,7 @@ export function PreferencesChat({
           )}
           <FormError message={error} />
           <button className="btn btn-accent mt-6 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending ? (mode === "setup" ? "Deploying your headhunter…" : "Saving…") : mode === "setup" ? "Deploy my headhunter" : saved ? "Saved" : "Save"}
+            {pending ? (mode === "setup" ? "Setting up your headhunter…" : "Saving…") : mode === "setup" ? "Get my headhunter" : saved ? "Saved" : "Save"}
           </button>
           {saved && <p className="mt-3 text-center text-sm text-white/55" aria-live="polite">Saved. Your next search uses these.</p>}
           {pending && mode === "setup" && (

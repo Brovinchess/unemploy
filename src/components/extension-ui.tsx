@@ -6,7 +6,6 @@ import { Check, Puzzle, RefreshCw, Rocket } from "lucide-react";
 import { connectExtension } from "@/app/extension-actions";
 import { Ninja } from "./brand";
 import { useExtension } from "./use-extension";
-import { extensionLive } from "@/lib/flags";
 
 // The Chrome Web Store listing (public since 16 Oct 2026).
 const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL || "https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa";
@@ -47,21 +46,6 @@ export function ApplyAllButton({
             : "Couldn't start. Open the extension and try again.",
       );
     });
-
-  if (!extensionLive) {
-    if (!bar) return null;
-    return (
-      <div className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-5 py-3.5">
-        <Ninja mood="thinking" className="size-11 shrink-0" />
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-white">
-            {count} {one ? "job" : "jobs"} ready to apply
-          </p>
-          <p className="text-sm text-white/55">Open each job to apply with the application your headhunter wrote. Apply to all, with the Chrome extension, is coming soon.</p>
-        </div>
-      </div>
-    );
-  }
 
   if (bar) {
     // Nothing until the extension check finishes, so the row doesn't flash between states.

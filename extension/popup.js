@@ -44,7 +44,7 @@ async function render() {
   }
   const other = s.waiting > s.supported ? ` (${s.waiting - s.supported} on other sites, apply from the app)` : "";
   nodes.push(h("div", { class: "big" }, String(s.supported)), p(`job${s.supported === 1 ? "" : "s"} ready to apply${other}.`));
-  if (!s.detailsComplete) nodes.push(p("Add your application details first (name, phone, location).", "warn"));
+  if (!s.detailsComplete) nodes.push(p("Add your application details first (name, email, phone, where you live).", "warn"));
 
   // How each form is sent is the person's choice. Auto-send is explained before it can be switched on.
   const radio = (value, text) => {

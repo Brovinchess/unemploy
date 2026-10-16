@@ -90,7 +90,7 @@ export function NewJobs({
               {n} new {n === 1 ? "job" : "jobs"} to look at
             </p>
             <p className="text-sm text-white/55">
-              Reveal each one, then swipe right to apply or left to pass.
+              Reveal each one, then swipe right to keep it or left to dismiss.
             </p>
           </div>
         </div>

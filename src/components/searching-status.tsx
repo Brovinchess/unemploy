@@ -24,7 +24,7 @@ export function MochiAtWork({ live, paused, className = "size-16" }: { live: boo
   );
 }
 
-const PHASES = ["Scanning careers pages", "Reading postings", "Checking who can apply", "Writing applications"];
+const PHASES = ["Scanning careers pages", "Reading postings", "Checking who can apply", "Sending you jobs"];
 
 export function SearchingLine({ profileId }: { profileId: string }) {
   const data = useActivity(profileId, true);

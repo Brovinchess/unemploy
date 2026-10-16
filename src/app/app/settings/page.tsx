@@ -1,7 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
-import { extensionLive } from "@/lib/flags";
 import { ExtensionSetup } from "@/components/extension-ui";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { detailsComplete, isSupported } from "@/lib/extension";
@@ -43,20 +42,10 @@ export default async function Settings() {
 
         <div className="mt-8 space-y-4">
           <Section title="Chrome extension" id="extension">
-            {extensionLive ? (
-              <>
-                <p className="mb-5 text-sm text-white/55">
-                  Fills in job application forms for you, with your details, resume, cover letter and answers. You check each one and press Submit.
-                </p>
-                <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={ready} other={other} />
-              </>
-            ) : (
-              <p className="text-sm text-white/55">
-                <span className="mr-2 rounded-full bg-coral/15 px-2 py-0.5 text-xs font-medium text-rose">Coming soon</span>
-                It will open each job you swiped right on, fill the form with your details, resume, cover letter and answers, and wait for you
-                to press Submit. Until then, apply from each job&rsquo;s page; the application is already written for you.
-              </p>
-            )}
+            <p className="mb-5 text-sm text-white/55">
+              Fills in job application forms for you, with your details, resume, cover letter and answers. You check each one and press Submit.
+            </p>
+            <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={ready} other={other} />
           </Section>
 
           <Section title="Search coach" id="coach">
