@@ -8,13 +8,25 @@ export type Item = { id: string; question: string; options: string[]; answer: st
 
 // One list for everything waiting on the person. A row with an answer already in it is the
 // headhunter's, taken from the details: approve or fix it. A bare row is for the person to answer.
+const FIRST = 8;
+
+// The first few questions, then the rest on request, so a long form doesn't bury the page.
 export function QuestionList({ items }: { items: Item[] }) {
+  const [all, setAll] = useState(items.length <= FIRST);
+  const shown = all ? items : items.slice(0, FIRST);
   return (
-    <ul className="mt-5 divide-y divide-white/[0.06]">
-      {items.map((q) => (
-        <QuestionRow key={q.id} item={q} />
-      ))}
-    </ul>
+    <>
+      <ul className="mt-5 divide-y divide-white/[0.06]">
+        {shown.map((q) => (
+          <QuestionRow key={q.id} item={q} />
+        ))}
+      </ul>
+      {!all && (
+        <button type="button" className="btn btn-ghost btn-sm mt-4" onClick={() => setAll(true)}>
+          Show all {items.length}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -51,7 +63,7 @@ function QuestionRow({ item }: { item: Item }) {
       <p className="text-white">{item.question}</p>
       <p className="mt-0.5 text-xs text-white/40">
         {item.company && <>Asked by {item.company}</>}
-        {prefilled && <>{item.company ? " · " : ""}Your headhunter&rsquo;s answer, from your details. Check it once.</>}
+        {prefilled && <>{item.company ? " · " : ""}{item.note?.startsWith("Usually") ? item.note : "Your headhunter\u2019s answer. Check it once."}</>}
       </p>
       {item.options.length ? (
         <div className="mt-3 flex flex-wrap gap-2">
