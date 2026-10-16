@@ -11,32 +11,34 @@
 
 // ---------- Product mock-ups: the real screens, drawn with the real components ----------
 
+import { CompanyLogo } from "./company-logo";
 import { Banknote, BadgeCheck, Check as CheckIcon, Clock, MapPin, Sparkles, X as XIcon } from "lucide-react";
 import { Ninja as Mochi } from "./brand";
 
 // A revealed job card, exactly as the app draws it, with sample data.
 export function CardMock() {
+  // A real posting (Stripe, Greenhouse job 7994443, October 2026), with an example person's fit.
   const must = [
-    ["5+ years in product", true],
-    ["B2B SaaS", true],
-    ["Payments domain", true],
-    ["Team management", false],
+    ["7+ years in product", true],
+    ["Owned a product end to end", true],
+    ["Shipped across regulated complexity", true],
+    ["Enterprise and GTM experience", false],
   ] as const;
   return (
     <div className="mx-auto w-full max-w-[400px] rounded-[32px] border border-white/[0.07] bg-surface p-6 shadow-[0_40px_100px_-30px_rgba(201,101,103,0.45)]">
       <div className="flex items-center gap-3.5">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white font-display text-sm font-bold text-[#314455]">AC</span>
+        <CompanyLogo name="Stripe" domain="stripe.com" size="lg" />
         <div className="min-w-0">
-          <p className="font-display text-[20px] font-semibold leading-tight">Senior Product Manager</p>
-          <p className="mt-1 text-[13px] text-white/55">Acme Payments</p>
+          <p className="font-display text-[20px] font-semibold leading-tight">Product Manager, Global Payouts</p>
+          <p className="mt-1 text-[13px] text-white/55">Stripe</p>
         </div>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-coral/15 px-3 py-1.5 text-[13px] font-semibold text-rose ring-1 ring-coral/30">
-          <Banknote className="size-4" /> $120,000–150,000 a year
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 text-[13px] font-medium text-white/85 ring-1 ring-white/10">
+          <MapPin className="size-4 text-coral" /> New York · Remote, US Eastern time
         </span>
         <span className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.07] px-3 py-1.5 text-[13px] font-medium text-white/85 ring-1 ring-white/10">
-          <MapPin className="size-4 text-coral" /> Remote · worldwide
+          <Banknote className="size-4 text-coral" /> Full-time
         </span>
       </div>
       <div className="mt-4">
@@ -52,23 +54,23 @@ export function CardMock() {
         </div>
       </div>
       <div className="mt-3.5 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-white/50">
-        <span>Mid-Senior · Full-time</span>
+        <span>Senior · stripe.com/jobs</span>
         <span className="inline-flex items-center gap-1">
-          <Clock className="size-3.5" /> Posted 3 days ago
+          <Clock className="size-3.5" /> Posted this month
         </span>
         <span className="inline-flex items-center gap-1 text-white/70">
           <BadgeCheck className="size-3.5 text-coral" /> Open today
         </span>
       </div>
       <h4 className="mt-5 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">The role</h4>
-      <p className="mt-2 text-[13.5px] leading-relaxed text-white/80">Own the merchant onboarding flow for a payments app used by 2M people across Southeast Asia.</p>
+      <p className="mt-2 text-[13.5px] leading-relaxed text-white/80">Lead cross-border payouts at Stripe: rate locking, local bank coverage and card rails for businesses paying people worldwide.</p>
       <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">Why it fits you</h4>
       <ul className="mt-2 space-y-2 text-[13.5px] leading-relaxed text-white/80">
         <li className="flex gap-2.5">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> You launched a payments product used by thousands of merchants
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> You shipped payout and settlement flows at a fintech
         </li>
         <li className="flex gap-2.5">
-          <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> Six years in B2B SaaS, the level they ask for
+          <Sparkles className="mt-0.5 size-4 shrink-0 text-coral" strokeWidth={1.8} /> Eight years in product, above the seven they ask for
         </li>
       </ul>
       <h4 className="mt-4 text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">Requirements</h4>
@@ -119,14 +121,14 @@ export function ExtensionMock() {
     ["First name", "Alex", true],
     ["Email", "alex@example.com", true],
     ["Resume", "Alex_Tan_Resume.pdf", true],
-    ["Why do you want to work at Acme?", "Your merchant tools are what I spent two years building at…", true],
+    ["Why do you want to work at Stripe?", "Payouts are what I spent two years building at…", true],
     ["Willing to relocate?", "No", true],
     ["Years of product experience", "6", true],
   ];
   return (
     <div className="w-full max-w-[460px] rounded-3xl border border-white/[0.07] bg-[#0e1318] p-5">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-white/80">jobs.lever.co/acme/apply</p>
+        <p className="text-sm font-medium text-white/80">stripe.com/jobs/search?gh_jid=7994443</p>
         <span className="rounded-full bg-coral/15 px-2.5 py-1 text-xs font-medium text-rose">Career Ninja filled 6 of 6</span>
       </div>
       <div className="mt-4 space-y-2.5">
