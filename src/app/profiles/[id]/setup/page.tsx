@@ -8,6 +8,8 @@ import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { NameStep } from "./name-step";
 import { ResumeStep } from "./resume-step";
+import { ReviewStep } from "./review-step";
+import { GENERATED_PREFIX } from "@/lib/quick-resume";
 
 // The most recent job title on the resume, as a starting answer for "which roles?".
 const TITLE = /\b(manager|engineer|designer|developer|analyst|lead|director|specialist|consultant|scientist|architect|marketer|accountant|recruiter|head of|officer|associate|coordinator|strategist|product owner)\b/i;
@@ -24,8 +26,9 @@ function guessRole(resume: string | null | undefined) {
 
 // Setup is name → resume → preferences → activate. The step comes from what's filled in, so
 // a profile made before this order changed still lands on the right screen.
-export default async function Setup({ params }: PageProps<"/profiles/[id]/setup">) {
+export default async function Setup({ params, searchParams }: PageProps<"/profiles/[id]/setup">) {
   const { id } = await params;
+  const sp = await searchParams;
   const user = await requireUser();
   const profile = await ownedProfile(user, id);
   if (profile.status === "hunting" || profile.status === "paused") redirect(`/app?profile=${profile.id}`);
@@ -45,10 +48,21 @@ export default async function Setup({ params }: PageProps<"/profiles/[id]/setup"
     return (
       <OnboardingShell step={1}>
         <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
-          Your headhunter reads it to find jobs you fit. Everything it writes about you comes from this file, so use
-          your latest version. That&rsquo;s all it needs to get started.
+          Your headhunter reads it to find jobs you fit, and everything it writes about you comes from it. No resume? Answer a few blanks instead.
         </StepHeading>
         <ResumeStep profileId={profile.id} demo={mindsMode === "mock"} />
+      </OnboardingShell>
+    );
+  }
+
+  // A resume the app wrote from the blanks gets one look before the questions.
+  if (!profile.preferences && sp.review === "1" && profile.resumeText && profile.resumeFileName?.startsWith(GENERATED_PREFIX)) {
+    return (
+      <OnboardingShell step={1}>
+        <StepHeading eyebrow="Here's your resume" title="Does this look right?">
+          Written from what you filled in. Fix anything, or leave it as it is.
+        </StepHeading>
+        <ReviewStep profileId={profile.id} text={profile.resumeText} />
       </OnboardingShell>
     );
   }

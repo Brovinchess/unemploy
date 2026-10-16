@@ -17,6 +17,7 @@ import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
 import { guessName } from "@/lib/normalise";
+import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
@@ -302,6 +303,45 @@ export async function uploadResume(profileId: string, _: FormState, formData: Fo
     return;
   }
   revalidatePath(`/profiles/${profileId}/setup`);
+}
+
+// No resume: a few blanks become a plain resume (text for the headhunter, PDF for forms).
+export async function saveQuickProfile(profileId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  if (profile.status !== "needs_resume" && profile.status !== "draft") return { error: "This headhunter already has a resume." };
+  const p = readQuickProfile(formData);
+  const name = user.applicant ? `${user.applicant.firstName} ${user.applicant.lastName}`.trim() : (user.username ?? "Me").replace(/[-_]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  const text = quickResumeText(p, name);
+  await db
+    .update(schema.profiles)
+    .set({ resumeFileName: `${GENERATED_PREFIX} - ${name}.pdf`, resumeMime: "application/pdf", resumeData: textToPdf(text).toString("base64"), resumeText: text, status: "needs_preferences" })
+    .where(eq(schema.profiles.id, profile.id));
+  track(user.id, "resume_uploaded", { replacing: false, generated: true });
+  redirect(`/profiles/${profileId}/setup?review=1`);
+}
+
+// The person's edits to the generated resume; the PDF is remade from them.
+export async function saveReviewedResume(profileId: string, _: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  const text = String(formData.get("text") ?? "").replace(/\r/g, "").trim().slice(0, 6000);
+  if (text.length < 20) return { error: "Keep at least a line or two, so your headhunter has something to go on." };
+  // First line is the name, ALL-CAPS lines are headings: the PDF makes them bold.
+  const marked = text
+    .split("\n")
+    .map((l, i) => (i === 0 ? `# ${l}` : /^[A-Z][A-Z ]{2,}$/.test(l.trim()) ? `## ${l.trim()}` : l))
+    .join("\n");
+  await db.update(schema.profiles).set({ resumeText: marked, resumeData: textToPdf(marked).toString("base64") }).where(eq(schema.profiles.id, profile.id));
+  redirect(`/profiles/${profileId}/setup`);
+}
+
+export async function discardGeneratedResume(profileId: string) {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  if (!profile.resumeFileName?.startsWith(GENERATED_PREFIX) || profile.status === "hunting" || profile.status === "paused") return;
+  await db.update(schema.profiles).set({ resumeFileName: null, resumeMime: null, resumeData: null, resumeText: null, status: "needs_resume" }).where(eq(schema.profiles.id, profile.id));
+  redirect(`/profiles/${profileId}/setup`);
 }
 
 export async function loadSampleResume(profileId: string) {

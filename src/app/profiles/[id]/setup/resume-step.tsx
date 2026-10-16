@@ -1,9 +1,10 @@
 "use client";
 
 import { useActionState, useEffect, useRef, useState, useTransition } from "react";
-import { FileText, Upload } from "lucide-react";
+import { FileText, PencilLine, Upload } from "lucide-react";
 import { uploadResume, loadSampleResume } from "@/app/actions";
 import { FormError } from "@/components/onboarding-shell";
+import { QuickProfileStep } from "./quick-profile-step";
 
 export function ResumeStep({
   profileId,
@@ -22,6 +23,9 @@ export function ResumeStep({
   const input = useRef<HTMLInputElement>(null);
   // Replacing a resume stays on the page, so say when it worked.
   const [replaced, setReplaced] = useState(false);
+  // First-time setup offers a second way in: a few blanks instead of a file.
+  const firstTime = submitLabel === "Upload and continue";
+  const [mode, setMode] = useState<"upload" | "blanks">("upload");
   const wasPending = useRef(false);
   useEffect(() => {
     if (wasPending.current && !pending && !state?.error && demo === false && submitLabel !== "Upload and continue") {
@@ -54,8 +58,41 @@ export function ResumeStep({
     setFileName(file.name);
   };
 
+  const choice = firstTime && (
+    <div className="mb-6 grid gap-3 sm:grid-cols-2">
+      {(
+        [
+          ["upload", Upload, "I have a resume", "PDF or Word. The best start."],
+          ["blanks", PencilLine, "I don't have one", "Fill in a few blanks instead. Two minutes."],
+        ] as const
+      ).map(([m, Icon, label, hint]) => {
+        const on = mode === m;
+        return (
+          <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={on} className={`flex items-center gap-3 rounded-2xl p-4 text-left transition-colors ${on ? "bg-coral/15 ring-2 ring-coral" : "bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07]"}`}>
+            <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${on ? "bg-coral text-white" : "bg-white/[0.08] text-white/70"}`}>
+              <Icon className="size-5" aria-hidden />
+            </span>
+            <span className="min-w-0">
+              <span className="block font-medium text-white">{label}</span>
+              <span className="block text-sm text-white/50">{hint}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+  if (mode === "blanks") {
+    return (
+      <div className="w-full">
+        {choice}
+        <QuickProfileStep profileId={profileId} />
+      </div>
+    );
+  }
+
   return (
     <form action={action} className="w-full">
+      {choice}
       <label
         htmlFor="resume"
         onDragOver={(e) => {
