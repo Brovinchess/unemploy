@@ -9,6 +9,7 @@ import { CognitionNote } from "@/components/cognition-note";
 import { UsernameRow } from "@/components/username-row";
 import { FormError } from "@/components/onboarding-shell";
 import { checkRoles, type RoleCheck } from "@/lib/job-titles";
+import { parsePlace } from "@/lib/normalise";
 import {
   JOB_TYPES,
   RECOMMENDED_JOBS_PER_SEARCH,
@@ -288,10 +289,16 @@ function AnswerInput({
           }[key]
         }
         onSubmit={(v) => {
-          // "City, Country" in one go: the last part is the country, the rest the city.
-          if (key === "country" && v.includes(",")) {
-            const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
-            return onAnswer({ country: parts.pop(), city: parts.join(", ") });
+          // "City, Country", "London" or "new york": the country is always resolved to its real
+          // name and the city, if any, kept separate.
+          if (key === "country") {
+            if (v.includes(",")) {
+              const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
+              const place = parsePlace(parts.pop() ?? "", parts.join(", "));
+              return onAnswer({ country: place.country, city: place.city });
+            }
+            const place = parsePlace(v);
+            return onAnswer({ country: place.country, city: place.city });
           }
           onAnswer({ [key]: v });
         }}

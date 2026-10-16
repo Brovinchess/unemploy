@@ -27,6 +27,8 @@ const COUNTRIES: [RegExp, string][] = [
   [/\b(saudi arabia|riyadh|jeddah)\b/i, "SA"],
   [/\b(qatar|doha)\b/i, "QA"],
   [/\b(israel|tel aviv)\b/i, "IL"],
+  [/\b(turkey|t[uü]rkiye|istanbul|ankara|izmir|mugla|muğla|antalya)\b/i, "TR"],
+  [/\b(belarus|minsk)\b/i, "BY"],
   [/\b(egypt|cairo)\b/i, "EG"],
   [/\b(nigeria|lagos)\b/i, "NG"],
   [/\b(kenya|nairobi)\b/i, "KE"],
@@ -69,7 +71,28 @@ export const COUNTRY_NAMES: Record<string, string> = {
   SA: "Saudi Arabia", QA: "Qatar", IL: "Israel", EG: "Egypt", NG: "Nigeria", KE: "Kenya", ZA: "South Africa", IE: "Ireland", NL: "Netherlands", DE: "Germany", FR: "France",
   ES: "Spain", PT: "Portugal", IT: "Italy", BE: "Belgium", CH: "Switzerland", AT: "Austria", PL: "Poland", CZ: "Czechia", RO: "Romania", SE: "Sweden", DK: "Denmark", NO: "Norway",
   FI: "Finland", UA: "Ukraine", GR: "Greece", HU: "Hungary", CA: "Canada", MX: "Mexico", BR: "Brazil", AR: "Argentina", CL: "Chile", CO: "Colombia", PE: "Peru", UY: "Uruguay",
+  TR: "Turkey", BY: "Belarus",
 };
+
+// Words people use for a country that aren't its display name, removed when the rest is a city.
+const COUNTRY_WORDS = /\b(united kingdom|u\.?k\.?|great britain|england|united states|u\.?s\.?a?\.?|the netherlands|t[uü]rkiye|uae|hong kong sar)\b/gi;
+
+// "London" → London, United Kingdom. "new york" → New York, United States. "rayong thailand"
+// → Rayong, Thailand. "Malaysia" → just the country. Used wherever a person types where they live,
+// so the country is always a real country name and the city, if any, is separate.
+export function parsePlace(input: string, cityInput = ""): { country: string; city: string } {
+  const titleCase = (s: string) => s.toLowerCase().replace(/(^|[\s-])([a-z\u00C0-\u024F])/g, (m, p, c) => p + c.toUpperCase());
+  const clean = (s: string) => s.replace(/[\s,;.:()-]+$/g, "").replace(/^[\s,;.:()-]+/g, "").replace(/\s+/g, " ").trim();
+  const raw = clean(input);
+  const code = countryCodeOf(raw);
+  if (!code || !COUNTRY_NAMES[code]) return { country: raw, city: clean(cityInput) };
+  const country = COUNTRY_NAMES[code];
+  // What's left once the country (by any name) is taken out is the city, if it's short.
+  let rest = clean(raw.replace(new RegExp(country, "ig"), "").replace(COUNTRY_WORDS, "").replace(/^\s*the\b/i, ""));
+  if (rest && /[-,;:]/.test(rest)) rest = clean(rest.split(/[-,;:]/)[0]);
+  const city = cityInput.trim() ? clean(cityInput) : rest && rest.split(" ").length <= 3 && rest.toLowerCase() !== country.toLowerCase() ? titleCase(rest) : "";
+  return { country, city };
+}
 
 export function countryCodeOf(...texts: (string | null | undefined)[]): string | null {
   for (const t of texts) {

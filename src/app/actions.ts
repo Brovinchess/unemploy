@@ -16,7 +16,7 @@ import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
 import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
-import { guessName } from "@/lib/normalise";
+import { guessName, parsePlace } from "@/lib/normalise";
 import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
@@ -368,7 +368,8 @@ export async function savePreferences(profileId: string, input: Preferences): Pr
   const profile = await ownedProfile(user, profileId);
   const parsed = preferencesSchema.safeParse(input);
   if (!parsed.success) return { error: "Some answers are missing. Please check each step." };
-  const prefs = parsed.data;
+  const place = parsePlace(parsed.data.country, parsed.data.city ?? "");
+  const prefs = { ...parsed.data, country: place.country, city: place.city };
 
   try {
     if (profile.status === "hunting" || profile.status === "paused") {

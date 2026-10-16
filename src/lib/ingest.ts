@@ -170,7 +170,11 @@ function runsOf(text: string) {
   return out;
 }
 
-const sameCountry = (a?: string, b?: string) => !!a && !!b && norm(a) === norm(b);
+const sameCountry = (a?: string, b?: string) => {
+  if (!a || !b) return false;
+  const ca = countryCodeOf(a), cb = countryCodeOf(b);
+  return ca && cb ? ca === cb : norm(a) === norm(b);
+};
 
 const MAX_SCORE_WITH_GAPS = 55;
 
