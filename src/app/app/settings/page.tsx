@@ -39,8 +39,7 @@ export default async function Settings() {
             {extensionLive ? (
               <>
                 <p className="mb-5 text-sm text-white/55">
-                  Opens each job you swiped right on, fills the form with your details, resume, cover letter and answers, and waits
-                  for you to press Submit. Works on Greenhouse, Lever and Ashby, in Chrome, Edge and Brave on a computer.
+                  Fills in job application forms for you, with your details, resume, cover letter and answers. You check each one and press Submit.
                 </p>
                 <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
               </>
