@@ -14,7 +14,10 @@ import { humanise } from "./text";
 const HANDLED =
   /first name|last name|full name|^name$|legal name|preferred name|e-?mail|phone|mobile|resume|\bcv\b|cover letter|linkedin|github|portfolio|website|personal (site|url)|twitter|\bx\.com|instagram|facebook|dribbble|behance|other (url|link)/i;
 // Consent boxes and acknowledgements are ticked on the form, never asked or remembered.
-const CONSENT = /i (agree|accept|acknowledge|consent|certify|confirm)|terms (and|&) conditions|privacy (policy|notice)|data (protection|processing)|by (submitting|checking)/i;
+const CONSENT =
+  /i (agree|accept|acknowledge|consent|certify|confirm)|terms (and|&) conditions|privacy (policy|notice)|data (protection|processing)|by (submitting|checking)|confirm that (the|all) (information|details)|information (provided|given|above) is (true|accurate|correct)|certify that|acknowledge that/i;
+// Questions whose honest answer is almost always "No": prefilled for the person to confirm.
+const USUALLY_NO = /referred you|been referred|referral (from|by)|worked (for|at|with) .{0,40}before|previously (worked|been employed)|former employee|related to|personal relationship|family member|relative (of|who)|conflict of interest/i;
 // Questions about the job or company, or about how the person fits it: the headhunter
 // answers those in each pack, because only it has read the posting.
 export const ABOUT_THE_JOB =
@@ -34,15 +37,15 @@ export function similarity(a: string, b: string) {
 const SAME = 0.7;
 
 // What the person's application details already cover, so those aren't asked again.
-function coveredByDetails(q: string, user: User) {
+export function coveredByDetails(q: string, user: Pick<User, "applicant">) {
   const a = user.applicant;
   if (!a) return false;
-  if (/sponsor|authori[sz]ed|right to work|eligible to work|work permit|visa/i.test(q)) return !!a.workAuthorization;
-  if (/notice period|start date|when can you start|available to start/i.test(q)) return !!a.noticePeriod;
+  if (/sponsor|authori[sz]ed|right to work|eligible to work|work permit|visa|legally (able|allowed|permitted)/i.test(q)) return !!a.workAuthorization;
+  if (/notice period|start date|when can you start|availab(le|ility) to start|earliest start/i.test(q)) return !!a.noticePeriod;
   if (/salary|compensation|pay expectation|expected pay|desired pay/i.test(q)) return !!a.salaryExpectation;
   if (/current (company|employer)|(company|employer) (you )?(currently )?work|present employer|most recent (company|employer)/i.test(q)) return !!a.currentCompany;
-  if (/current (job )?title|current (role|position)|most recent (title|role|position)|job title/i.test(q)) return !!a.currentTitle;
-  if (/where are you (based|located)|current (city|location)|country of residence/i.test(q)) return !!a.location;
+  if (/current (job )?title|current (role|position)|most recent (title|role|position)|job title|employment status/i.test(q)) return !!a.currentTitle;
+  if (/where (are you|do you) (currently )?(based|located|live|reside)|current(ly)? (city|location|located)|country of residence|what location|location do you|plan to work from|time ?zone are you/i.test(q)) return !!a.location;
   return false;
 }
 
@@ -63,7 +66,7 @@ export async function queueQuestions(userId: string, company: string, formQuesti
     if (q.length < 3 || HANDLED.test(q) || CONSENT.test(q) || ABOUT_THE_JOB.test(q) || sensitiveQuestion(q) || coveredByDetails(q, user)) continue;
     if (known.some((k) => similarity(q, k) >= SAME)) continue;
     const options = (f.options ?? []).map((o) => o.trim().slice(0, 120)).filter(Boolean).slice(0, 30);
-    const guess = packAnswers.find((p) => similarity(q, p.question) >= SAME)?.answer.trim() || null;
+    const guess = packAnswers.find((p) => similarity(q, p.question) >= SAME)?.answer.trim() || (USUALLY_NO.test(q) ? "No" : null);
     // A choice must be one of the form's own ("Yes." still counts as "Yes"); otherwise the person picks.
     const plain = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
     const answer = !guess ? null : options.length ? (options.find((o) => plain(o) === plain(guess)) ?? null) : humanise(guess).slice(0, 1000);
@@ -77,7 +80,7 @@ export async function queueQuestions(userId: string, company: string, formQuesti
         company,
         status: answer ? "review" : "needs_you",
         answer,
-        note: answer ? "Your headhunter's answer, from your details" : null,
+        note: answer ? (USUALLY_NO.test(q) && !packAnswers.some((p) => similarity(q, p.question) >= SAME) ? "Usually No. Change it if that's not right." : "Your headhunter's answer, from your details") : null,
         answeredAt: answer ? new Date() : null,
       })
       .onConflictDoNothing()

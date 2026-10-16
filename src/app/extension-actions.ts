@@ -1,10 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { withDetail, type DetailField } from "@/lib/answers";
+import { coveredByDetails } from "@/lib/personal";
 import { createExtensionToken } from "@/lib/extension";
 import { requireUser } from "@/lib/session";
 
@@ -38,6 +39,10 @@ export async function saveApplicantDetails(_: DetailsState, form: FormData): Pro
   const parsed = detailsSchema.safeParse(raw);
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   await db.update(schema.users).set({ applicant: parsed.data }).where(eq(schema.users.id, user.id));
+  // Questions waiting on the person that these details now answer come off the list.
+  const waiting = await db.select({ id: schema.questions.id, question: schema.questions.question }).from(schema.questions).where(and(eq(schema.questions.userId, user.id), inArray(schema.questions.status, ["needs_you", "new", "asked"])));
+  const covered = waiting.filter((q) => coveredByDetails(q.question, { applicant: parsed.data })).map((q) => q.id);
+  if (covered.length) await db.delete(schema.questions).where(inArray(schema.questions.id, covered));
   revalidatePath("/app", "layout");
   return { ok: true };
 }

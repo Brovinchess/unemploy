@@ -134,7 +134,7 @@ export function packRequestText(username: string, jobs: { title: string; company
     `PACK REQUEST from ${username}. I kept ${jobs.length === 1 ? "this job" : `these ${jobs.length} jobs`}; write the application pack for ${jobs.length === 1 ? "it" : "each"} now.`,
     jobs.map((j, i) => `${i + 1}. ${j.title} at ${j.company}: ${j.url}`).join("\n"),
     `For each: open the posting and its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English as your brief's WRITING RULES say: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Do not search for new jobs now; packs only.`,
-    facts ? `${facts}\n${FACTS_RULE}` : "",
+    `${facts ? `${facts}\n` : ""}${FACTS_RULE}`,
     `Reply with one line when all are sent. (${new Date().toISOString()})`,
   ]
     .filter(Boolean)
