@@ -3,8 +3,6 @@ import { redirect } from "next/navigation";
 import { count } from "drizzle-orm";
 import {
   ArrowRight,
-  Brain,
-  Briefcase,
   CheckCircle2,
   ChevronRight,
   FileText,
@@ -17,7 +15,6 @@ import {
 import { Ninja, type Mood } from "@/components/brand";
 import { CardMock, ExtensionMock, FrontMock } from "@/components/landing-art";
 import { LandingHeader } from "@/components/landing-header";
-import { RotatingPhrase } from "@/components/rotating-phrase";
 import { WaitlistForm } from "@/components/waitlist-form";
 import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
@@ -34,18 +31,16 @@ const LOGIN_ERRORS: Record<string, string> = {
   config: "Sign-in is temporarily unavailable. Please try again later.",
 };
 
-const PHRASES = ["finds jobs you'd actually get", "writes every application", "fills in the forms", "never makes things up"];
-
 // Everything below is true of the product today; numbers come from the same code the app uses.
 
 // Show the live waitlist size once it's big enough to help rather than hurt.
 const SHOW_WAITLIST_FROM = 50;
 
 const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in, deploy your headhunter", body: "One click deploys a headhunter that works only for you. It belongs to you, not to us, and runs only when you ask." },
+  { icon: UserRound, mood: "happy", title: "Sign in, get your headhunter", body: "One click sets up a headhunter that works only for you. It runs only when you ask." },
   { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer two questions: the roles you want and where you live." },
   { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find new jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
-  { icon: ShieldCheck, mood: "excited", title: "Open today, on the employer's site", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
+  { icon: ShieldCheck, mood: "excited", title: "Checked before it reaches you", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
   { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to dismiss. Kept jobs line up from To apply to Offer." },
   {
     icon: Puzzle,
@@ -73,7 +68,7 @@ const FAQ = [
   },
   {
     q: "What about the questions only I can answer?",
-    a: "Application forms ask things like notice period, relocation, years with a tool. Your headhunter answers those from your details and your earlier answers; anything it doesn't know comes to you once, and it remembers from then on.",
+    a: "Forms ask things like notice period, relocation, or years with a tool. Your headhunter answers those from your details and your past answers. Anything it doesn't know comes to you once, and it remembers from then on.",
   },
   {
     q: "Will it make things up about me?",
@@ -115,23 +110,20 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <h1 className="font-display mt-6 text-[2.4rem] font-medium leading-[1.08] tracking-[-0.01em] sm:text-[3.5rem]">
               Stop scrolling job boards.
               <br />
-              <span className="text-white/70">Your own headhunter</span>{" "}
-              <span className="text-coral">
-                <RotatingPhrase phrases={PHRASES} />
-              </span>
+              <span className="text-white/70">Your own headhunter</span> <span className="text-coral">writes every application.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-white/55 md:mx-0">
-              It finds real, open jobs you&rsquo;d get, writes each application from your resume, and prepares every answer the
-              form will ask. You read it and press Submit.
+              It finds real, open jobs you&rsquo;d get, writes each application from your resume, and answers what the form
+              asks. You read it and press Submit.
             </p>
 
             <div className="mt-8">
               {open ? (
                 <div className="flex w-full max-w-[26rem] flex-col items-center gap-3 max-md:mx-auto md:items-start">
                   <a href={loginHref} className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl bg-coral text-base font-medium text-white hover:bg-rose sm:w-auto sm:px-7">
-                    Deploy my headhunter <ArrowRight className="size-4" aria-hidden />
+                    Get my headhunter <ArrowRight className="size-4" aria-hidden />
                   </a>
-                  <span className="text-sm text-white/50">{sp.ref === "1" ? "A friend invited you. Sign in with Hello Minds; your first searches run on its free cognition." : "Sign in with Hello Minds. Your first searches run on its free cognition."}</span>
+                  <span className="text-sm text-white/50">{sp.ref === "1" ? "A friend invited you. Sign in with Hello Minds; your first searches are free." : "Sign in with Hello Minds. Your first searches are free."}</span>
                 </div>
               ) : (
                 <WaitlistForm referral={one(sp.ref)} source={one(sp.utm_source)} appUrl={mindsConfig.appUrl} verify={codeSignupAvailable()} />
@@ -224,59 +216,12 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 from where you live, and how many requirements you meet. Swipe right to keep it, left to dismiss.
               </p>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
-                The match score is not pulled from thin air. &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own
-                requirements against your resume, and the card shows which ones you meet.
+                &ldquo;You meet 3 of 4&rdquo; is counted from the posting&rsquo;s own requirements against your resume. The card
+                shows which ones you meet and which you don&rsquo;t.
               </p>
             </div>
             <div className="mx-auto w-full max-w-[360px]" aria-hidden>
               <FrontMock />
-            </div>
-          </div>
-        </section>
-
-        {/* Live search */}
-        {/* One headhunter, two jobs */}
-        <section id="answers" className="bg-night px-[6%] py-16 sm:py-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <H2>One headhunter, two jobs.</H2>
-            <p className="mx-auto mt-3 max-w-2xl text-base leading-relaxed text-white/55">
-              It finds the jobs, and it answers what forms ask about you, from the details you gave it. Nothing is guessed.
-            </p>
-          </div>
-          <div className="mx-auto mt-10 grid max-w-5xl gap-5 md:grid-cols-2">
-            <div className="rounded-3xl bg-surface p-6 sm:p-7">
-              <div className="flex items-center justify-between">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
-                  <Briefcase className="size-5" aria-hidden />
-                </span>
-                <Ninja mood="searching" className="size-16" />
-              </div>
-              <p className="font-display mt-4 text-xl font-medium text-white">Your headhunter</p>
-              <p className="mt-1 text-sm text-white/45">Knows the job market and your resume</p>
-              <ul className="mt-4 space-y-2 text-[15px] text-white/70">
-                {["Searches the web and employers' own job pages, then checks each posting is real and open", "Checks every rule before a job reaches you", "Writes the cover letter and the job-specific answers, quoting only your resume", "Copies the questions off each application form"].map((t) => (
-                  <li key={t} className="flex gap-2.5">
-                    <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="rounded-3xl bg-surface p-6 sm:p-7">
-              <div className="flex items-center justify-between">
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-coral/15 text-rose">
-                  <Brain className="size-5" aria-hidden />
-                </span>
-                <Ninja mood="thinking" className="size-16" />
-              </div>
-              <p className="font-display mt-4 text-xl font-medium text-white">It answers forms about you</p>
-              <p className="mt-1 text-sm text-white/45">Every form question about you, answered once</p>
-              <ul className="mt-4 space-y-2 text-[15px] text-white/70">
-                {["Answers the questions forms ask about you: notice period, relocation, years with a tool", "Only from your details and the answers you've given. Never a guess", "Hands the question to you when it has nothing to go on", "Remembers every answer you give, so fewer questions reach you each time"].map((t) => (
-                  <li key={t} className="flex gap-2.5">
-                    <CheckCircle2 className="mt-1 size-4 shrink-0 text-coral" aria-hidden /> {t}
-                  </li>
-                ))}
-              </ul>
             </div>
           </div>
         </section>
@@ -309,7 +254,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         {/* Straight answers */}
         <section id="faq" className="scroll-mt-15 bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto max-w-3xl">
-            <h2 className="font-display text-center text-[1.75rem] font-medium tracking-[-0.01em] sm:text-[2.25rem]">Is it really that simple?</h2>
+            <h2 className="font-display text-center text-[1.75rem] font-medium tracking-[-0.01em] sm:text-[2.25rem]">Questions</h2>
             <div className="mt-8 divide-y divide-white/[0.08]">
               {FAQ.map((f) => (
                 <details key={f.q} className="group py-5">
@@ -334,7 +279,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
               href={action.href}
               className="mt-8 inline-flex h-12 w-64 items-center justify-center rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose"
             >
-              {open ? "Deploy my headhunter" : action.label}
+              {open ? "Get my headhunter" : action.label}
             </a>
           </div>
           <footer className="flex flex-col items-center gap-4 py-8 text-sm text-white/45 sm:flex-row sm:justify-between">
