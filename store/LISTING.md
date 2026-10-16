@@ -58,7 +58,11 @@ Privacy policy URL: https://careerninja.app/privacy (section "The Chrome extensi
 - Small promo tile 440×280 (Mochi + wordmark on navy, from `brand-kit/`).
 - Icon 128×128: `extension/icons/128.png`.
 
-## Go-live checklist (after approval)
+## Live
+
+Published 16 Oct 2026: https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa
+
+## Go-live checklist (done 16 Oct 2026; kept for the record)
 
 1. In Vercel production set `NEXT_PUBLIC_EXTENSION_LIVE=1` and `NEXT_PUBLIC_EXTENSION_STORE_URL=<listing url>`, then redeploy (build-time variables).
 2. Landing page: remove the three "coming soon" lines in `src/app/page.tsx` (feature card, FAQ, extension section pill and future tense).

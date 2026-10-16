@@ -2,13 +2,14 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Download, Puzzle, Rocket } from "lucide-react";
+import { Check, Puzzle, Rocket } from "lucide-react";
 import { connectExtension } from "@/app/extension-actions";
 import { Ninja } from "./brand";
 import { useExtension } from "./use-extension";
 import { extensionLive } from "@/lib/flags";
 
-const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL;
+// The Chrome Web Store listing (public since 16 Oct 2026).
+const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL || "https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa";
 
 // "Apply to all N": runs the extension if it's ready, otherwise explains what's missing.
 // `bar` lays it out as a slim row (text left, action right) for the top of the jobs list;
@@ -162,49 +163,9 @@ export function ExtensionSetup({
   return (
     <ol className="space-y-4">
       <Step n={1} done={installed} title="Install the extension">
-        {STORE_URL ? (
-          <a
-            href={STORE_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-accent mt-3"
-          >
-            <Puzzle className="size-4" /> Add to Chrome
-          </a>
-        ) : (
-          <>
-            <p className="mt-1 text-sm text-white/55">
-              It&rsquo;s not in the Chrome Web Store yet, so install it in a
-              minute by hand:
-            </p>
-            <ol className="mt-3 list-decimal space-y-1.5 pl-5 text-sm text-white/75">
-              <li>
-                <a
-                  href="/career-ninja-extension.zip"
-                  className="inline-flex items-center gap-1 text-rose underline underline-offset-2"
-                >
-                  Download the extension <Download className="size-3.5" />
-                </a>{" "}
-                and unzip it.
-              </li>
-              <li>
-                In Chrome, open{" "}
-                <span className="font-mono text-white">
-                  chrome://extensions
-                </span>{" "}
-                and switch on <b>Developer mode</b> (top right).
-              </li>
-              <li>
-                Click <b>Load unpacked</b> and choose the unzipped{" "}
-                <span className="font-mono text-white">
-                  career-ninja-extension
-                </span>{" "}
-                folder.
-              </li>
-              <li>Come back here and refresh this page.</li>
-            </ol>
-          </>
-        )}
+        <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-3">
+          <Puzzle className="size-4" /> Add to Chrome
+        </a>
         {!installed && (
           <button
             className="mt-3 text-sm text-white/50 underline underline-offset-2 hover:text-white"

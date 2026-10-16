@@ -23,7 +23,6 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { extensionLive } from "@/lib/flags";
 import { MAX_POSTING_AGE_DAYS } from "@/lib/preferences";
 import { getCurrentUser } from "@/lib/session";
 
@@ -51,10 +50,8 @@ const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] 
   {
     icon: Puzzle,
     mood: "love",
-    title: extensionLive ? "The form fills itself" : "The form fills itself (coming soon)",
-    body: extensionLive
-      ? "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit."
-      : "A Chrome extension will open each application, fill in your details, cover letter and answers, and wait for you to press Submit. Until then, you apply with what it wrote.",
+    title: "The form fills itself",
+    body: "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit.",
   },
 ];
 
@@ -72,9 +69,7 @@ const PAINS = [
 const FAQ = [
   {
     q: "Does it apply for me?",
-    a: extensionLive
-      ? "Almost. It finds the job and writes the application. The Chrome extension fills the form for you, and leaves Submit to you unless you choose to let it send."
-      : "Almost. It finds the job and writes the application. You open the posting, paste what it wrote, and press Submit yourself. A Chrome extension that fills the form for you is coming soon.",
+    a: "Almost. It finds the job and writes the application. The Chrome extension fills the form for you, and leaves Submit to you unless you choose to let it send.",
   },
   {
     q: "What about the questions only I can answer?",
@@ -290,13 +285,19 @@ export default async function Home({ searchParams }: PageProps<"/">) {
         <section id="extension" className="bg-night px-[6%] py-16 sm:py-20">
           <div className="mx-auto grid max-w-6xl items-center gap-10 md:grid-cols-2 md:gap-14">
             <div>
-              {!extensionLive && <p className="mb-3 inline-block rounded-full bg-coral/15 px-3 py-1 text-xs font-medium text-rose">Coming soon</p>}
               <H2>The form fills itself. You press Submit.</H2>
               <p className="mt-4 max-w-[36rem] text-base leading-relaxed text-white/55">
-                The Chrome extension {extensionLive ? "opens" : "will open"} each job you kept and {extensionLive ? "fills" : "fill"} in your details, resume, cover letter and answers.
-                Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. {extensionLive ? "Works" : "It will work"} on Greenhouse, Lever and
-                Ashby{extensionLive ? "" : " first"}.
+                The Chrome extension opens each job you kept and fills in your details, resume, cover letter and answers.
+                Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and Ashby.
               </p>
+              <a
+                href="https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-accent mt-6"
+              >
+                Add to Chrome
+              </a>
             </div>
             <div className="flex justify-center" aria-hidden>
               <ExtensionMock />
