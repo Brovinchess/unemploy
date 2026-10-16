@@ -4,7 +4,8 @@ import { db, schema } from "@/db";
 import { hashKey } from "@/lib/keys";
 import { poolFor, poolText } from "@/lib/pool";
 
-// Rung 0 of every search: postings seen open recently that may fit this person. Plain text,
+// Rung 0 of every search ("check first" in the request): postings seen open recently that may fit
+// this person, read from the shared pool. The address never says "pool": the Mind's chat is visible to the person. Plain text,
 // so the Mind reads it cheaply. Same key as the ingest endpoint.
 export async function GET(request: Request) {
   const key = request.headers.get("x-unemploy-key");

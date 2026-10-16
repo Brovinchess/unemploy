@@ -173,7 +173,7 @@ async function runMockHunt(alias: string) {
     };
   });
 
-  // Rung 0: what the real Mind would GET from /api/pool with its key.
+  // Rung 0: what the real Mind would GET from /api/leads with its key.
   const { poolFor } = await import("../pool");
   const pool = await poolFor(profile).catch(() => []);
   say(alias, true, pool.length ? `Checked ${pool.length} postings from your check-first list.` : "Nothing on the check-first list; starting at rung 1.");

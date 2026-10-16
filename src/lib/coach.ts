@@ -72,7 +72,7 @@ export async function coachSuggestions(profile: Profile, pace: Pace): Promise<Su
   if (pace.jobs < pace.wanted && pace.wanted > 5) out.push({ kind: "fewer", target: "jobsPerDay", text: `Ask for 5 jobs instead of ${pace.wanted}.`, evidence: `It found ${pace.jobs} of ${pace.wanted}${pace.endReason === "timeout" ? " before time ran out" : ""}. Smaller searches finish faster.` });
   // Nothing specific to point at: the widest settings-only levers, in order of how much they usually help.
   if (!out.length && pace.tooSlow) {
-    if (remoteOnly) out.push({ kind: "settings", target: "workSettings", text: `Also allow hybrid or on-site jobs in ${city}.`, evidence: `Remote-only is the narrowest pool. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
+    if (remoteOnly) out.push({ kind: "settings", target: "workSettings", text: `Also allow hybrid or on-site jobs in ${city}.`, evidence: `Remote-only is the narrowest search. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
     else if (age < 60) out.push({ kind: "settings", target: "maxPostingAgeDays", text: `Allow postings up to 60 days old.`, evidence: `More postings to pick from. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
     else if (prefs.jobTypes.length === 1 && prefs.jobTypes[0] === "Full-time") out.push({ kind: "settings", target: "jobTypes", text: `Also allow contract roles.`, evidence: `Many companies hire contractors first. This search took ${pace.perJob ?? pace.minutes} minutes per job.` });
   }

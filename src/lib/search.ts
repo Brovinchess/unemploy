@@ -94,7 +94,7 @@ export function searchRequestText(args: {
   return [
     `SEARCH REQUEST #${n} from ${username}. ${resume}`,
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
-    `Rung 0, check first: GET ${base}/api/pool with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
+    `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
     `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Open each job's application form and copy its questions into "formQuestions".`,
     `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, with "posting" attached whenever you opened the page.`,
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
