@@ -34,7 +34,7 @@ const isStale = (j: BoardJob) =>
   !!j.statusChangedAt &&
   Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
 
-export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; detailsComplete: boolean }) {
+export function JobsBoard({ jobs, ready, other, detailsComplete }: { jobs: BoardJob[]; ready: number; other: number; detailsComplete: boolean }) {
   const [stage, setStage] = useState<JobStatus | "all">("all");
   const [q, setQ] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
@@ -123,7 +123,7 @@ export function JobsBoard({ jobs, detailsComplete }: { jobs: BoardJob[]; details
 
       {/* The one action for this list: everything swiped right, applied in one go. */}
       {toApply > 0 && (stage === "all" || stage === "saved") && (
-        <ApplyAllButton count={toApply} detailsComplete={detailsComplete} bar />
+        <ApplyAllButton count={ready} other={other} detailsComplete={detailsComplete} bar />
       )}
 
       {groups.length === 0 ? (

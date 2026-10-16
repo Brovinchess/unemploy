@@ -1,10 +1,10 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { extensionLive } from "@/lib/flags";
 import { ExtensionSetup } from "@/components/extension-ui";
 import { appContext, balanceFor } from "@/lib/app-context";
-import { detailsComplete } from "@/lib/extension";
+import { detailsComplete, isSupported } from "@/lib/extension";
 import { DeleteAccount } from "./delete-account";
 import { CoachSwitch } from "./coach-switch";
 import { EmailUpdates } from "./email-updates";
@@ -22,10 +22,17 @@ function Section({ title, id, children }: { title: string; id?: string; children
 // live on its page; details about the person live on the You page.
 export default async function Settings() {
   const { user, profiles, unfinished, current } = await appContext();
-  const [balance, [{ n: toApply }]] = await Promise.all([
+  const [balance, applyUrls] = await Promise.all([
     balanceFor(user, current),
-    db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved"))),
+    // Kept jobs with a written application; the extension can fill only some of their sites.
+    db
+      .select({ url: schema.jobs.url })
+      .from(schema.jobs)
+      .innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
+      .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved"))),
   ]);
+  const ready = applyUrls.filter((j) => isSupported(j.url)).length;
+  const other = applyUrls.length - ready;
 
   return (
     <AppShell tab="settings" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -41,7 +48,7 @@ export default async function Settings() {
                 <p className="mb-5 text-sm text-white/55">
                   Fills in job application forms for you, with your details, resume, cover letter and answers. You check each one and press Submit.
                 </p>
-                <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={toApply} />
+                <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={ready} other={other} />
               </>
             ) : (
               <p className="text-sm text-white/55">

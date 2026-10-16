@@ -16,11 +16,13 @@ const STORE_URL = process.env.NEXT_PUBLIC_EXTENSION_STORE_URL || "https://chrome
 // the default stacks and centres it for the end of the swipe deck.
 export function ApplyAllButton({
   count,
+  other = 0, // kept jobs on sites the extension can't fill: applied to from the job page
   detailsComplete,
   bar = false,
   inSetup = false, // rendered inside the setup list itself: no "set up" link back to it
 }: {
   count: number;
+  other?: number;
   detailsComplete: boolean;
   bar?: boolean;
   inSetup?: boolean;
@@ -28,7 +30,8 @@ export function ApplyAllButton({
   const { status, applyAll } = useExtension();
   const [msg, setMsg] = useState<string>();
   const [pending, start] = useTransition();
-  if (!count) return null;
+  if (!count && !other) return null;
+  const otherLine = other ? `${other} more ${other === 1 ? "is" : "are"} on sites it can't fill yet. Apply to ${other === 1 ? "that one" : "those"} from the job page.` : "";
 
   const ready = status?.installed && status.connected && detailsComplete && !status.needsUpdate;
   const needDetails = !detailsComplete && status?.installed && status.connected;
@@ -64,18 +67,31 @@ export function ApplyAllButton({
   if (bar) {
     // Nothing until the extension check finishes, so the row doesn't flash between states.
     if (!status) return null;
+    if (!count) {
+      return (
+        <div className="flex items-center gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-5 py-3.5">
+          <Ninja mood="thinking" className="size-11 shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-medium text-white">
+              {other} {other === 1 ? "job" : "jobs"} ready to apply
+            </p>
+            <p className="text-sm text-white/55">{other === 1 ? "It is" : "They are"} on sites the extension can&rsquo;t fill yet, so apply from the job page. It works on Greenhouse, Lever and Ashby.</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-3 rounded-2xl border border-coral/20 bg-coral/[0.08] px-5 py-3.5 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-4">
           <Ninja mood="love" className="float size-11 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-medium text-white">
-              {count} {one ? "job" : "jobs"} ready to apply
+              {count} {one ? "job" : "jobs"} ready for the extension
             </p>
             <p className="text-sm text-white/55">
               {msg ??
                 (ready
-                  ? "The extension opens each one, fills it in and waits for you to submit."
+                  ? `It opens each one, fills it in and waits for you to submit.${otherLine ? ` ${otherLine}` : ""}`
                   : status.needsUpdate
                     ? "Your Career Ninja extension is out of date. Chrome updates it by itself. To do it now, open chrome://extensions and press Update."
                     : needDetails
@@ -110,6 +126,9 @@ export function ApplyAllButton({
     );
   }
 
+  if (!count) {
+    return <p className={`text-sm text-white/50 ${inSetup ? "" : "text-center"}`}>Your {other} kept {other === 1 ? "job is" : "jobs are"} on sites the extension can&rsquo;t fill yet. Apply from the job page.</p>;
+  }
   // Not set up yet: a quiet one-liner instead of a button that can't work.
   if (!ready) {
     if (inSetup) return <p className="text-sm text-white/45">Finish the three steps and the button appears here.</p>;
@@ -143,6 +162,7 @@ export function ApplyAllButton({
       {msg && (
         <p className={`max-w-sm text-xs text-white/50 ${inSetup ? "" : "text-center"}`}>{msg}</p>
       )}
+      {otherLine && <p className={`max-w-md text-sm text-white/50 ${inSetup ? "" : "text-center"}`}>{otherLine}</p>}
     </div>
   );
 }
@@ -152,9 +172,11 @@ export function ApplyAllButton({
 export function ExtensionSetup({
   detailsComplete,
   toApply,
+  other = 0,
 }: {
   detailsComplete: boolean;
-  toApply: number;
+  toApply: number; // kept jobs the extension can fill
+  other?: number; // kept jobs on other sites
 }) {
   const { status, connect, refresh } = useExtension();
   const [pending, start] = useTransition();
@@ -216,8 +238,8 @@ export function ExtensionSetup({
 
       <div className="border-t border-white/[0.06] pt-5">
         {allSet ? (
-          toApply ? (
-            <ApplyAllButton count={toApply} detailsComplete={detailsComplete} inSetup />
+          toApply || other ? (
+            <ApplyAllButton count={toApply} other={other} detailsComplete={detailsComplete} inSetup />
           ) : (
             <p className="text-sm text-white/55">All set. Swipe right on a few jobs and the Apply to all button appears on the Jobs page.</p>
           )

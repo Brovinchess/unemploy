@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
@@ -14,7 +14,7 @@ import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
 import { costModel } from "@/lib/cost";
-import { detailsComplete } from "@/lib/extension";
+import { detailsComplete, isSupported } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
 import { topUpUrlFor } from "@/lib/minds/config";
 
@@ -33,7 +33,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const sp = await searchParams;
   const { user, profiles, unfinished, current } = await appContext(sp.profile);
   const ids = profiles.map((p) => p.id);
-  const [balance, cost, fresh, toApply] = await Promise.all([
+  const [balance, cost, fresh, applyUrls] = await Promise.all([
     balanceFor(user, current),
     costModel(current.id),
     // New jobs from every headhunter, best match first.
@@ -44,18 +44,22 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       ),
       orderBy: [desc(schema.jobs.matchScore)],
     }),
-    // Ready to apply: kept jobs whose application pack has been written.
+    // Ready to apply: kept jobs whose application pack has been written. The extension can
+    // fill only some sites, so the links decide which count it goes in.
     db
-      .select({ n: count() })
+      .select({ url: schema.jobs.url })
       .from(schema.jobs)
       .innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
-      .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved")))
-      .then((r) => r[0].n),
+      .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
   ]);
+  const ready = applyUrls.filter((j) => isSupported(j.url)).length;
+  const other = applyUrls.length - ready;
+  const toApply = applyUrls.length;
   const coach = user.coachReminders ? await coachFor(current) : null;
   const applyAll = (
     <ApplyAllButton
-      count={toApply}
+      count={ready}
+      other={other}
       detailsComplete={detailsComplete(user.applicant)}
     />
   );
@@ -200,6 +204,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         {/* Everything found so far, in one list. */}
         <JobsBoard
           jobs={kept.map(forBoard)}
+          ready={ready}
+          other={other}
           detailsComplete={detailsComplete(user.applicant)}
         />
 
