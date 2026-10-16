@@ -10,6 +10,7 @@ import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
+import { FeedbackButton } from "./feedback-button";
 import { RowStatus, SidebarSearch } from "./sidebar-search";
 import { TitleBadge } from "./title-badge";
 
@@ -156,22 +157,23 @@ export async function AppShell({
               Top up <ExternalLink className="size-3.5" aria-hidden />
             </a>
           </div>
-          <div className="flex items-center gap-3 px-2">
-            <span className="flex size-8 items-center justify-center rounded-full bg-white/[0.08] text-xs font-semibold uppercase">
+          <div className="flex items-center gap-2 px-2">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-xs font-semibold uppercase">
               {user.username?.[0] ?? "?"}
             </span>
             <span className="min-w-0 flex-1 truncate text-sm text-white/70">{user.username}</span>
+            <FeedbackButton />
             <Link
               href="/app/settings"
               aria-current={tab === "settings" ? "page" : undefined}
-              className={`flex size-8 items-center justify-center rounded-full hover:bg-white/[0.08] hover:text-white ${tab === "settings" ? "bg-white/[0.08] text-white" : "text-white/50"}`}
+              className={`flex size-7 shrink-0 items-center justify-center rounded-full hover:bg-white/[0.08] hover:text-white ${tab === "settings" ? "bg-white/[0.08] text-white" : "text-white/50"}`}
               title="Settings"
             >
               <Settings className="size-4" aria-hidden />
               <span className="sr-only">Settings</span>
             </Link>
             <form action="/auth/logout" method="post">
-              <button className="flex size-8 items-center justify-center rounded-full text-white/50 hover:bg-white/[0.08] hover:text-white" title="Sign out">
+              <button className="flex size-7 shrink-0 items-center justify-center rounded-full text-white/50 hover:bg-white/[0.08] hover:text-white" title="Sign out">
                 <LogOut className="size-4" aria-hidden />
                 <span className="sr-only">Sign out</span>
               </button>

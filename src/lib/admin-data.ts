@@ -1,4 +1,5 @@
 import "server-only";
+import type { FeedbackKind } from "@/db/schema";
 import { buildBrief } from "./brief";
 import { factsText } from "./facts";
 import { mindsConfig } from "./minds/config";
@@ -160,7 +161,7 @@ async function loadOverview(days: number): Promise<Overview> {
     users: number; named: number; email_verified: number; deployed: number; live: number; searching_now: number; paused: number; jobs: number; applied_plus: number; extension_users: number;
     with_resume: number; with_prefs: number; with_mind: number; searched: number; got_job: number; kept: number; applied: number; never_searched: number; kept_nothing: number;
     new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number; pool_jobs: number;
-    avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number;
+    avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number; feedback_new: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
   };
   const s = await one<Scalars>(sql`
@@ -201,6 +202,7 @@ async function loadOverview(days: number): Promise<Overview> {
       (select count(*) from jobs where created_at >= ${ts(since)} and status in (${lit(KEPT)}))::int as window_kept,
       (select count(*) from leads where created_at >= ${ts(since)})::int as leads,
       (select count(*) from jobs where created_at >= ${ts(since)} and from_pool)::int as pool_jobs,
+      (select count(*) from feedback where status = 'new')::int as feedback_new,
       (select round(avg(extract(epoch from (ended_at - started_at)) / 60))::int from searches where started_at >= ${ts(since)} and ended_at is not null) as avg_minutes,
       (select round(percentile_cont(0.5) within group (order by m))::int from (
         select extract(epoch from (min(j.created_at) - s.started_at)) / 60 as m from searches s join jobs j on j.search_id = s.id where s.started_at >= ${ts(since)} group by s.id, s.started_at) x) as first_job_minutes,
@@ -292,6 +294,7 @@ async function loadOverview(days: number): Promise<Overview> {
     byStage: counts(of("stage").map((f) => ({ key: stageLabel(f.key), n: f.n }))),
     byReason: counts(of("reason").map((f) => ({ key: DROP_LABELS[f.key as DropReason] ?? f.key, n: f.n }))),
     alerts: [
+      { label: "Feedback waiting to be read", count: s.feedback_new, href: "/admin/feedback" },
       { label: "Searches open for more than 2 hours", count: s.stuck, href: "/admin/searches?open=1", hint: s.stuck_hint ?? "" },
       { label: `Searches that ended with no jobs (last ${days} days)`, count: s.empty_searches, href: `/admin/searches?days=${days}&empty=1` },
       { label: "Deployed a headhunter but never searched", count: s.never_searched, href: "/admin/users?idle=1" },
@@ -313,6 +316,23 @@ async function loadOverview(days: number): Promise<Overview> {
       minutes: mins(r.startedAt, r.endedAt ?? now) ?? 1,
     })),
   };
+}
+
+// ---- feedback ------------------------------------------------------------------------------
+
+export type FeedbackRow = { id: string; createdAt: Date; userId: string; username: string | null; kind: FeedbackKind; message: string; page: string | null; status: "new" | "done" };
+export type Feedback = { total: number; open: number; rows: FeedbackRow[] };
+
+export const feedbackList = () => memo("feedback", DETAIL_TTL, loadFeedback);
+
+async function loadFeedback(): Promise<Feedback> {
+  const rows = await db
+    .select({ id: schema.feedback.id, createdAt: schema.feedback.createdAt, userId: schema.users.id, username: schema.users.username, kind: schema.feedback.kind, message: schema.feedback.message, page: schema.feedback.page, status: schema.feedback.status })
+    .from(schema.feedback)
+    .innerJoin(schema.users, eq(schema.users.id, schema.feedback.userId))
+    .orderBy(desc(schema.feedback.createdAt))
+    .limit(300);
+  return { total: rows.length, open: rows.filter((r) => r.status === "new").length, rows };
 }
 
 // ---- briefs --------------------------------------------------------------------------------

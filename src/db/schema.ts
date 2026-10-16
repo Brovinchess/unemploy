@@ -430,6 +430,24 @@ export const referrals = pgTable(
 export type Referral = typeof referrals.$inferSelect;
 
 // Pre-launch waitlist. referral_code is shared as ?ref=…; referred_by is the code a signup came in with.
+// What people send from the feedback button: a bug, an idea, or anything else, with the page.
+export type FeedbackKind = "bug" | "idea" | "other";
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").$type<FeedbackKind>().notNull(),
+    message: text("message").notNull(),
+    page: text("page"),
+    status: text("status").$type<"new" | "done">().notNull().default("new"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("feedback_created").on(t.createdAt)],
+).enableRLS();
+
 export const waitlist = pgTable(
   "waitlist",
   {
