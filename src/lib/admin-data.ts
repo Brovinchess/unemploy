@@ -114,7 +114,12 @@ export type Overview = {
   days: number;
   keys: string[];
   allTime: { users: number; emailVerified: number; deployed: number; live: number; searchingNow: number; jobs: number; appliedPlus: number; extensionUsers: number };
-  window: { newUsers: number; referred: number; activeUsers: number; searches: number; openSearches: number; finished: number; finishedWithJobs: number; jobs: number; kept: number; leads: number; cognition: number; poolJobs: number };
+  window: {
+    newUsers: number; referred: number; activeUsers: number; searches: number; openSearches: number; finished: number; finishedWithJobs: number; jobs: number; kept: number; leads: number; cognition: number; poolJobs: number;
+    avgMinutes: number | null; firstJobMinutes: number | null; wanted: number; applied: number; interviews: number; emptySearches: number;
+  };
+  countries: [string, number][]; // accounts by the country they set, all time
+  people: { id: string; username: string | null; country: string; searches: number; jobs: number; kept: number; avgMinutes: number | null; cognition: number }[];
   funnel: { label: string; count: number; href?: string }[];
   trend: { signups: number[]; searches: number[]; jobs: number[]; cognition: number[] };
   byStage: [string, number][];
@@ -136,6 +141,7 @@ async function loadOverview(days: number): Promise<Overview> {
     users: number; named: number; email_verified: number; deployed: number; live: number; searching_now: number; paused: number; jobs: number; applied_plus: number; extension_users: number;
     with_resume: number; with_prefs: number; with_mind: number; searched: number; got_job: number; kept: number; applied: number; never_searched: number; kept_nothing: number;
     new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number; pool_jobs: number;
+    avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
   };
   const s = await one<Scalars>(sql`
@@ -176,6 +182,12 @@ async function loadOverview(days: number): Promise<Overview> {
       (select count(*) from jobs where created_at >= ${ts(since)} and status in (${lit(KEPT)}))::int as window_kept,
       (select count(*) from leads where created_at >= ${ts(since)})::int as leads,
       (select count(*) from jobs where created_at >= ${ts(since)} and from_pool)::int as pool_jobs,
+      (select round(avg(extract(epoch from (ended_at - started_at)) / 60))::int from searches where started_at >= ${ts(since)} and ended_at is not null) as avg_minutes,
+      (select round(percentile_cont(0.5) within group (order by m))::int from (
+        select extract(epoch from (min(j.created_at) - s.started_at)) / 60 as m from searches s join jobs j on j.search_id = s.id where s.started_at >= ${ts(since)} group by s.id, s.started_at) x) as first_job_minutes,
+      (select coalesce(sum(jobs_wanted), 0) from searches where started_at >= ${ts(since)})::int as wanted,
+      (select count(*) from jobs where status_changed_at >= ${ts(since)} and status in (${lit(APPLIED_PLUS_LIST)}))::int as window_applied,
+      (select count(*) from jobs where status_changed_at >= ${ts(since)} and status in ('interview', 'offer'))::int as window_interviews,
       (select count(*) from searches where ended_at is null and started_at < now() - interval '2 hours')::int as stuck,
       (select string_agg(who, ', ') from (
         select ${WHO} as who from searches s left join profiles p on p.id = s.profile_id left join users u on u.id = p.user_id
@@ -194,6 +206,9 @@ async function loadOverview(days: number): Promise<Overview> {
     union all select 'cognition', ${dayOf(sql.raw("coalesce(ended_at, started_at)"))}, 0, coalesce(sum(cognition_used), 0)::float8 from searches where started_at >= ${ts(since)} group by 2
     union all select 'stage', status, count(*)::int, 0::float8 from jobs where created_at >= ${ts(since)} group by 2
     union all select 'reason', reason, count(*)::int, 0::float8 from leads where created_at >= ${ts(since)} group by 2
+    union all select 'country', c, count(*)::int, 0::float8 from (
+      select u.id, coalesce(nullif(max(p.preferences->>'country'), ''), case when u.timezone is null then 'Unknown' else 'Unknown (' || split_part(u.timezone, '/', 1) || ')' end) as c
+      from users u left join profiles p on p.user_id = u.id group by u.id, u.timezone) t group by 2
   `);
   const of = (kind: string) => facets.filter((f) => f.kind === kind);
   const series = (kind: string, value: (f: Facet) => number = (f) => f.n) => fill(keys, of(kind).map((f) => ({ key: f.key, v: value(f) })));
@@ -219,13 +234,29 @@ async function loadOverview(days: number): Promise<Overview> {
     .orderBy(desc(schema.searches.startedAt))
     .limit(15);
 
+  // Query 4: the people who searched in the window, with where they are and what they got.
+  type P = { id: string; username: string | null; country: string | null; searches: number; jobs: number; kept: number; avg_minutes: number | null; cognition: number };
+  const people = await rows<P>(sql`
+    select u.id, u.username, max(p.preferences->>'country') as country, count(s.id)::int as searches,
+      coalesce(sum(s.jobs_added), 0)::int as jobs,
+      (select count(*) from jobs j join profiles q on q.id = j.profile_id where q.user_id = u.id and j.created_at >= ${ts(since)} and j.status in (${lit(KEPT)}))::int as kept,
+      round(avg(extract(epoch from (s.ended_at - s.started_at)) / 60))::int as avg_minutes,
+      coalesce(sum(s.cognition_used), 0)::float8 as cognition
+    from searches s join profiles p on p.id = s.profile_id join users u on u.id = p.user_id
+    where s.started_at >= ${ts(since)}
+    group by u.id, u.username order by searches desc, jobs desc limit 15
+  `);
+
   return {
     days,
     keys,
+    countries: counts(of("country").map((f) => ({ key: f.key, n: f.n }))),
+    people: people.map((p) => ({ id: p.id, username: p.username, country: p.country ?? "", searches: p.searches, jobs: p.jobs, kept: p.kept, avgMinutes: p.avg_minutes, cognition: Math.round(p.cognition) })),
     allTime: { users: s.users, emailVerified: s.email_verified, deployed: s.deployed, live: s.live, searchingNow: s.searching_now, jobs: s.jobs, appliedPlus: s.applied_plus, extensionUsers: s.extension_users },
     window: {
       newUsers: s.new_users, referred: s.referred, activeUsers: s.active_users, searches: s.searches, openSearches: s.open_searches, finished: s.finished, finishedWithJobs: s.finished_with_jobs,
       jobs: s.window_jobs, kept: s.window_kept, leads: s.leads, cognition: s.cognition, poolJobs: s.pool_jobs,
+      avgMinutes: s.avg_minutes, firstJobMinutes: s.first_job_minutes, wanted: s.wanted, applied: s.window_applied, interviews: s.window_interviews, emptySearches: s.empty_searches,
     },
     funnel: [
       { label: "Signed up", count: s.users, href: "/admin/users" },
