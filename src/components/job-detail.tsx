@@ -7,6 +7,7 @@ import { JobActions } from "./job-actions";
 import { MoveJob } from "./move-job";
 import { JobTags, linkSource, MatchBadge, postedAgo } from "./job-card";
 import { CompanyLogo } from "./company-logo";
+import { isSupported } from "@/lib/extension-sites";
 
 const STATUS_NOTE: Partial<Record<string, string>> = {
   applied: "You applied for this job.",
@@ -134,8 +135,10 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
           <section className="border-t border-line pt-8">
             <h2 className="font-display text-lg font-medium text-ink">Your application pack</h2>
             <p className="mt-1 text-sm text-muted">
-              Copy these into the application form. Everything is based on your resume. Read it through before you
-              send it.
+              {isSupported(job.url)
+                ? "The Chrome extension can fill this form for you from the Jobs page. Or copy these in yourself."
+                : "This site isn't one the extension can fill yet, so open the posting and copy these in."}{" "}
+              Everything is based on your resume. Read it through before you send it.
             </p>
             <div className="mt-5 space-y-3">
               <CopyBlock title="Cover letter" text={pack.coverLetter} />

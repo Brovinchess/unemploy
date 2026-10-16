@@ -65,15 +65,7 @@ export function applyUrl(url: string) {
   }
 }
 
-export const SUPPORTED_HOSTS = ["boards.greenhouse.io", "job-boards.greenhouse.io", "jobs.lever.co", "jobs.eu.lever.co", "jobs.ashbyhq.com"];
-export const isSupported = (url: string) => {
-  try {
-    const h = new URL(url).hostname;
-    return SUPPORTED_HOSTS.some((s) => h === s || h.endsWith(`.${s}`));
-  } catch {
-    return false;
-  }
-};
+export { isSupported, SUPPORTED_HOSTS } from "./extension-sites";
 
 // ---------- Saved answers ----------
 

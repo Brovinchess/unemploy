@@ -2,12 +2,13 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronDown, RotateCcw, Search } from "lucide-react";
+import { ChevronDown, Puzzle, RotateCcw, Search } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
 import type { Job, JobStatus } from "@/db/schema";
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 import { ApplyAllButton } from "./extension-ui";
+import { isSupported } from "@/lib/extension-sites";
 import { MoveJob } from "./move-job";
 // What the board needs from a job row. Backend-only columns (the shared posting key and the
 // clean match fields) never leave the server.
@@ -62,7 +63,7 @@ export function JobsBoard({ jobs, ready, other, detailsComplete }: { jobs: Board
   if (!jobs.length) return null;
 
   // "All" groups by stage, follow-ups first. A chosen stage is one flat list.
-  const groups: { key: string; title: string; jobs: BoardJob[]; hint?: string }[] =
+  const groups: Group[] =
     stage === "all"
       ? [
           {
@@ -71,19 +72,21 @@ export function JobsBoard({ jobs, ready, other, detailsComplete }: { jobs: Board
             hint: "Applied over a week ago, no news yet",
             jobs: live.filter((j) => stale.has(j.id)),
           },
-          ...STAGES.map((s) => ({
+          ...STAGES.flatMap((s): Group[] => (s.status === "saved" ? applyGroups(live.filter((j) => j.status === "saved" && !stale.has(j.id))) : [{
             key: s.status,
             title: s.label,
             jobs: live.filter((j) => j.status === s.status && !stale.has(j.id)),
-          })),
+          }])),
         ].filter((g) => g.jobs.length)
-      : [
-          {
-            key: stage,
-            title: STAGES.find((s) => s.status === stage)!.label,
-            jobs: live.filter((j) => j.status === stage),
-          },
-        ].filter((g) => g.jobs.length);
+      : stage === "saved"
+        ? applyGroups(live.filter((j) => j.status === "saved")).filter((g) => g.jobs.length)
+        : [
+            {
+              key: stage,
+              title: STAGES.find((s) => s.status === stage)!.label,
+              jobs: live.filter((j) => j.status === stage),
+            },
+          ].filter((g) => g.jobs.length);
 
   return (
     <section aria-label="All jobs" className="rise rise-2 space-y-4">
@@ -257,6 +260,16 @@ function when(d: Date | null) {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+type Group = { key: string; title: string; jobs: BoardJob[]; hint?: string };
+
+// Kept jobs split by who applies: the extension, on the sites it supports, or the person.
+function applyGroups(saved: BoardJob[]): Group[] {
+  return [
+    { key: "saved-ext", title: "To apply with the extension", hint: "Press Apply to all and it fills these in", jobs: saved.filter((j) => isSupported(j.url)) },
+    { key: "saved-manual", title: "To apply yourself", hint: "Sites the extension can't fill yet; the application is written on each job's page", jobs: saved.filter((j) => !isSupported(j.url)) },
+  ];
+}
+
 function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
   const [pending, start] = useTransition();
   const place = [j.city, j.country].filter(Boolean).join(", ");
@@ -287,6 +300,16 @@ function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
         </p>
       </div>
       <div className="ml-auto flex items-center gap-3">
+        {j.status === "saved" &&
+          (isSupported(j.url) ? (
+            <span className="hidden shrink-0 items-center gap-1 rounded-full bg-teal-400/10 px-2.5 py-1 text-xs font-medium text-teal-300 sm:inline-flex" title="The extension fills this form">
+              <Puzzle className="size-3" aria-hidden /> Extension
+            </span>
+          ) : (
+            <span className="hidden shrink-0 rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-white/50 sm:inline-flex" title="Open the posting and apply with the written application">
+              Apply yourself
+            </span>
+          ))}
         <span
           className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${strong ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`}
           title="How well it matches your resume"
