@@ -51,7 +51,9 @@ async function status() {
   }
 }
 
-async function applyAll(mode) {
+// `ids` narrows the run to chosen jobs (the app's per-job "Apply now"); without it, every
+// supported job in the queue.
+async function applyAll(mode, ids) {
   if (mode) await set({ mode });
   const q = await loadQueue();
   const { apiBase } = await get(["apiBase"]);
@@ -59,7 +61,8 @@ async function applyAll(mode) {
     chrome.tabs.create({ url: `${apiBase}/app/you#application` });
     return { ok: false, reason: "details" };
   }
-  const jobs = q.jobs.filter((j) => j.supported);
+  const wanted = Array.isArray(ids) && ids.length ? new Set(ids) : null;
+  const jobs = q.jobs.filter((j) => j.supported && (!wanted || wanted.has(j.id)));
   if (!jobs.length) return { ok: false, reason: "empty" };
   await set({ run: { active: true, ids: jobs.map((j) => j.id), index: 0, done: [], skipped: [], tabId: null, submitClicked: false }, lastRun: null });
   await openCurrent();
@@ -136,7 +139,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         await chrome.storage.local.remove(["lastRun"]);
         return { ok: true };
       case "applyAll":
-        return applyAll(msg.mode);
+        return applyAll(msg.mode, msg.ids);
       case "stop": {
         const { run } = await get(["run"]);
         await set({ run: { ...run, active: false } });

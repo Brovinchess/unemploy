@@ -31,7 +31,6 @@ export function ApplyAllButton({
   const [msg, setMsg] = useState<string>();
   const [pending, start] = useTransition();
   if (!count && !other) return null;
-  const otherLine = other ? `${other} more ${other === 1 ? "is" : "are"} on sites it can't fill yet. Apply to ${other === 1 ? "that one" : "those"} from the job page.` : "";
 
   const ready = status?.installed && status.connected && detailsComplete && !status.needsUpdate;
   const needDetails = !detailsComplete && status?.installed && status.connected;
@@ -75,7 +74,7 @@ export function ApplyAllButton({
             <p className="font-medium text-white">
               {other} {other === 1 ? "job" : "jobs"} ready to apply
             </p>
-            <p className="text-sm text-white/55">{other === 1 ? "It is" : "They are"} on sites the extension can&rsquo;t fill yet, so apply from the job page. It works on Greenhouse, Lever and Ashby.</p>
+            <p className="text-sm text-white/55">Open each posting; the cover letter and answers are on the job&rsquo;s page.</p>
           </div>
         </div>
       );
@@ -91,7 +90,7 @@ export function ApplyAllButton({
             <p className="text-sm text-white/55">
               {msg ??
                 (ready
-                  ? `It opens each one, fills it in and waits for you to submit.${otherLine ? ` ${otherLine}` : ""}`
+                  ? "Fills in each form for you. You check it and press Submit."
                   : status.needsUpdate
                     ? "Your Career Ninja extension is out of date. Chrome updates it by itself. To do it now, open chrome://extensions and press Update."
                     : needDetails
@@ -162,7 +161,7 @@ export function ApplyAllButton({
       {msg && (
         <p className={`max-w-sm text-xs text-white/50 ${inSetup ? "" : "text-center"}`}>{msg}</p>
       )}
-      {otherLine && <p className={`max-w-md text-sm text-white/50 ${inSetup ? "" : "text-center"}`}>{otherLine}</p>}
+
     </div>
   );
 }

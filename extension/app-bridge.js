@@ -13,7 +13,7 @@ window.addEventListener("message", async (e) => {
     await chrome.runtime.sendMessage({ type: "connect", token: e.data.token, apiBase: location.origin });
     reply({ type: "connected" });
   } else if (type === "applyAll") {
-    const r = await chrome.runtime.sendMessage({ type: "applyAll", mode: e.data.mode });
+    const r = await chrome.runtime.sendMessage({ type: "applyAll", mode: e.data.mode, ids: e.data.ids });
     reply({ type: "started", ...r });
   }
 });

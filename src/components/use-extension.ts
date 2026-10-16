@@ -12,6 +12,7 @@ export type ExtensionStatus = {
   unreachable?: boolean;
   version?: string;
   needsUpdate?: boolean; // older than the app supports
+  canApplyOne?: boolean; // 1.1.0 and up take a list of job ids
 };
 
 // "1.0.0" >= "0.9.5"
@@ -59,6 +60,7 @@ export function useExtension() {
       running: r?.running,
       version: r?.version,
       needsUpdate: !atLeast(r?.version, r?.minVersion),
+      canApplyOne: !!r?.version && atLeast(r.version, "1.1.0"),
     });
   }, []);
 
@@ -77,6 +79,7 @@ export function useExtension() {
   );
 
   const applyAll = useCallback(async () => ask<{ ok: boolean; reason?: string; count?: number }>("applyAll", {}, 15000), []);
+  const applyOne = useCallback(async (id: string) => ask<{ ok: boolean; reason?: string; count?: number }>("applyAll", { ids: [id] }, 15000), []);
 
-  return { status, refresh, connect, applyAll };
+  return { status, refresh, connect, applyAll, applyOne };
 }

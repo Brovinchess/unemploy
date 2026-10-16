@@ -60,6 +60,8 @@ Privacy policy URL: https://careerninja.app/privacy (section "The Chrome extensi
 
 ## Live
 
+Version 1.1.0 (16 Oct 2026): the app can start the extension on one chosen job ("Apply now" per row). Upload `store/career-ninja-extension-1.1.0.zip`; no new permissions.
+
 Published 16 Oct 2026: https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa
 
 ## Go-live checklist (done 16 Oct 2026; kept for the record)

@@ -2,13 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
-import { ChevronDown, Puzzle, RotateCcw, Search } from "lucide-react";
+import { ChevronDown, ExternalLink, Puzzle, RotateCcw, Search } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
 import type { Job, JobStatus } from "@/db/schema";
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 import { ApplyAllButton } from "./extension-ui";
 import { isSupported } from "@/lib/extension-sites";
+import { useExtension } from "./use-extension";
 import { MoveJob } from "./move-job";
 // What the board needs from a job row. Backend-only columns (the shared posting key and the
 // clean match fields) never leave the server.
@@ -36,6 +37,9 @@ const isStale = (j: BoardJob) =>
   Date.now() - j.statusChangedAt.getTime() > 7 * DAY;
 
 export function JobsBoard({ jobs, ready, other, detailsComplete }: { jobs: BoardJob[]; ready: number; other: number; detailsComplete: boolean }) {
+  // One extension check for the whole board; rows get the per-job "Apply now" from it.
+  const ext = useExtension();
+  const extReady = !!ext.status?.installed && !!ext.status.connected && detailsComplete && !ext.status.needsUpdate;
   const [stage, setStage] = useState<JobStatus | "all">("all");
   const [q, setQ] = useState("");
   const [showDismissed, setShowDismissed] = useState(false);
@@ -157,7 +161,7 @@ export function JobsBoard({ jobs, ready, other, detailsComplete }: { jobs: Board
             </div>
             <ul className="divide-y divide-white/[0.06] overflow-hidden rounded-3xl bg-surface">
               {g.jobs.map((j, i) => (
-                <Row key={j.id} job={j} index={i} />
+                <Row key={j.id} job={j} index={i} extReady={extReady} apply={ext.status?.canApplyOne ? ext.applyOne : ext.applyAll} />
               ))}
             </ul>
           </div>
@@ -265,13 +269,21 @@ type Group = { key: string; title: string; jobs: BoardJob[]; hint?: string };
 // Kept jobs split by who applies: the extension, on the sites it supports, or the person.
 function applyGroups(saved: BoardJob[]): Group[] {
   return [
-    { key: "saved-ext", title: "To apply with the extension", hint: "Press Apply to all and it fills these in", jobs: saved.filter((j) => isSupported(j.url)) },
-    { key: "saved-manual", title: "To apply yourself", hint: "Sites the extension can't fill yet; the application is written on each job's page", jobs: saved.filter((j) => !isSupported(j.url)) },
+    { key: "saved-ext", title: "To apply with the extension", hint: "Apply now opens the form and fills it in for you", jobs: saved.filter((j) => isSupported(j.url)) },
+    { key: "saved-manual", title: "To apply yourself", hint: "Open the posting; your cover letter and answers are on the job's page", jobs: saved.filter((j) => !isSupported(j.url)) },
   ];
 }
 
-function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
+function Row({ job: j, index = 0, extReady = false, apply }: { job: BoardJob; index?: number; extReady?: boolean; apply?: (id: string) => Promise<{ ok: boolean; reason?: string } | null> }) {
   const [pending, start] = useTransition();
+  const [note, setNote] = useState<string>();
+  const [applying, startApply] = useTransition();
+  const viaExtension = j.status === "saved" && isSupported(j.url);
+  const applyNow = () =>
+    startApply(async () => {
+      const r = await apply?.(j.id);
+      setNote(r?.ok ? "Opening the form…" : "Couldn't start. Check the extension.");
+    });
   const place = [j.city, j.country].filter(Boolean).join(", ");
   const setting = j.workSetting
     ? j.workSetting[0].toUpperCase() + j.workSetting.slice(1)
@@ -300,16 +312,6 @@ function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
         </p>
       </div>
       <div className="ml-auto flex items-center gap-3">
-        {j.status === "saved" &&
-          (isSupported(j.url) ? (
-            <span className="hidden shrink-0 items-center gap-1 rounded-full bg-teal-400/10 px-2.5 py-1 text-xs font-medium text-teal-300 sm:inline-flex" title="The extension fills this form">
-              <Puzzle className="size-3" aria-hidden /> Extension
-            </span>
-          ) : (
-            <span className="hidden shrink-0 rounded-full bg-white/[0.06] px-2.5 py-1 text-xs font-medium text-white/50 sm:inline-flex" title="Open the posting and apply with the written application">
-              Apply yourself
-            </span>
-          ))}
         <span
           className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${strong ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`}
           title="How well it matches your resume"
@@ -336,10 +338,42 @@ function Row({ job: j, index = 0 }: { job: BoardJob; index?: number }) {
           >
             <RotateCcw className="size-3.5" aria-hidden /> Restore
           </button>
+        ) : j.status === "saved" ? (
+          <>
+            {viaExtension ? (
+              extReady ? (
+                <button
+                  type="button"
+                  className="btn btn-accent h-8 shrink-0 px-3.5 text-xs"
+                  disabled={applying}
+                  onClick={applyNow}
+                  title="The extension opens this form and fills it in"
+                >
+                  <Puzzle className="size-3.5" aria-hidden /> {applying ? "Starting…" : "Apply now"}
+                </button>
+              ) : (
+                <Link href="/app/settings#extension" className="btn btn-accent h-8 shrink-0 px-3.5 text-xs" title="Set up the extension and it fills this form for you">
+                  <Puzzle className="size-3.5" aria-hidden /> Apply now
+                </Link>
+              )
+            ) : (
+              <a
+                href={j.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-ghost h-8 shrink-0 px-3.5 text-xs"
+                title="This site isn't one the extension fills yet; the application is on the job's page"
+              >
+                Open posting <ExternalLink className="size-3.5" aria-hidden />
+              </a>
+            )}
+            <MoveJob jobId={j.id} status={j.status} compact />
+          </>
         ) : (
           <MoveJob jobId={j.id} status={j.status} />
         )}
       </div>
+      {note && <p className="basis-full text-right text-xs text-white/45">{note}</p>}
     </li>
   );
 }
