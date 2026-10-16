@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Puzzle, Rocket } from "lucide-react";
+import { Check, Puzzle, RefreshCw, Rocket } from "lucide-react";
 import { connectExtension } from "@/app/extension-actions";
 import { Ninja } from "./brand";
 import { useExtension } from "./use-extension";
@@ -192,8 +192,8 @@ export function ExtensionSetup({
               <a href={STORE_URL} target="_blank" rel="noopener noreferrer" className="btn btn-accent">
                 <Puzzle className="size-4" /> Add to Chrome
               </a>
-              <button className="text-sm text-white/50 underline underline-offset-2 hover:text-white" onClick={() => location.reload()}>
-                Installed it? Check again
+              <button type="button" className="btn btn-ghost" onClick={() => location.reload()} title="Added it? Press this and the step ticks itself">
+                <RefreshCw className="size-4" aria-hidden /> Check again
               </button>
             </div>
           )}
