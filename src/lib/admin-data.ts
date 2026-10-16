@@ -1,4 +1,9 @@
 import "server-only";
+import { buildBrief } from "./brief";
+import { factsText } from "./facts";
+import { mindsConfig } from "./minds/config";
+import { postingAgeDays } from "./preferences";
+import { searchRequestText } from "./search";
 import { COUNTRY_NAMES, countryCodeOf } from "./normalise";
 import { and, asc, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -307,6 +312,32 @@ async function loadOverview(days: number): Promise<Overview> {
       minutes: mins(r.startedAt, r.endedAt ?? now) ?? 1,
     })),
   };
+}
+
+// ---- briefs --------------------------------------------------------------------------------
+
+export type BriefRow = { id: string; username: string | null; userId: string; label: string; mindName: string | null; status: ProfileStatus; briefVersion: number; briefedAt: Date | null; text: string; request: string };
+
+export const briefs = () => memo("briefs", DETAIL_TTL, loadBriefs);
+
+// The brief each headhunter gets today, built from its current settings, key hidden. Newest
+// headhunters first; drafts without preferences have no brief yet.
+async function loadBriefs(): Promise<BriefRow[]> {
+  const rows = await db
+    .select({
+      id: schema.profiles.id, label: schema.profiles.label, mindName: schema.profiles.mindName, status: schema.profiles.status, preferences: schema.profiles.preferences, briefVersion: schema.profiles.briefVersion, briefedAt: schema.profiles.briefedAt, createdAt: schema.profiles.createdAt,
+      userId: schema.users.id, username: schema.users.username, timezone: schema.users.timezone, applicant: schema.users.applicant, savedAnswers: schema.users.savedAnswers,
+    })
+    .from(schema.profiles)
+    .innerJoin(schema.users, eq(schema.users.id, schema.profiles.userId))
+    .where(sql`${schema.profiles.preferences} is not null and ${schema.profiles.mindId} is not null`)
+    .orderBy(desc(schema.profiles.createdAt))
+    .limit(100);
+  return rows.map((r) => ({
+    id: r.id, username: r.username, userId: r.userId, label: r.label, mindName: r.mindName, status: r.status, briefVersion: r.briefVersion, briefedAt: r.briefedAt,
+    text: buildBrief({ ownerName: r.username ?? "(no name yet)", profileLabel: r.label, prefs: r.preferences!, timezone: r.timezone ?? "UTC", appUrl: mindsConfig.ingestUrl, ingestKey: "(hidden)", facts: factsText({ applicant: r.applicant, savedAnswers: r.savedAnswers }) }),
+    request: searchRequestText({ username: r.username ?? "me", jobs: r.preferences!.jobsPerDay, n: 0, maxAgeDays: postingAgeDays(r.preferences!), facts: "" }),
+  }));
 }
 
 // ---- headhunters -------------------------------------------------------------------------

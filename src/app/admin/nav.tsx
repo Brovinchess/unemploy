@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Bot, Briefcase, Coins, Kanban, LayoutDashboard, Search, ShieldCheck, TrendingUp, Users, type LucideIcon } from "lucide-react";
+import { Activity, Bot, Briefcase, Coins, FileText, Kanban, LayoutDashboard, Search, ShieldCheck, TrendingUp, Users, type LucideIcon } from "lucide-react";
 
 // Sidebar sections. On admin.careerninja.app the browser path has no /admin prefix (the
 // proxy adds it), so both sides are compared without it.
@@ -12,6 +12,7 @@ const GROUPS: [string, [string, string, LucideIcon][]][] = [
     [
       ["/admin", "Overview", LayoutDashboard],
       ["/admin/headhunters", "Headhunters", Bot],
+      ["/admin/briefs", "Briefs", FileText],
       ["/admin/searches", "Searches", Search],
       ["/admin/jobs", "Jobs", Briefcase],
       ["/admin/quality", "Quality", ShieldCheck],
