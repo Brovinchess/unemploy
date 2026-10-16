@@ -55,6 +55,7 @@ export const mockMinds: MindsApi = {
     say(alias, false, text, attachments?.length ?? 0);
     if (text.includes("/api/ingest")) say(alias, true, "Got your brief and read your resume. I'll search when you ask.");
     if (text.includes("SEARCH REQUEST #")) scheduleHunt(alias);
+    if (text.startsWith("PACK REQUEST")) schedulePacks(alias, text);
   },
   async beacon() {},
   async setEnabled() {},
@@ -103,6 +104,59 @@ function resumeLines(text: string) {
     .filter((l) => l.length >= 25 && l.length <= 180);
 }
 
+// The pack the mock writes for one job: form questions, letter and answers from the resume.
+function packFor(role: string, company: { name: string; notes: string }, e1: string, e2: string) {
+  return {
+    formQuestions: [
+      { question: "First name", required: true },
+      { question: "Are you willing to relocate?", options: ["Yes", "No"], required: true },
+      { question: `How many years of experience do you have as a ${role}?`, required: true },
+      { question: "Why do you want to work here?" },
+      { question: "Do you have experience working with remote teams across time zones?", options: ["Yes", "No"] },
+    ],
+    pack: {
+      coverLetter:
+        `Dear ${company.name} hiring team,\n\n` +
+        `I'm applying for the ${role} role. ${e1}\n\n` +
+        `${e2}\n\n` +
+        `I'd welcome the chance to talk about how I can help ${company.name}.\n\nKind regards`,
+      aboutMe: `${e1} ${e2}`,
+      answers: [
+        { question: "Why do you want to work here?", answer: `${company.notes} That matches the work I've been doing.` },
+        { question: "Are you willing to relocate?", answer: "Yes" },
+      ],
+      claims: [
+        { claim: "Relevant experience", evidence: e1 },
+        { claim: "Supporting experience", evidence: e2 },
+      ],
+    },
+  };
+}
+
+// A PACK REQUEST names kept jobs by link; the mock writes their packs a moment later.
+function schedulePacks(alias: string, text: string) {
+  after(async () => {
+    await new Promise((r) => setTimeout(r, 1200));
+    const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.conversationAlias, alias) });
+    if (!profile?.resumeText) return;
+    const urls = [...new Set(text.match(/https?:\/\/\S+/g) ?? [])];
+    const lines = resumeLines(profile.resumeText);
+    const pick = (i: number) => lines[i % Math.max(1, lines.length)] ?? profile.resumeText!.slice(0, 120).trim();
+    const jobs = await db.query.jobs.findMany({ where: eq(schema.jobs.profileId, profile.id), columns: { url: true, title: true, company: true } });
+    const packs = urls.flatMap((url, i) => {
+      const j = jobs.find((x) => x.url === url);
+      if (!j) return [];
+      const company = COMPANIES.find((c) => c.name === j.company) ?? { name: j.company, notes: `${j.company} is hiring.` };
+      return [{ url, ...packFor(j.title, company, pick(i * 2), pick(i * 2 + 1)) }];
+    });
+    spend(alias, "HTTP_Execute", packs.length * 2, packs.length * 6);
+    spend(alias, "LLM_Turn", packs.length, packs.length * 9);
+    const { processPush } = await import("../ingest");
+    const result = await processPush(profile, { packs }, { demo: true });
+    say(alias, true, `Wrote ${result.packsAccepted ?? 0} application pack${(result.packsAccepted ?? 0) === 1 ? "" : "s"}.`);
+  });
+}
+
 async function runMockHunt(alias: string) {
   const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.conversationAlias, alias) });
   if (!profile?.preferences || !profile.resumeText) return;
@@ -117,7 +171,6 @@ async function runMockHunt(alias: string) {
     const role = roles[i % roles.length] ?? "Specialist";
     const setting = prefs.workSettings[i % prefs.workSettings.length];
     const e1 = pick(i * 2);
-    const e2 = pick(i * 2 + 1);
     const slug = `${company.name}-${role}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
     return {
       url: `https://example.com/demo-jobs/${slug}-${profile.id.slice(0, 6)}-${i}`,
@@ -147,31 +200,10 @@ async function runMockHunt(alias: string) {
         { requirement: "Managed a team", met: i % 2 === 0 },
       ],
       verifiedOpenAt: new Date().toISOString().slice(0, 10),
-      formQuestions: [
-        { question: "First name", required: true },
-        { question: "Are you willing to relocate?", options: ["Yes", "No"], required: true },
-        { question: `How many years of experience do you have as a ${role}?`, required: true },
-        { question: "Why do you want to work here?" },
-        { question: "Do you have experience working with remote teams across time zones?", options: ["Yes", "No"] },
-      ],
-      pack: {
-        coverLetter:
-          `Dear ${company.name} hiring team,\n\n` +
-          `I'm applying for the ${role} role. ${e1}\n\n` +
-          `${e2}\n\n` +
-          `I'd welcome the chance to talk about how I can help ${company.name}.\n\nKind regards`,
-        aboutMe: `${e1} ${e2}`,
-        answers: [
-          { question: "Why do you want to work here?", answer: `${company.notes} That matches the work I've been doing.` },
-          { question: "Are you willing to relocate?", answer: "Yes" },
-        ],
-        claims: [
-          { claim: "Relevant experience", evidence: e1 },
-          { claim: "Supporting experience", evidence: e2 },
-        ],
-      },
     };
   });
+  // Cards only: the pack is written later, when the person keeps the job (schedulePacks).
+  void packFor;
 
   // Rung 0: what the real Mind would GET from /api/leads with its key.
   const { poolFor } = await import("../pool");

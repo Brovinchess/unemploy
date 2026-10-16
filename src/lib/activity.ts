@@ -185,6 +185,12 @@ export async function buildActivity(
       reasons.set(label, (reasons.get(label) ?? 0) + 1);
     }
     const why = [...reasons].map(([label, n]) => `${n} ${label}`).join(", ");
+    const written = rejected.find((r) => r.code === "packs_written");
+    if (written) {
+      const n = Number(written.hint.match(/\d+/)?.[0] ?? 1);
+      items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: `Wrote ${plural(n, "application pack")}` });
+      continue;
+    }
     if (d.accepted + d.rejected === 0) {
       items.push({ id: `d${d.id}`, at: d.createdAt.toISOString(), kind: "delivery", title: "Checked leads, some ruled out" });
       continue;

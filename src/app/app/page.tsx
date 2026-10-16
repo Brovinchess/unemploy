@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
@@ -44,10 +44,13 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       ),
       orderBy: [desc(schema.jobs.matchScore)],
     }),
-    db.$count(
-      schema.jobs,
-      and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved")),
-    ),
+    // Ready to apply: kept jobs whose application pack has been written.
+    db
+      .select({ n: count() })
+      .from(schema.jobs)
+      .innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
+      .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved")))
+      .then((r) => r[0].n),
   ]);
   const coach = user.coachReminders ? await coachFor(current) : null;
   const applyAll = (

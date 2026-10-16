@@ -1,5 +1,5 @@
 import "server-only";
-import { and, count, desc, eq, gte, inArray, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { sendSearchDoneEmail } from "./email";
@@ -7,7 +7,7 @@ import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { track } from "./analytics/server";
 import { mindsConfig } from "./minds/config";
-import { FACTS_RULE } from "./facts";
+import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
 import { postingAgeDays } from "./preferences";
 import type { DropReason } from "@/db/schema";
@@ -95,7 +95,7 @@ export function searchRequestText(args: {
     `SEARCH REQUEST #${n} from ${username}. ${resume}`,
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
     `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
-    `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Open each job's application form and copy its questions into "formQuestions".`,
+    `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Cards only: no cover letter, answers or form questions during the search. I ask for packs separately, for the jobs I keep.`,
     `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, with "posting" attached whenever you opened the page.`,
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
     focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies.` : "",
@@ -107,6 +107,71 @@ export function searchRequestText(args: {
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+// ---- Application packs, written on request ---------------------------------------------
+// A search delivers cards only. When the person keeps a job, the headhunter is asked to open
+// its application form and write the pack. The Mind is switched on for that and off again when
+// the packs land (or after PACK_TIMEOUT_MS, from the live poll's housekeeping).
+
+const PACK_RETRY_MS = 45 * 60_000; // ask again for a pack this old and still missing
+const PACK_TIMEOUT_MS = 40 * 60_000;
+
+// Kept jobs with no pack yet.
+export async function jobsNeedingPacks(profileId: string) {
+  return db
+    .select({ id: schema.jobs.id, url: schema.jobs.url, title: schema.jobs.title, company: schema.jobs.company, packRequestedAt: schema.jobs.packRequestedAt })
+    .from(schema.jobs)
+    .leftJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
+    .where(and(eq(schema.jobs.profileId, profileId), eq(schema.jobs.status, "saved"), isNull(schema.packs.jobId)))
+    .orderBy(desc(schema.jobs.statusChangedAt))
+    .limit(30);
+}
+
+export function packRequestText(username: string, jobs: { title: string; company: string; url: string }[], facts: string) {
+  const base = mindsConfig.ingestUrl;
+  return [
+    `PACK REQUEST from ${username}. I kept ${jobs.length === 1 ? "this job" : `these ${jobs.length} jobs`}; write the application pack for ${jobs.length === 1 ? "it" : "each"} now.`,
+    jobs.map((j, i) => `${i + 1}. ${j.title} at ${j.company}: ${j.url}`).join("\n"),
+    `For each: open the posting and its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English as your brief's WRITING RULES say: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Do not search for new jobs now; packs only.`,
+    facts ? `${facts}\n${FACTS_RULE}` : "",
+    `Reply with one line when all are sent. (${new Date().toISOString()})`,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
+}
+
+// Asks the headhunter for the packs of kept jobs that have none. Safe to call often: each job
+// is claimed before the message goes out, so two swipes close together send one request.
+export async function requestPacks(profileId: string) {
+  const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
+  if (!profile?.mindId || !profile.conversationAlias || profile.status !== "hunting") return;
+  if (isSearching(profile)) return; // the end of the search asks for them
+  const due = (await jobsNeedingPacks(profile.id)).filter((j) => !j.packRequestedAt || Date.now() - j.packRequestedAt.getTime() > PACK_RETRY_MS);
+  if (!due.length) return;
+  const claimed = await db
+    .update(schema.jobs)
+    .set({ packRequestedAt: new Date() })
+    .where(and(inArray(schema.jobs.id, due.map((j) => j.id)), or(isNull(schema.jobs.packRequestedAt), lt(schema.jobs.packRequestedAt, new Date(Date.now() - PACK_RETRY_MS)))))
+    .returning({ id: schema.jobs.id, url: schema.jobs.url, title: schema.jobs.title, company: schema.jobs.company });
+  if (!claimed.length) return;
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user) return;
+  const api = minds(user);
+  await api.setEnabled(profile.mindId, true);
+  await api.sendMessage(profile.conversationAlias, packRequestText(user.username ?? "me", claimed, factsText(user)));
+  await db.update(schema.profiles).set({ packRequestedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+  track(profile.userId, "packs_requested", { jobs: claimed.length });
+}
+
+// Housekeeping from the live poll: a Mind left on for packs goes off once they have landed,
+// or after the timeout, so nothing keeps spending.
+export async function sleepIfPacksDone(profile: Profile) {
+  if (!profile.packRequestedAt || isSearching(profile)) return;
+  const pending = await jobsNeedingPacks(profile.id);
+  if (pending.length && Date.now() - profile.packRequestedAt.getTime() < PACK_TIMEOUT_MS) return;
+  await switchOff(profile);
+  await db.update(schema.profiles).set({ packRequestedAt: null }).where(eq(schema.profiles.id, profile.id));
 }
 
 // If a search has run this long with nothing delivered, the headhunter is asked once to send
@@ -162,6 +227,8 @@ export async function endSearch(profile: Profile, reason: "finished" | "stopped"
   await switchOff(profile);
   await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
   if (reason !== "stopped") await emailResults(profile, reason === "timeout").catch((e) => console.error("[search] email failed", profile.id, e));
+  // Jobs kept during the search still need their packs; that wakes the Mind again briefly.
+  await requestPacks(profile.id).catch((e) => console.error("[search] pack request failed", profile.id, e));
 }
 
 // Closes the search's history row: when, why, jobs added, what it opened, the balance after,

@@ -10,8 +10,13 @@ export async function GET(request: Request) {
   if (!user) return NextResponse.json({ error: "not_connected" }, { status: 401 });
   const profiles = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, user.id), columns: { id: true } });
   const ids = profiles.map((p) => p.id);
+  // Kept jobs whose application pack is written; the ones still being written don't count yet.
   const urls = ids.length
-    ? await db.query.jobs.findMany({ where: and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved")), columns: { url: true } })
+    ? await db
+        .select({ url: schema.jobs.url })
+        .from(schema.jobs)
+        .innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
+        .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved")))
     : [];
   return NextResponse.json(
     {

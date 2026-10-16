@@ -42,7 +42,7 @@ export async function AppShell({
       .where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "new")))
       .groupBy(schema.jobs.profileId),
     questionCounts(user.id),
-    db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
+    db.select({ n: count() }).from(schema.jobs).innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id)).where(and(inArray(schema.jobs.profileId, ids), eq(schema.jobs.status, "saved"))),
     costModel(current.id),
   ]);
   const fresh = new Map(newCounts.map((r) => [r.profileId, r.n]));

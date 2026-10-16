@@ -21,7 +21,7 @@ import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { blockedHosts, endSearch, ingestReachable, isSearching, lastSearchLine, searchRequestText, skipLinks, switchOff } from "@/lib/search";
+import { blockedHosts, endSearch, ingestReachable, isSearching, lastSearchLine, requestPacks, searchRequestText, skipLinks, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 
 export type FormState = { error?: string } | undefined;
@@ -511,11 +511,19 @@ export async function setJobStatus(jobId: string, status: JobStatus, skipReason?
     .where(eq(schema.jobs.id, jobId));
   // A swipe is a decision on a fresh card; later stage changes are tracked as moves.
   if (job.status === "new" && (status === "saved" || status === "skipped")) track(user.id, "card_decided", { decision: status === "saved" ? "apply" : "dismiss" });
-  // Form questions only matter once the person wants the job: a swipe right (or a restore) queues
-  // them on the You page. Jobs still face down or dismissed never reach "Needs you".
-  if (status === "saved" && job.status !== "saved" && job.formQuestions?.length) {
+  // Keeping a job is what gets its application written. A job that already has a pack (older
+  // flow) just queues its form questions on the You page; otherwise the headhunter is asked for
+  // the pack, a few seconds later so several swipes in a row go out as one request.
+  if (status === "saved" && job.status !== "saved") {
     const pack = await db.query.packs.findFirst({ where: eq(schema.packs.jobId, jobId) });
-    await queueQuestions(user.id, job.company, job.formQuestions, pack?.answers ?? []).catch((e) => console.error("[jobs] queue questions failed", jobId, e));
+    if (pack) {
+      if (job.formQuestions?.length) await queueQuestions(user.id, job.company, job.formQuestions, pack.answers).catch((e) => console.error("[jobs] queue questions failed", jobId, e));
+    } else {
+      after(async () => {
+        await new Promise((r) => setTimeout(r, 8000));
+        await requestPacks(job.profileId).catch((e) => console.error("[jobs] pack request failed", jobId, e));
+      });
+    }
   }
   revalidatePath("/app", "layout");
 }

@@ -118,6 +118,18 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
           </section>
         )}
 
+        {!pack && job.status === "saved" && (
+          <section className="rounded-2xl bg-mist-soft p-5 text-sm">
+            <p className="font-medium text-ink">Your application pack is being written.</p>
+            <p className="mt-1 text-muted">Your headhunter is opening the application form and writing your cover letter and answers. They appear here, usually within a few minutes.</p>
+          </section>
+        )}
+        {!pack && job.status === "new" && (
+          <section className="rounded-2xl bg-mist-soft p-5 text-sm">
+            <p className="font-medium text-ink">Keep this job and your headhunter writes the application.</p>
+            <p className="mt-1 text-muted">The cover letter and form answers are written only for jobs you keep, so nothing is spent on the ones you pass on.</p>
+          </section>
+        )}
         {pack && (
           <section className="border-t border-line pt-8">
             <h2 className="font-display text-lg font-medium text-ink">Your application pack</h2>

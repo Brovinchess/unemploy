@@ -5,7 +5,7 @@ import type { Live } from "@/components/live";
 import { balanceFor, freshBalance } from "@/lib/app-context";
 import { ownedProfile } from "@/lib/owned";
 import { questionCounts } from "@/lib/personal";
-import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
+import { endSearch, isSearching, nudgeIfQuiet, sleepIfPacksDone } from "@/lib/search";
 import { getCurrentUser } from "@/lib/session";
 
 // One small snapshot of everything the app shows live: the current search, cognition,
@@ -20,7 +20,10 @@ export async function GET(req: NextRequest) {
   // Housekeeping that shouldn't wait for a page load or the daily job.
   after(async () => {
     if (profile.searchStartedAt && !profile.searchEndedAt && !isSearching(profile)) await endSearch(profile, "timeout").catch(() => {});
-    else await nudgeIfQuiet(profile).catch(() => {});
+    else {
+      await nudgeIfQuiet(profile).catch(() => {});
+      await sleepIfPacksDone(profile).catch(() => {});
+    }
   });
   return NextResponse.json(live, { headers: { "Cache-Control": "no-store" } });
 }
@@ -37,7 +40,7 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
     // Live from Hello Minds while a search spends; the 2-minute cache otherwise.
     searching ? freshBalance(user, profile) : balanceFor(user, profile),
     ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "new"))) : [{ n: 0 }],
-    ready.length ? db.select({ n: count() }).from(schema.jobs).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "saved"))) : [{ n: 0 }],
+    ready.length ? db.select({ n: count() }).from(schema.jobs).innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id)).where(and(inArray(schema.jobs.profileId, ready), eq(schema.jobs.status, "saved"))) : [{ n: 0 }],
     profile.searchStartedAt
       ? db.select({ n: count() }).from(schema.jobs).where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, profile.searchStartedAt)))
       : [{ n: 0 }],

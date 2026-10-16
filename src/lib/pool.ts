@@ -4,7 +4,8 @@ import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { countryCodeOf } from "./normalise";
 import { postingAgeDays } from "./preferences";
-import { eligibilityProblem } from "./quality";
+import { checkPosting, eligibilityProblem } from "./quality";
+import { isPublicHttpUrl } from "./ingest";
 
 // The shared pool, read by a Mind at the start of a search: postings any headhunter opened
 // recently that are still open and could suit this person. It is a locator only. The Mind
@@ -72,7 +73,35 @@ export async function poolFor(profile: Profile) {
     const line = p.locationText ?? [p.city, p.country].filter(Boolean).join(", ");
     return !!line && eligibilityProblem(line, prefs.country, prefs.city) === null;
   });
-  return fits.slice(0, MAX_ROWS);
+  return stillOpen(fits.slice(0, MAX_ROWS));
+}
+
+// Before the Mind sees the list, the app opens each link itself and drops the closed ones, so
+// the Mind spends no time on dead pages. Postings verified open in the last 12 hours are
+// trusted; the rest are checked a few at a time, with a short timeout each.
+const FRESH_MS = 12 * 3_600_000;
+const CHECK_MAX = 40;
+const CHECK_WIDTH = 8;
+async function stillOpen<T extends { postingKey: string; url: string; lastVerifiedOpenAt: Date | null }>(rows: T[]) {
+  const now = Date.now();
+  const stale = rows.filter((p) => !p.lastVerifiedOpenAt || now - p.lastVerifiedOpenAt.getTime() > FRESH_MS).slice(0, CHECK_MAX);
+  const closed = new Set<string>();
+  const queue = [...stale];
+  await Promise.all(
+    Array.from({ length: CHECK_WIDTH }, async () => {
+      for (let p = queue.shift(); p; p = queue.shift()) {
+        const state = await checkPosting(p.url, isPublicHttpUrl, 6000).catch(() => "unknown" as const);
+        const at = new Date();
+        if (state === "closed") {
+          closed.add(p.postingKey);
+          await db.update(schema.postings).set({ closedAt: at, lastCheckedAt: at }).where(eq(schema.postings.postingKey, p.postingKey)).catch(() => {});
+        } else if (state === "open") {
+          await db.update(schema.postings).set({ lastVerifiedOpenAt: at, lastCheckedAt: at }).where(eq(schema.postings.postingKey, p.postingKey)).catch(() => {});
+        }
+      }
+    }),
+  );
+  return rows.filter((p) => !closed.has(p.postingKey));
 }
 
 export function poolText(rows: Awaited<ReturnType<typeof poolFor>>) {

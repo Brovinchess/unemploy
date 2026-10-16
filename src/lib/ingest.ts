@@ -1,15 +1,15 @@
 import "server-only";
-import { and, count, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { avoidList, postingAgeDays } from "./preferences";
 import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
-import { isAboutTheJob, similarity } from "./personal";
+import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
-import { endSearch, isSearching, switchOff } from "./search";
+import { endSearch, isSearching, jobsNeedingPacks, switchOff } from "./search";
 
 // Jobs that arrive this soon after a "final" still count: the Mind finished its last reads.
 const LATE_GRACE_MS = 30 * 60 * 1000;
@@ -54,6 +54,26 @@ const postingSchema = z.object({
 });
 export type PostingPush = z.infer<typeof postingSchema>;
 
+const formQuestionsSchema = z
+  .array(
+    z.object({
+      question: trimmed(300),
+      options: z.array(trimmed(120)).max(30).optional(),
+      required: z.boolean().optional(),
+    }),
+  )
+  .optional()
+  .transform((qs) => qs?.filter((q) => q.question.length >= 3).slice(0, 40));
+const packSchema = z.object({
+  coverLetter: trimmed(6000).pipe(z.string().min(40)),
+  aboutMe: trimmed(1500).pipe(z.string().min(10)),
+  answers: z
+    .array(z.object({ question: trimmed(500), answer: trimmed(3000) }))
+    .default([])
+    .transform((a) => a.slice(0, 40)),
+  claims: z.array(claimSchema).max(40).default([]),
+});
+
 // Text that's merely too long is trimmed rather than costing the whole job.
 const jobSchema = z.object({
   ...postingFields,
@@ -69,26 +89,14 @@ const jobSchema = z.object({
     .default([]),
   verifiedOpenAt: trimmed(40).optional(),
   // The questions on the job's application form, so the ones about the person can be answered once.
-  formQuestions: z
-    .array(
-      z.object({
-        question: trimmed(300),
-        options: z.array(trimmed(120)).max(30).optional(),
-        required: z.boolean().optional(),
-      }),
-    )
-    .optional()
-    .transform((qs) => qs?.filter((q) => q.question.length >= 3).slice(0, 40)),
-  pack: z.object({
-    coverLetter: trimmed(6000).pipe(z.string().min(40)),
-    aboutMe: trimmed(1500).pipe(z.string().min(10)),
-    answers: z
-      .array(z.object({ question: trimmed(500), answer: trimmed(3000) }))
-      .default([])
-      .transform((a) => a.slice(0, 40)),
-    claims: z.array(claimSchema).max(40).default([]),
-  }),
+  formQuestions: formQuestionsSchema,
+  // Normally absent: packs are written later, for the jobs the person keeps (see packPushSchema).
+  pack: packSchema.optional(),
 });
+
+// A pack for a job already on the board, sent after a PACK REQUEST.
+const packPushSchema = z.object({ url: trimmed(2000), formQuestions: formQuestionsSchema, pack: packSchema });
+type Pack = z.infer<typeof packSchema>;
 
 export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "work_setting", "unreachable", "other"] as const;
 // Minds briefed before pay stopped being a reason still send it: keep the lead, file it under other.
@@ -110,8 +118,8 @@ type Dropped = z.infer<typeof droppedSchema>;
 
 // Dropped items are validated one by one later, so one bad lead never costs the whole push.
 export const pushSchema = z
-  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(z.unknown()).max(100).optional() })
-  .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0, { message: "Send at least one job, an empty list with final: true, or a dropped list." });
+  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(z.unknown()).max(100).optional(), packs: z.array(z.unknown()).max(50).optional() })
+  .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0 || (b.packs?.length ?? 0) > 0, { message: "Send at least one job, a packs list, a dropped list, or an empty list with final: true." });
 
 export type JobPush = z.infer<typeof jobSchema>;
 
@@ -123,6 +131,8 @@ export type PushResult = {
   remaining: number; // jobs still wanted in the current search
   remainingToday?: number; // older name for "remaining", kept for Minds briefed before
   searchEnded?: boolean;
+  packsAccepted?: number;
+  packsRejected?: Rejection[];
   droppedRecorded?: number;
   dryRun: boolean;
   // Changes the app made to accepted jobs (e.g. a match score capped), so the Mind learns.
@@ -313,10 +323,32 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
 
 // Claims whose "evidence" isn't in the resume. The job is still accepted; these are dropped
 // from the pack so nothing invented reaches an application.
-function unsupportedClaims(job: JobPush, profile: Profile) {
+function unsupportedClaims(pack: Pack, profile: Profile) {
   const resume = norm(profile.resumeText ?? "");
   const runs = runsOf(resume);
-  return job.pack.claims.filter((c) => !inResume(c.evidence, resume, runs));
+  return pack.claims.filter((c) => !inResume(c.evidence, resume, runs));
+}
+
+// Saves a pack (new or rewritten) with the writing cleaned up.
+async function storePack(jobId: string, pack: Pack) {
+  const row = { jobId, ...pack, coverLetter: humanise(pack.coverLetter), aboutMe: humanise(pack.aboutMe), answers: pack.answers.map((a) => ({ ...a, answer: humanise(a.answer) })), updatedAt: new Date() };
+  await db.insert(schema.packs).values(row).onConflictDoUpdate({ target: schema.packs.jobId, set: row });
+}
+
+// Claims without resume evidence are dropped; questions about the job the Mind left
+// unanswered are pointed out. Returns one note for the reply, or null.
+function checkPack(pack: Pack, formQuestions: { question: string }[], profile: Profile): string | null {
+  const notes: string[] = [];
+  const unsupported = unsupportedClaims(pack, profile);
+  if (unsupported.length) {
+    pack.claims = pack.claims.filter((c) => !unsupported.includes(c));
+    notes.push(`Dropped ${unsupported.length} claim(s) whose evidence isn't in the resume word for word: ${unsupported.map((c) => `"${c.evidence.slice(0, 60)}"`).join("; ")}. Quote the resume exactly next time (answers taken from ABOUT ME need no claim).`);
+  }
+  // Questions about the job or the fit are the Mind's to answer, in the form's own words,
+  // so the extension can fill them.
+  const unanswered = formQuestions.filter((f) => isAboutTheJob(f.question) && !pack.answers.some((a) => similarity(f.question, a.question) >= 0.5));
+  if (unanswered.length) notes.push(`pack.answers is missing answers for questions about the job or your fit: ${unanswered.map((f) => `"${f.question.slice(0, 80)}"`).join("; ")}. Next time include one for each, using the form's exact wording.`);
+  return notes.length ? notes.join(" ") : null;
 }
 
 // Job links come from the Mind, so never let the check reach private or internal addresses.
@@ -393,7 +425,7 @@ async function checkAndSave(
       rejected: [
         {
           code: "bad_body",
-          hint: 'Body must be a JSON object: {"jobs":[ ... ], "dropped":[ ... ], "final": true|false}. Each key is optional; up to 50 jobs, up to 100 dropped leads with a valid "reason". See GET /api/ingest?brief=1.',
+          hint: 'Body must be a JSON object: {"jobs":[ ... ], "dropped":[ ... ], "packs":[ ... ], "final": true|false}. Each key is optional; up to 50 jobs, up to 100 dropped leads with a valid "reason", up to 50 packs. See GET /api/ingest?brief=1.',
         },
       ],
       remaining: 0,
@@ -406,7 +438,9 @@ async function checkAndSave(
   // every check and the user paid for them) and is told to stop; anything later is refused.
   const late =
     !isSearching(profile) && !!profile.searchEndedAt && Date.now() - profile.searchEndedAt.getTime() < LATE_GRACE_MS && parsed.data.jobs.length > 0;
-  if (!dryRun && !opts.demo && !isSearching(profile) && !late) {
+  // Packs are written on request, between searches too, so a packs-only push is always taken.
+  const packsOnly = parsed.data.jobs.length === 0 && !parsed.data.dropped?.length && !parsed.data.final && (parsed.data.packs?.length ?? 0) > 0;
+  if (!dryRun && !opts.demo && !isSearching(profile) && !late && !packsOnly) {
     return {
       accepted: 0,
       rejected: [
@@ -526,25 +560,9 @@ async function checkAndSave(
       adjusted.push({ url: job.url, note: `matchScore capped at ${MAX_SCORE_WITH_GAPS} because a must-have is not met.` });
       job.matchScore = MAX_SCORE_WITH_GAPS;
     }
-    const unsupported = unsupportedClaims(job, profile);
-    if (unsupported.length) {
-      job.pack.claims = job.pack.claims.filter((c) => !unsupported.includes(c));
-      adjusted.push({
-        url: job.url,
-        note: `Dropped ${unsupported.length} claim(s) whose evidence isn't in the resume word for word: ${unsupported.map((c) => `"${c.evidence.slice(0, 60)}"`).join("; ")}. Quote the resume exactly next time (answers taken from ABOUT ME need no claim).`,
-      });
-    }
-
-    // Questions about the job or the fit are the Mind's to answer, in the form's own words,
-    // so the extension can fill them. Accept the job, but point out any it skipped.
-    const unanswered = (job.formQuestions ?? []).filter(
-      (f) => isAboutTheJob(f.question) && !job.pack.answers.some((a) => similarity(f.question, a.question) >= 0.5),
-    );
-    if (unanswered.length) {
-      adjusted.push({
-        url: job.url,
-        note: `pack.answers is missing answers for questions about the job or your fit: ${unanswered.map((f) => `"${f.question.slice(0, 80)}"`).join("; ")}. Next time include one for each, using the form's exact wording.`,
-      });
+    if (job.pack) {
+      const note = checkPack(job.pack, job.formQuestions ?? [], profile);
+      if (note) adjusted.push({ url: job.url, note });
     }
 
     mine.add({ url: job.url, company: job.company, title: job.title, createdAt: new Date() });
@@ -613,20 +631,54 @@ async function checkAndSave(
     }
     remaining--;
     accepted++;
-    await db.insert(schema.packs).values({
-      jobId: id,
-      ...job.pack,
-      coverLetter: humanise(job.pack.coverLetter),
-      aboutMe: humanise(job.pack.aboutMe),
-      answers: job.pack.answers.map((a) => ({ ...a, answer: humanise(a.answer) })),
+    if (job.pack) await storePack(id, job.pack);
+  }
+
+  // Packs for jobs already on the board: the person kept them, so the Mind wrote the
+  // application. A pack for a kept job also queues its form questions on the You page.
+  let packsAccepted = 0;
+  const packsRejected: Rejection[] = [];
+  if (!dryRun && parsed.data.packs?.length) {
+    const board = await db.query.jobs.findMany({
+      where: eq(schema.jobs.profileId, profile.id),
+      columns: { id: true, url: true, company: true, status: true, formQuestions: true },
+      orderBy: desc(schema.jobs.createdAt),
+      limit: 400,
     });
+    for (const raw of parsed.data.packs) {
+      const r = packPushSchema.safeParse(raw);
+      const url = typeof raw === "object" && raw && "url" in raw ? String((raw as { url: unknown }).url) : undefined;
+      if (!r.success) {
+        packsRejected.push({ url, code: "bad_pack", hint: r.error.issues.map((i) => `${i.path.join(".") || "pack"}: ${i.message}`).join("; ") });
+        continue;
+      }
+      const p = r.data;
+      const key = jobKey(p.url);
+      const job = board.find((j) => j.url === p.url) ?? board.find((j) => jobKey(j.url) === key);
+      if (!job) {
+        packsRejected.push({ url: p.url, code: "unknown_job", hint: "No job with this link on the board. Packs are only for jobs you already sent and were asked for." });
+        continue;
+      }
+      const formQuestions = p.formQuestions?.length ? p.formQuestions : (job.formQuestions ?? []);
+      const note = checkPack(p.pack, formQuestions, profile);
+      if (note) adjusted.push({ url: p.url, note });
+      await storePack(job.id, p.pack);
+      await db.update(schema.jobs).set({ formQuestions: formQuestions.length ? formQuestions : null, packRequestedAt: null }).where(eq(schema.jobs.id, job.id));
+      if (job.status === "saved") await queueQuestions(profile.userId, job.company, formQuestions, p.pack.answers).catch((e) => console.error("[ingest] queue questions failed", job.id, e));
+      packsAccepted++;
+    }
+    // Nothing left to write and no search running: the Mind goes back to sleep.
+    if (!opts.demo && !isSearching(profile) && !(await jobsNeedingPacks(profile.id)).length) {
+      await switchOff(profile).catch(() => {});
+      await db.update(schema.profiles).set({ packRequestedAt: null }).where(eq(schema.profiles.id, profile.id));
+    }
   }
 
   await db.insert(schema.ingestLog).values({
     profileId: profile.id,
     accepted,
-    rejected: rejected.length,
-    detail: rejected,
+    rejected: rejected.length + packsRejected.length,
+    detail: [...rejected, ...packsRejected.map((r) => ({ ...r, code: `pack_${r.code}` })), ...(packsAccepted ? [{ url: "", code: "packs_written", hint: `${packsAccepted} application pack(s) written` }] : [])],
     dryRun,
   });
 
@@ -708,5 +760,5 @@ async function checkAndSave(
     searchEnded = true;
   }
 
-  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, dryRun, adjusted, skippedRecently, logged: true };
+  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, dryRun, adjusted, skippedRecently, logged: true, packsAccepted, packsRejected };
 }

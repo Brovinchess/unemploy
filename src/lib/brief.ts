@@ -5,7 +5,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 2;
+export const BRIEF_VERSION = 3;
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -34,11 +34,12 @@ HOW WE WORK
 - You search ONLY when I send a message starting "SEARCH REQUEST". Never search, schedule wake-ups or book calendar tasks on your own. If you booked any, cancel them now. Between requests, do nothing.
 - For each request:
   1. Find up to ${prefs.jobsPerDay} open jobs that pass EVERY check below. Quality over quantity: send fewer, or none, rather than pad the list.
-  2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE}
+  2. Send each one as a card the moment it passes: the job's facts, locationText, mustHaves, whyFit, gaps, highlights, summary and company details. No cover letter, no answers, no form questions during a search; those come later, only for the jobs I keep (step 7).
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
   5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a short note. No pack for those. If you had opened the posting, whatever the reason, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
-  6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later pushes are refused.
+  6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later job pushes are refused.
+  7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}
@@ -97,7 +98,7 @@ export function buildContract(appUrl: string) {
 
 POST ${appUrl}/api/ingest            (?dry_run=1 validates without saving: use it once per search at most)
 Header: x-unemploy-key: <the key from your brief>
-Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...]}  (0–50 jobs)
+Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...], "packs":[PACK, ...]}  (0–50 jobs, 0–50 packs)
   "final": true only when you have stopped searching for good. It closes the search; pushes after it are refused.
   Mid-search pushes, including ones that only carry "dropped", are "final": false (or leave it out).
 DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|unreachable|other,"note"(short),"posting"(optional)}
@@ -136,7 +137,12 @@ JOB fields
   mustHaves     wanted    [{"requirement":"5+ years of product management","met":false}, ...]
                           the posting's hard requirements, checked against the resume
   verifiedOpenAt wanted   ISO date you last saw the posting open (today)
-  formQuestions optional  every question on the job's application form, exactly as worded:
+  formQuestions optional  normally sent with the PACK, not the card (see PACK)
+  pack          optional  normally sent later, with the PACK, after a PACK REQUEST; the fields are listed under PACK
+
+PACK: {"url": the job's link exactly as you sent it, "formQuestions": [...], "pack": {...}}
+  Sent in "packs" after the user keeps a job and a PACK REQUEST names it. Any time, search or not.
+  formQuestions wanted    every question on the job's application form, exactly as worded:
                           [{"question":"Are you willing to relocate?","options":["Yes","No"],"required":true}, ...]
                           open the "Apply" form to read them; include "options" for choices.
                           Skip name, email, phone, resume and cover letter fields.
@@ -151,10 +157,12 @@ JOB fields
                           one entry per fact about the user used in the pack
 
 REPLY
-  {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}]}
+  {"accepted":n,"rejected":[{"url","code","hint"}],"adjusted":[{"url","note"}],"remaining":n,"skippedRecently":[{"title","company","reason"}],
+   "packsAccepted":n,"packsRejected":[{"url","code","hint"}]}
   codes: bad_job, not_employer_link, not_eligible, poor_fit, work_setting_not_wanted,
          wrong_country, company_avoided, stale_posting, duplicate, found_by_other_headhunter,
          search_limit, job_closed, bad_url, paused, no_search_requested
+  pack codes: bad_pack, unknown_job (the link matches no job on the board)
   Long text is cut to fit and claims without exact resume evidence are dropped from the pack;
   the job is still accepted and "adjusted" says what changed.
   Fix what each hint says. Do not resend accepted jobs.

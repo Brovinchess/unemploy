@@ -19,6 +19,8 @@ export async function GET(request: Request) {
     : [];
   const packs = jobs.length ? await db.query.packs.findMany({ where: inArray(schema.packs.jobId, jobs.map((j) => j.id)) }) : [];
   const packFor = new Map(packs.map((p) => [p.jobId, p]));
+  // Only jobs whose pack has been written go to the extension; the rest are still being written.
+  const ready = jobs.filter((j) => packFor.has(j.id));
 
   return NextResponse.json(
     {
@@ -28,9 +30,10 @@ export async function GET(request: Request) {
       detailsComplete: detailsComplete(user.applicant),
       // Names only; the file itself comes from /api/extension/resume when a job needs it.
       resumes: Object.fromEntries(
-        profiles.filter((p) => p.resumeData && jobs.some((j) => j.profileId === p.id)).map((p) => [p.id, { fileName: p.resumeFileName, mime: p.resumeMime }]),
+        profiles.filter((p) => p.resumeData && ready.some((j) => j.profileId === p.id)).map((p) => [p.id, { fileName: p.resumeFileName, mime: p.resumeMime }]),
       ),
-      jobs: jobs.map((j) => {
+      writing: jobs.length - ready.length,
+      jobs: ready.map((j) => {
         const pack = packFor.get(j.id);
         return {
           id: j.id,

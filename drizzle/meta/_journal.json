@@ -169,6 +169,13 @@
       "when": 1792122484439,
       "tag": "0023_search_ladder",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1792126517751,
+      "tag": "0024_packs_on_request",
+      "breakpoints": true
     }
   ]
 }

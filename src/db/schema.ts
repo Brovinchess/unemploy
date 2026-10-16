@@ -135,6 +135,8 @@ export const profiles = pgTable(
     // Which version of the brief text this headhunter has; a lower number than BRIEF_VERSION
     // means the next search request carries the full new brief.
     briefVersion: integer("brief_version").notNull().default(0),
+    // The Mind is on, outside a search, because packs were asked for; cleared when they land.
+    packRequestedAt: timestamp("pack_requested_at", { withTimezone: true }),
     // Searches run only when the user asks. A search is active while started and not ended;
     // the Mind is switched off between searches.
     searchStartedAt: timestamp("search_started_at", { withTimezone: true }),
@@ -207,6 +209,9 @@ export const jobs = pgTable(
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     status: text("status").$type<JobStatus>().notNull().default("new"),
     skipReason: text("skip_reason"),
+    // When the headhunter was last asked to write this job's application pack (packs are
+    // written only for jobs the person keeps).
+    packRequestedAt: timestamp("pack_requested_at", { withTimezone: true }),
     demo: boolean("demo").notNull().default(false),
     // Clean values beside the free text (see lib/normalise): the same posting's key in the
     // shared postings table, and filterable country, type, level and date.

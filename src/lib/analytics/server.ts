@@ -14,6 +14,7 @@ export type Event =
   | "resume_uploaded"
   | "headhunter_deployed"
   | "search_requested"
+  | "packs_requested"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";
