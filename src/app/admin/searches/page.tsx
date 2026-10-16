@@ -41,7 +41,7 @@ export default async function Searches({ searchParams }: { searchParams: Promise
       </Tiles>
       <div className="mt-6">
         <Table
-          head={[col("started", "Started"), col("who", "Who"), col("wanted", "Asked"), col("delivered", "Delivered"), col("dropped", "Leads dropped"), col("cognition", "Cognition"), col("minutes", "Took"), col("ended", "Ended because"), "Focus"]}
+          head={[col("started", "Started"), col("who", "Who"), col("wanted", "Asked"), col("delivered", "Delivered"), col("pool", "Via pool"), col("opened", "Opened"), col("dropped", "Leads dropped"), col("cognition", "Cognition"), col("minutes", "Took"), col("ended", "Ended because"), "Focus"]}
           empty="No searches in this window."
           emptyMood="sleeping"
           rows={rows.map((s) => [
@@ -49,6 +49,8 @@ export default async function Searches({ searchParams }: { searchParams: Promise
             <UserLink key="u" id={s.userId} name={s.who} />,
             s.jobsWanted,
             s.delivered,
+            s.poolHits || "",
+            s.opened ?? "",
             s.dropped,
             s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
             s.endedAt ? `${s.minutes} min` : `running, ${s.minutes} min`,

@@ -10,6 +10,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from "drizzle-orm/pg-core";
 import type { Preferences } from "@/lib/preferences";
 
@@ -131,6 +132,9 @@ export const profiles = pgTable(
     prefsChangedAt: timestamp("prefs_changed_at", { withTimezone: true }),
     resumeChangedAt: timestamp("resume_changed_at", { withTimezone: true }),
     lastDeliveryAt: timestamp("last_delivery_at", { withTimezone: true }),
+    // Which version of the brief text this headhunter has; a lower number than BRIEF_VERSION
+    // means the next search request carries the full new brief.
+    briefVersion: integer("brief_version").notNull().default(0),
     // Searches run only when the user asks. A search is active while started and not ended;
     // the Mind is switched off between searches.
     searchStartedAt: timestamp("search_started_at", { withTimezone: true }),
@@ -211,6 +215,9 @@ export const jobs = pgTable(
     jobTypeKey: text("job_type_key"),
     levelKey: text("level_key"),
     postedOn: date("posted_on"),
+    // The search that delivered it, and whether it came from the shared pool rather than the web.
+    searchId: uuid("search_id").references((): AnyPgColumn => searches.id, { onDelete: "set null" }),
+    fromPool: boolean("from_pool").notNull().default(false),
     createdAt: createdAt(),
     statusChangedAt: timestamp("status_changed_at", { withTimezone: true }),
   },
@@ -219,6 +226,7 @@ export const jobs = pgTable(
     index("jobs_profile_created").on(t.profileId, t.createdAt),
     index("jobs_profile_status").on(t.profileId, t.status),
     index("jobs_posting_key").on(t.postingKey),
+    index("jobs_search_id").on(t.searchId),
   ],
 ).enableRLS();
 
@@ -334,6 +342,11 @@ export const searches = pgTable(
     balanceEnd: real("balance_end"),
     // From Hello Minds' ledger, so a top-up during the search doesn't distort it.
     cognitionUsed: real("cognition_used"),
+    // Jobs that came from the shared pool, postings opened in total, and the one-line summary
+    // the app writes at the end ("opened 52, sent 2, most drops were ...") for the next request.
+    poolHits: integer("pool_hits").notNull().default(0),
+    opened: integer("opened"),
+    summary: text("summary"),
   },
   (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
 ).enableRLS();
@@ -341,7 +354,7 @@ export const searches = pgTable(
 // Leads the headhunter considered and dropped, with its reason: shows the user why a search
 // came back light, and keeps the next search from re-checking the same postings.
 // "pay" is no longer offered to the Mind; rows from before still carry it.
-export type DropReason = "not_eligible" | "too_old" | "closed" | "poor_fit" | "duplicate" | "work_setting" | "other" | "pay";
+export type DropReason = "not_eligible" | "too_old" | "closed" | "poor_fit" | "duplicate" | "work_setting" | "unreachable" | "other" | "pay";
 
 export const leads = pgTable(
   "leads",

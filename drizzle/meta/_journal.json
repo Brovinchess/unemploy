@@ -162,6 +162,13 @@
       "when": 1791956875322,
       "tag": "0022_pool_checks",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1792122484439,
+      "tag": "0023_search_ladder",
+      "breakpoints": true
     }
   ]
 }

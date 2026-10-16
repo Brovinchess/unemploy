@@ -14,7 +14,7 @@ const VARIANTS: [RegExp, string[]][] = [
   [/project manager|program manager|delivery/i, ["Project Manager", "Program Manager", "Delivery Manager", "Technical Program Manager", "Scrum Master"]],
 ];
 
-// The region a country belongs to, for the "near me first" search order.
+// The region a country belongs to, for the ladder's region rung.
 const REGIONS: [RegExp, string][] = [
   [/malaysia|singapore|indonesia|thailand|vietnam|philippines|cambodia|myanmar|brunei|laos/i, "Southeast Asia, then the wider APAC region"],
   [/hong kong|taiwan|china|macau/i, "Greater China, then the wider APAC region"],
@@ -35,15 +35,77 @@ export function discoveryHints(targetRoles: string) {
   return { titles: [...titles].slice(0, 14) };
 }
 
-export function discoveryText(targetRoles: string, country: string, city = "") {
-  const { titles } = discoveryHints(targetRoles);
-  const place = [city, country].filter(Boolean).join(", ");
-  return (
-    `SEARCH NEAR ME FIRST, THEN WIDEN. Order: employers in ${place} first (on-site, hybrid, and remote companies based there), then ${regionFor(country)}, then remote jobs from anywhere. Send jobs as you find them, so the nearer ones reach me first. ` +
-    `SEARCH WIDELY. Titles to search for (all of them, not just one): ${titles.join("; ")}. ` +
-    `Main method: plain web searches that combine a title with the place or "remote" (e.g. "Senior Product Manager" ${place} careers; "Product Owner" remote APAC "apply"), which land on employers' own job pages. ` +
-    `Also search the job systems directly: site:jobs.lever.co, site:boards.greenhouse.io, site:jobs.ashbyhq.com, site:apply.workable.com, site:myworkdayjobs.com, site:jobs.smartrecruiters.com, each with "${country}", "remote" or the region. ` +
-    `Job sites: don't assume which ones matter. The first time you search for me, look up which job sites and boards people in ${country} and its region actually use, save that list in your memory, and reuse it. Use them only to find leads; many block automated reading, so if one won't open, move on rather than retry. ` +
-    `Whatever the source, trace each lead to the employer's own careers page or job system and send THAT link; job-site links are refused.`
-  );
+const SYSTEMS = ["jobs.lever.co", "boards.greenhouse.io", "jobs.ashbyhq.com", "apply.workable.com", "myworkdayjobs.com", "jobs.smartrecruiters.com"];
+
+// The ladder: where to look, one rung at a time, nearest first. Each rung is a short list of
+// searches that land on employers' own job pages. The brief prints only the rungs the person's
+// settings allow (region needs remote or hybrid on; global needs remote scope "anywhere").
+export type Rung = { n: number; name: string; minutes: number; lines: string[] };
+
+export function ladder(prefs: { targetRoles: string; country: string; city: string; workSettings: string[]; remoteScope: string }): Rung[] {
+  const { titles } = discoveryHints(prefs.targetRoles);
+  const main = titles.slice(0, 3);
+  const wider = titles.slice(3, 10);
+  const q = (t: string[]) => t.map((x) => `"${x}"`).join(" OR ");
+  const city = prefs.city?.trim();
+  const region = regionFor(prefs.country);
+  const remoteOk = prefs.workSettings.includes("remote") || prefs.workSettings.includes("hybrid");
+  const rungs: Rung[] = [
+    { n: 0, name: "Postings to check first", minutes: 5, lines: [`GET the "check first" link in the search request: postings seen open recently that may fit me. Confirm each is still open and fits; send the ones that pass. Then go to rung 1.`] },
+  ];
+  if (city) {
+    rungs.push({
+      n: 1, name: `${city}`, minutes: 20,
+      lines: [
+        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h} "${city}"`).join(", ")} with ${q(main)}.`,
+        `Your employer list: companies in ${city} that hire ${main[0] ?? "my role"}s. Keep it in memory, reuse it, add to it each search; open each one's careers page directly.`,
+        `Web search: ${q(main)} ${city} careers.`,
+      ],
+    });
+  }
+  rungs.push({
+    n: 2, name: `The rest of ${prefs.country}`, minutes: 20,
+    lines: [
+      `Job systems: ${SYSTEMS.map((h) => `site:${h} "${prefs.country}"`).join(", ")} with ${q(main)}.`,
+      `Web search: ${q(main)} ${prefs.country} careers${remoteOk ? `, and ${q(main)} remote ${prefs.country}` : ""}.`,
+    ],
+  });
+  rungs.push({
+    n: 3, name: "Wider titles, same places", minutes: 15,
+    lines: [
+      `Same searches as rungs ${city ? "1 and 2" : "2"} with the wider title family: ${wider.length ? wider.join("; ") : "the same titles one level up or down"}. Include one level up and one level down from my current level.`,
+    ],
+  });
+  if (remoteOk && prefs.remoteScope !== "country") {
+    rungs.push({
+      n: 4, name: `Remote in ${region}`, minutes: 20,
+      lines: [
+        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h}`).join(", ")} "remote" with ${q(main)} and the region's name or its countries.`,
+        `Web search: ${q(main)} remote ${region.split(",")[0]} "apply".`,
+        `Only postings whose location line names ${prefs.country}, the region, or anywhere; "remote" alone is not enough.`,
+      ],
+    });
+  }
+  if (remoteOk && prefs.remoteScope === "anywhere") {
+    rungs.push({
+      n: 5, name: "Remote from anywhere", minutes: 20,
+      lines: [
+        `Job systems: ${SYSTEMS.slice(0, 4).map((h) => `site:${h}`).join(", ")} "remote" "worldwide" OR "anywhere" with ${q(main)}.`,
+        `Web search: ${q(main)} remote worldwide "apply".`,
+        `Only postings open to applicants from ${prefs.country}: worldwide, anywhere, or a list that includes ${prefs.country}. "US remote", "EU only" and the like are not for me.`,
+      ],
+    });
+  }
+  return rungs;
+}
+
+export function ladderText(prefs: Parameters<typeof ladder>[0]) {
+  const rungs = ladder(prefs);
+  const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
+  return [
+    `Go rung by rung, nearest first. Stay on a rung until its time box is up or you have opened 15 postings in a row from it without sending a job, then move to the next. Never skip ahead because the first results look thin. Send each job as soon as it passes; nearer jobs reach me first that way.`,
+    ...rungs.map((r) => `Rung ${r.n}: ${r.name} (${r.minutes} min)\n${r.lines.map((l) => `   ${l}`).join("\n")}`),
+    `Nothing past the last rung. Jobs in other countries, or remote jobs not open to ${place}, are never worth opening.`,
+    `Job sites (LinkedIn, Indeed, JobStreet and the like) only to find leads, never as the link you send. Many block automated reading: if one will not open, move on; do not retry.`,
+  ].join("\n");
 }

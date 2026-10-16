@@ -47,8 +47,9 @@ export async function sendSearchDoneEmail(args: {
   jobs: DigestJob[]; // the jobs this search added, best first
   link: string;
   timedOut?: boolean;
+  short?: string; // one sentence on why it came back short, when it did
 }) {
-  const { to, label, jobs, link, timedOut } = args;
+  const { to, label, jobs, link, timedOut, short } = args;
   const n = jobs.length;
   const subject =
     n === 0
@@ -57,7 +58,7 @@ export async function sendSearchDoneEmail(args: {
   const intro =
     n === 0
       ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page, or try again tomorrow.`
-      : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Each one has a cover letter and answers ready to paste.`;
+      : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Each one has a cover letter and answers ready to paste.${short ? ` ${short}` : ""}`;
   const top = jobs.slice(0, 5);
   const text =
     `${intro}\n\n` +

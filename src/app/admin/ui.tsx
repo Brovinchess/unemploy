@@ -86,8 +86,8 @@ export function Hero({ mood, title, subtitle, badge, children }: { mood: Mood; t
 // ---- tiles and lists --------------------------------------------------------------------
 
 // A grid of KPI tiles: two per row on phones, `cols` on desktop, rising in one after another.
-export function Tiles({ cols = 6, children, className = "" }: { cols?: 4 | 5 | 6; children: React.ReactNode; className?: string }) {
-  const lg = cols === 4 ? "lg:grid-cols-4" : cols === 5 ? "lg:grid-cols-5" : "lg:grid-cols-6";
+export function Tiles({ cols = 6, children, className = "" }: { cols?: 4 | 5 | 6 | 7 | 8; children: React.ReactNode; className?: string }) {
+  const lg = { 4: "lg:grid-cols-4", 5: "lg:grid-cols-5", 6: "lg:grid-cols-6", 7: "lg:grid-cols-7", 8: "lg:grid-cols-8" }[cols];
   return <div className={`admin-tiles grid grid-cols-2 gap-4 sm:grid-cols-3 ${lg} ${className}`}>{children}</div>;
 }
 

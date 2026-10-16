@@ -46,3 +46,6 @@ data/
 
 # built by scripts/extension-dev.mjs
 /extension-dev/
+
+# local test scripts that import app modules
+.scratch/

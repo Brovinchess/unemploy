@@ -22,12 +22,13 @@ export default async function Overview({ searchParams }: { searchParams: Promise
       </Tiles>
 
       <GroupLabel>Last {days} days</GroupLabel>
-      <Tiles cols={6} className="mt-2">
+      <Tiles cols={7} className="mt-2">
         <Stat label="New accounts" value={w.newUsers} hint={`${w.referred} referred`} href={`/admin/growth?days=${days}`} />
         <Stat label="Active users" value={w.activeUsers} hint="ran a search" href={`/admin/users?active=${days}`} />
         <Stat label="Searches" value={w.searches} hint={`${w.openSearches} still open`} href={`/admin/searches?days=${days}`} />
         <Stat label="Jobs delivered" value={w.jobs} hint={`${w.kept} kept`} href={`/admin/jobs?days=${days}`} />
         <Stat label="Leads dropped" value={w.leads} hint={w.jobs ? `${Math.round(w.leads / w.jobs)} per job` : undefined} href={`/admin/quality?days=${days}`} />
+        <Stat label="Found via pool" value={w.poolJobs} hint={w.jobs ? `${pct(w.poolJobs, w.jobs)} of jobs` : undefined} href={`/admin/searches?days=${days}`} />
         <Stat label="Cognition" value={Math.round(w.cognition)} hint={w.jobs && w.cognition ? `about ${Math.round(w.cognition / w.jobs)} per job` : undefined} href={`/admin/costs?days=${days}`} />
       </Tiles>
 

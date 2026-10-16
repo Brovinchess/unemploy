@@ -14,6 +14,7 @@ const REASON_LABEL: Record<DropReason, string> = {
   poor_fit: "Poor fit",
   duplicate: "Duplicate",
   work_setting: "Wrong work setting",
+  unreachable: "Page would not open",
   other: "Other",
   pay: "Other (legacy pay)",
 };
@@ -24,6 +25,7 @@ const REASON_COLOR: Record<DropReason, string> = {
   poor_fit: CHART.blue,
   duplicate: CHART.plum,
   work_setting: CHART.teal,
+  unreachable: CHART.mist,
   other: CHART.slate,
   pay: CHART.slate,
 };
@@ -69,6 +71,7 @@ export default async function Quality({ searchParams }: { searchParams: Promise<
         <Counts title='"Not eligible": where the posting was really for' total={d.byPlace.reduce((a, [, n]) => a + n, 0)} rows={d.byPlace} />
         <Counts title='"Other": what actually happened' total={d.byOther.reduce((a, [, n]) => a + n, 0)} rows={d.byOther} />
         <Counts title="Refused by the app, by code" total={d.refusedTotal} rows={d.byCode} />
+        <Counts title="Blocked hosts, last 7 days" total={d.blockedHosts.reduce((a, [, n]) => a + n, 0)} rows={d.blockedHosts} />
       </div>
 
       <SectionTitle title="The Mind's mistakes, per headhunter" hint="Jobs the app refused for reasons the brief already covers: bad data, a non-employer link, a closed or stale posting, a repeat, or sending when no search was asked for." />

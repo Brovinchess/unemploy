@@ -59,7 +59,7 @@ const DEFAULTS: Draft = {
   city: "",
   avoidCompanies: "",
   workSettings: ["onsite", "hybrid", "remote"],
-  remoteScope: "anywhere",
+  remoteScope: "region",
   jobTypes: ["Full-time", "Contract"],
   levels: [], // match the resume
   needsVisa: false,

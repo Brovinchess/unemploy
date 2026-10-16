@@ -90,11 +90,12 @@ const jobSchema = z.object({
   }),
 });
 
-export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "work_setting", "other"] as const;
+export const DROP_REASONS = ["not_eligible", "too_old", "closed", "poor_fit", "duplicate", "work_setting", "unreachable", "other"] as const;
 // Minds briefed before pay stopped being a reason still send it: keep the lead, file it under other.
 const reasonSchema = z.enum([...DROP_REASONS, "pay"]).transform((r) => (r === "pay" ? "other" : r));
 // Reasons that are about the person, not the posting: the posting may suit someone else.
-const POOLABLE_REASONS = new Set<string>(["poor_fit", "not_eligible", "work_setting"]);
+// Too old, closed and unreachable postings never enter the pool.
+const POOLABLE_REASONS = new Set<string>(["poor_fit", "not_eligible", "work_setting", "duplicate"]);
 const droppedSchema = z.object({
   company: z.string().trim().min(1).max(120),
   title: z.string().trim().min(1).max(160),
@@ -421,6 +422,13 @@ async function checkAndSave(
 
   // The quota is per search.
   const searchStart = profile.searchStartedAt ?? new Date(Date.now() - 24 * 60 * 60 * 1000);
+  // The open search row: jobs and leads are tied to it, and pool hits are counted on it.
+  const openSearch = dryRun
+    ? null
+    : await db.query.searches.findFirst({
+        where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
+        columns: { id: true, startedAt: true },
+      });
   const [{ n }] = await db
     .select({ n: count() })
     .from(schema.jobs)
@@ -547,11 +555,21 @@ async function checkAndSave(
     }
 
     const id = crypto.randomUUID();
+    // Was this posting in the pool before the search began? Then it came through rung 0.
+    const pooledBefore =
+      !opts.demo && openSearch
+        ? await db.query.postings
+            .findFirst({ where: eq(schema.postings.postingKey, jobKey(job.url)), columns: { firstSeenAt: true } })
+            .then((p) => !!p && p.firstSeenAt < openSearch.startedAt)
+            .catch(() => false)
+        : false;
     const postingKey = opts.demo ? null : await upsertPosting(job, "accepted", { verifiedOpenAt: job.verifiedOpenAt, demo: opts.demo }).catch((e) => (console.error("[ingest] pool", e), null));
     const inserted = await db.insert(schema.jobs).values({
       id,
       profileId: profile.id,
       postingKey,
+      searchId: openSearch?.id ?? null,
+      fromPool: pooledBefore,
       countryCode: countryCodeOf(job.country, job.locationText),
       jobTypeKey: jobTypeKeyOf(job.jobType),
       levelKey: levelKeyOf(job.level ?? job.title),
@@ -590,6 +608,9 @@ async function checkAndSave(
       rejected.push({ url: job.url, code: "duplicate", hint: "Already sent. Only send new jobs." });
       continue;
     }
+    if (pooledBefore && openSearch) {
+      await db.update(schema.searches).set({ poolHits: sql`${schema.searches.poolHits} + 1` }).where(eq(schema.searches.id, openSearch.id)).catch(() => {});
+    }
     remaining--;
     accepted++;
     await db.insert(schema.packs).values({
@@ -614,10 +635,7 @@ async function checkAndSave(
   // opened before dropping for a reason about this person goes into the shared pool too.
   let droppedRecorded = 0;
   if (!dryRun && parsed.data.dropped?.length) {
-    const search = await db.query.searches.findFirst({
-      where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
-      columns: { id: true },
-    });
+    const search = openSearch;
     const seen = new Set<string>();
     const items: Dropped[] = [];
     for (const raw of parsed.data.dropped) {
@@ -636,6 +654,13 @@ async function checkAndSave(
       let postingRef: string | null = null;
       if (d.posting && POOLABLE_REASONS.has(d.reason)) {
         postingRef = await upsertPosting(d.posting, "dropped_lead", { demo: opts.demo }).catch((e) => (console.error("[ingest] pool", e), null));
+      } else if (d.reason === "closed" && url && !opts.demo && isPublicHttpUrl(url)) {
+        // Seen closed: if the pool has it, mark it so nobody opens it again.
+        await db
+          .update(schema.postings)
+          .set({ closedAt: new Date(), lastCheckedAt: new Date() })
+          .where(and(eq(schema.postings.postingKey, jobKey(url)), isNull(schema.postings.closedAt)))
+          .catch(() => {});
       }
       rows.push({
         profileId: profile.id,

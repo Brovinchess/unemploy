@@ -9,6 +9,7 @@ export const DROP_LABELS: Record<DropReason, string> = {
   poor_fit: "asking for more than your resume shows",
   duplicate: "already sent",
   work_setting: "wrong work setting",
+  unreachable: "page would not open",
   other: "other",
   pay: "other", // rows from before pay stopped being a reason
 };

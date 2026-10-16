@@ -173,6 +173,11 @@ async function runMockHunt(alias: string) {
     };
   });
 
+  // Rung 0: what the real Mind would GET from /api/pool with its key.
+  const { poolFor } = await import("../pool");
+  const pool = await poolFor(profile).catch(() => []);
+  say(alias, true, pool.length ? `Checked ${pool.length} postings from your check-first list.` : "Nothing on the check-first list; starting at rung 1.");
+
   const { processPush } = await import("../ingest");
   const dropped = [
     {
@@ -199,7 +204,8 @@ async function runMockHunt(alias: string) {
     },
     { company: "Initech", title: roles[0] ?? "Specialist", reason: "too_old", note: "Posted 70 days ago" },
     { company: "Umbrella", title: `Senior ${roles[0] ?? "Specialist"}`, reason: "not_eligible", note: "Hybrid in Berlin" },
-    { company: "Hooli", title: roles[0] ?? "Specialist", reason: "closed", note: "Page says no longer accepting applications" },
+    { company: "Hooli", title: roles[0] ?? "Specialist", reason: "closed", note: "Page says no longer accepting applications", url: "https://jobs.lever.co/hooli/1f2e3d4c" },
+    { company: "Vandelay", title: roles[0] ?? "Specialist", reason: "unreachable", note: "Careers page blocked automated reading", url: "https://careers.vandelay.example.com/jobs/88" },
   ];
   const result = await processPush(profile, { jobs, dropped }, { demo: true });
   console.log(`[mock mind] ${alias}: accepted ${result.accepted}, rejected ${result.rejected.length}`);

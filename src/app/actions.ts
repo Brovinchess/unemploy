@@ -7,7 +7,7 @@ import { and, count, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
-import { buildBrief } from "@/lib/brief";
+import { BRIEF_VERSION, buildBrief } from "@/lib/brief";
 import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
 import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
@@ -21,7 +21,7 @@ import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { alreadySentList, endSearch, ingestReachable, isSearching, ruledOutList, searchRequestText, switchOff } from "@/lib/search";
+import { blockedHosts, endSearch, ingestReachable, isSearching, lastSearchLine, searchRequestText, skipLinks, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 
 export type FormState = { error?: string } | undefined;
@@ -233,7 +233,7 @@ async function startHunting(user: User, profile: Profile): Promise<{ error?: str
   );
   await db
     .update(schema.profiles)
-    .set({ status: "hunting", briefedAt: new Date() })
+    .set({ status: "hunting", briefedAt: new Date(), briefVersion: BRIEF_VERSION })
     .where(eq(schema.profiles.id, profile.id));
   switchOffLater(profile.id);
 }
@@ -422,7 +422,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
     // after the request, a new resume as an attachment. One message, one wake.
     const synced = profile.briefedAt?.getTime() ?? 0;
-    const newBrief = !!profile.preferences && (profile.prefsChangedAt?.getTime() ?? 0) > synced;
+    const newBrief = !!profile.preferences && ((profile.prefsChangedAt?.getTime() ?? 0) > synced || profile.briefVersion < BRIEF_VERSION);
     const newResume = (profile.resumeChangedAt?.getTime() ?? 0) > synced && !!profile.resumeData;
     const notes = [
       newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full` : "",
@@ -445,22 +445,22 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         : "");
     await api.sendMessage(
       profile.conversationAlias,
-      searchRequestText(
-        user.username!,
-        wanted,
-        n + 1,
-        note || undefined,
-        await alreadySentList(user.id),
-        profile.preferences ? { targetRoles: profile.preferences.targetRoles, country: profile.preferences.country, city: profile.preferences.city } : undefined,
-        await ruledOutList(profile.id),
-        profile.preferences ? postingAgeDays(profile.preferences) : undefined,
-        newResume,
-        newBrief ? "" : factsText(user), // a new brief below already carries it
-      ) + changes,
+      searchRequestText({
+        username: user.username!,
+        jobs: wanted,
+        n: n + 1,
+        focus: note || undefined,
+        skip: await skipLinks(user.id, profile.id),
+        blocked: await blockedHosts(profile.id),
+        lastTime: await lastSearchLine(profile.id),
+        maxAgeDays: profile.preferences ? postingAgeDays(profile.preferences) : undefined,
+        resumeChanged: newResume,
+        facts: newBrief ? "" : factsText(user), // a new brief below already carries it
+      }) + changes,
       newResume ? [resumeAttachment(profile)] : undefined,
     );
     // The Mind is now up to date with everything saved before this moment.
-    if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date(), ...(newBrief ? { briefVersion: BRIEF_VERSION } : {}) }).where(eq(schema.profiles.id, profile.id));
   } catch (e) {
     // The request never reached the Mind: close what was opened so nothing shows "in progress".
     await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, asc, desc, eq, gte, lte, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@/db";
 import type { DropReason, JobStatus, ProfileStatus, QuestionStatus, SavedAnswer, ApplicantDetails } from "@/db/schema";
@@ -114,7 +114,7 @@ export type Overview = {
   days: number;
   keys: string[];
   allTime: { users: number; emailVerified: number; deployed: number; live: number; searchingNow: number; jobs: number; appliedPlus: number; extensionUsers: number };
-  window: { newUsers: number; referred: number; activeUsers: number; searches: number; openSearches: number; finished: number; finishedWithJobs: number; jobs: number; kept: number; leads: number; cognition: number };
+  window: { newUsers: number; referred: number; activeUsers: number; searches: number; openSearches: number; finished: number; finishedWithJobs: number; jobs: number; kept: number; leads: number; cognition: number; poolJobs: number };
   funnel: { label: string; count: number; href?: string }[];
   trend: { signups: number[]; searches: number[]; jobs: number[]; cognition: number[] };
   byStage: [string, number][];
@@ -135,7 +135,7 @@ async function loadOverview(days: number): Promise<Overview> {
   type Scalars = {
     users: number; named: number; email_verified: number; deployed: number; live: number; searching_now: number; paused: number; jobs: number; applied_plus: number; extension_users: number;
     with_resume: number; with_prefs: number; with_mind: number; searched: number; got_job: number; kept: number; applied: number; never_searched: number; kept_nothing: number;
-    new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number;
+    new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number; pool_jobs: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
   };
   const s = await one<Scalars>(sql`
@@ -175,6 +175,7 @@ async function loadOverview(days: number): Promise<Overview> {
       (select count(*) from jobs where created_at >= ${ts(since)})::int as window_jobs,
       (select count(*) from jobs where created_at >= ${ts(since)} and status in (${lit(KEPT)}))::int as window_kept,
       (select count(*) from leads where created_at >= ${ts(since)})::int as leads,
+      (select count(*) from jobs where created_at >= ${ts(since)} and from_pool)::int as pool_jobs,
       (select count(*) from searches where ended_at is null and started_at < now() - interval '2 hours')::int as stuck,
       (select string_agg(who, ', ') from (
         select ${WHO} as who from searches s left join profiles p on p.id = s.profile_id left join users u on u.id = p.user_id
@@ -224,7 +225,7 @@ async function loadOverview(days: number): Promise<Overview> {
     allTime: { users: s.users, emailVerified: s.email_verified, deployed: s.deployed, live: s.live, searchingNow: s.searching_now, jobs: s.jobs, appliedPlus: s.applied_plus, extensionUsers: s.extension_users },
     window: {
       newUsers: s.new_users, referred: s.referred, activeUsers: s.active_users, searches: s.searches, openSearches: s.open_searches, finished: s.finished, finishedWithJobs: s.finished_with_jobs,
-      jobs: s.window_jobs, kept: s.window_kept, leads: s.leads, cognition: s.cognition,
+      jobs: s.window_jobs, kept: s.window_kept, leads: s.leads, cognition: s.cognition, poolJobs: s.pool_jobs,
     },
     funnel: [
       { label: "Signed up", count: s.users, href: "/admin/users" },
@@ -348,14 +349,14 @@ async function loadHeadhunters(params: HeadhuntersParams): Promise<Headhunters> 
 export type SearchesParams = { days: number; user?: string; open?: boolean; empty?: boolean; sort: string; dir: Dir };
 export type SearchRow = {
   id: string; startedAt: Date; endedAt: Date | null; endReason: string | null; jobsWanted: number; jobsAdded: number | null; cognitionUsed: number | null; focus: string | null;
-  who: string; userId?: string; delivered: number; dropped: number; minutes: number;
+  who: string; userId?: string; delivered: number; dropped: number; minutes: number; poolHits: number; opened: number | null; summary: string | null;
 };
 export type Searches = { total: number; userFound: boolean; avgMinutes: number | null; jobsPerSearch: [number, number]; cogPerSearch: number | null; cogPerJob: number | null; rows: SearchRow[] };
 
 const SEARCHES_LIMIT = 500;
 const SEARCHES_SORT: Record<string, SQL> = {
   started: sql.raw("started"), who: text("who"), wanted: sql.raw("jobs_wanted"), delivered: sql.raw("delivered"), dropped: sql.raw("dropped"), cognition: sql.raw("cognition_used"),
-  minutes: sql.raw("minutes"), ended: sql.raw("nullif(coalesce(end_reason, case when ended is null then 'open' else '' end), '')"),
+  minutes: sql.raw("minutes"), ended: sql.raw("nullif(coalesce(end_reason, case when ended is null then 'open' else '' end), '')"), pool: sql.raw("pool_hits"), opened: sql.raw("opened"),
 };
 
 export const searches = (params: SearchesParams) => memo(`searches:${JSON.stringify(params)}`, TTL, () => loadSearches(params));
@@ -397,10 +398,10 @@ async function loadSearches(params: SearchesParams): Promise<Searches> {
   `);
 
   // Query 3: the rows, filtered and sorted in SQL.
-  type Row = { id: string; started: number; ended: number | null; end_reason: string | null; jobs_wanted: number; jobs_added: number | null; cognition_used: number | null; focus: string | null; who: string; user_id: string | null; delivered: number; dropped: number; minutes: number };
+  type Row = { id: string; started: number; ended: number | null; end_reason: string | null; jobs_wanted: number; jobs_added: number | null; cognition_used: number | null; focus: string | null; who: string; user_id: string | null; delivered: number; dropped: number; minutes: number; pool_hits: number; opened: number | null; summary: string | null };
   const list = await rows<Row>(sql`
     select * from (
-      select s.id, ${ms(sql.raw("s.started_at"))} as started, ${ms(sql.raw("s.ended_at"))} as ended, s.end_reason, s.jobs_wanted, s.jobs_added, s.cognition_used, s.focus,
+      select s.id, ${ms(sql.raw("s.started_at"))} as started, ${ms(sql.raw("s.ended_at"))} as ended, s.end_reason, s.jobs_wanted, s.jobs_added, s.cognition_used, s.focus, s.pool_hits, s.opened, s.summary,
         ${WHO} as who, u.id as user_id, ${delivered} as delivered, ${dropped} as dropped, ${minutes} as minutes
       ${from}
     ) t order by ${orderBy(SEARCHES_SORT, params.sort, params.dir, "started")} limit ${SEARCHES_LIMIT}
@@ -415,7 +416,7 @@ async function loadSearches(params: SearchesParams): Promise<Searches> {
     cogPerJob: a.total_jobs ? Math.round(a.total_cog / a.total_jobs) : null,
     rows: list.map((r) => ({
       id: r.id, startedAt: at(r.started)!, endedAt: at(r.ended), endReason: r.end_reason, jobsWanted: r.jobs_wanted, jobsAdded: r.jobs_added, cognitionUsed: r.cognition_used, focus: r.focus,
-      who: r.who, userId: r.user_id ?? undefined, delivered: r.delivered, dropped: r.dropped, minutes: r.minutes,
+      who: r.who, userId: r.user_id ?? undefined, delivered: r.delivered, dropped: r.dropped, minutes: r.minutes, poolHits: r.pool_hits, opened: r.opened, summary: r.summary,
     })),
   };
 }
@@ -423,14 +424,14 @@ async function loadSearches(params: SearchesParams): Promise<Searches> {
 // ---- search detail -------------------------------------------------------------------------
 
 export type SearchDetail = {
-  search: { id: string; startedAt: Date; endedAt: Date | null; endReason: string | null; jobsWanted: number; jobsAdded: number | null; focus: string | null; balanceStart: number | null; balanceEnd: number | null };
+  search: { id: string; startedAt: Date; endedAt: Date | null; endReason: string | null; jobsWanted: number; jobsAdded: number | null; focus: string | null; balanceStart: number | null; balanceEnd: number | null; poolHits: number; opened: number | null; summary: string | null };
   profile: { id: string; label: string; mindName: string | null; status: ProfileStatus; preferences: Preferences | null } | null;
   user: { id: string; username: string | null } | null;
   open: boolean;
   minutes: number;
   cognition: number | null;
   events: { at: Date; what: string; detail?: string }[];
-  jobs: { id: string; createdAt: Date; company: string; title: string; url: string; matchScore: number; place: string; status: JobStatus }[];
+  jobs: { id: string; createdAt: Date; company: string; title: string; url: string; matchScore: number; place: string; status: JobStatus; fromPool: boolean }[];
   leads: { id: string; createdAt: Date; company: string; title: string; url: string | null; note: string | null; reason: DropReason }[];
   leadsByReason: [string, number][];
   leadGroups: { reason: string; label: string; leads: SearchDetail["leads"] }[];
@@ -449,6 +450,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     .select({
       id: schema.searches.id, startedAt: schema.searches.startedAt, endedAt: schema.searches.endedAt, endReason: schema.searches.endReason, jobsWanted: schema.searches.jobsWanted, jobsAdded: schema.searches.jobsAdded,
       focus: schema.searches.focus, nudgedAt: schema.searches.nudgedAt, balanceStart: schema.searches.balanceStart, balanceEnd: schema.searches.balanceEnd, cognitionUsed: schema.searches.cognitionUsed, profileId: schema.searches.profileId,
+      poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary,
       pId: schema.profiles.id, label: schema.profiles.label, mindName: schema.profiles.mindName, status: schema.profiles.status, preferences: schema.profiles.preferences,
       uId: schema.users.id, username: schema.users.username,
     })
@@ -463,9 +465,9 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
 
   // Queries 2 to 4: what arrived between start and end: jobs, dropped leads, pushes.
   const jobs = await db
-    .select({ id: schema.jobs.id, createdAt: schema.jobs.createdAt, company: schema.jobs.company, title: schema.jobs.title, url: schema.jobs.url, matchScore: schema.jobs.matchScore, city: schema.jobs.city, country: schema.jobs.country, status: schema.jobs.status })
+    .select({ id: schema.jobs.id, createdAt: schema.jobs.createdAt, company: schema.jobs.company, title: schema.jobs.title, url: schema.jobs.url, matchScore: schema.jobs.matchScore, city: schema.jobs.city, country: schema.jobs.country, status: schema.jobs.status, fromPool: schema.jobs.fromPool })
     .from(schema.jobs)
-    .where(and(eq(schema.jobs.profileId, row.profileId), between(schema.jobs.createdAt)))
+    .where(and(eq(schema.jobs.profileId, row.profileId), or(eq(schema.jobs.searchId, row.id), and(isNull(schema.jobs.searchId), between(schema.jobs.createdAt)))))
     .orderBy(asc(schema.jobs.createdAt))
     .limit(200);
   const leads = await db
@@ -488,14 +490,14 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     const codes = codesOf(p.detail);
     events.push({ at: p.createdAt, what: p.dryRun ? "Dry run" : "Push", detail: `${p.accepted} accepted, ${p.rejected} rejected${codes ? ` (${codes})` : ""}` });
   }
-  if (row.endedAt) events.push({ at: row.endedAt, what: `Ended: ${row.endReason ?? "unknown"}`, detail: `${row.jobsAdded ?? 0} jobs added` });
+  if (row.endedAt) events.push({ at: row.endedAt, what: `Ended: ${row.endReason ?? "unknown"}`, detail: row.summary ?? `${row.jobsAdded ?? 0} jobs added` });
   events.sort((a, b) => a.at.getTime() - b.at.getTime());
 
   const byReason = new Map<string, SearchDetail["leads"]>();
   for (const l of leads) byReason.set(l.reason, [...(byReason.get(l.reason) ?? []), l]);
 
   return {
-    search: { id: row.id, startedAt: row.startedAt, endedAt: row.endedAt, endReason: row.endReason, jobsWanted: row.jobsWanted, jobsAdded: row.jobsAdded, focus: row.focus, balanceStart: row.balanceStart, balanceEnd: row.balanceEnd },
+    search: { id: row.id, startedAt: row.startedAt, endedAt: row.endedAt, endReason: row.endReason, jobsWanted: row.jobsWanted, jobsAdded: row.jobsAdded, focus: row.focus, balanceStart: row.balanceStart, balanceEnd: row.balanceEnd, poolHits: row.poolHits, opened: row.opened, summary: row.summary },
     profile: row.pId ? { id: row.pId, label: row.label!, mindName: row.mindName, status: row.status!, preferences: row.preferences ?? null } : null,
     user: row.uId ? { id: row.uId, username: row.username } : null,
     open: !row.endedAt,
@@ -601,6 +603,7 @@ export type Quality = {
   byPlace: [string, number][];
   byOther: [string, number][];
   byCode: [string, number][];
+  blockedHosts: [string, number][];
   mistakeRows: { pid: string; who: string; userId?: string; total: number; counts: number[] }[];
   leads: LeadRow[];
   refused: RefusedRow[];
@@ -657,6 +660,7 @@ async function loadQuality(params: QualityParams): Promise<Quality> {
     union all select 'other', ${bucket(OTHERS)}, null, null, null, count(*)::int ${leadsFrom} and l.reason in ('other', 'pay') group by 2
     union all select 'day', ${dayOf(sql.raw("l.created_at"))}, l.reason, null, null, count(*)::int ${leadsFrom} group by 2, 3
     union all select 'code', d->>'code', null, null, null, count(*)::int ${REFUSED} ${refusedWhere} group by 2
+    union all select 'host', regexp_replace(substring(l.url from '^https?://([^/]+)'), '^www\\.', ''), null, null, null, count(*)::int from leads l where l.created_at >= now() - interval '7 days' and l.reason = 'unreachable' and l.url is not null group by 2
     union all select 'mistake', g.profile_id::text, d->>'code', ${WHO}, u.id, count(*)::int ${REFUSED} ${refusedWhere} and d->>'code' in (${lit(MIND_MISTAKES)}) group by 2, 3, 4, 5
   `);
   const of = (kind: string) => facets.filter((f) => f.kind === kind);
@@ -702,6 +706,7 @@ async function loadQuality(params: QualityParams): Promise<Quality> {
     byPlace: counts(of("place").map((f) => ({ key: f.key, n: f.n }))),
     byOther: counts(of("other").map((f) => ({ key: f.key, n: f.n }))),
     byCode: counts(of("code").map((f) => ({ key: f.key, n: f.n }))),
+    blockedHosts: counts(of("host").filter((f) => f.key).map((f) => ({ key: f.key, n: f.n }))),
     mistakeRows: [...mistakes.values()].sort((a, b) => b.total - a.total),
     leads: leads.map((l) => ({ id: l.id, createdAt: at(l.created)!, who: l.who, userId: l.user_id ?? undefined, reason: l.reason, company: l.company, title: l.title, url: l.url, note: l.note })),
     refused: refused.map((r) => ({ at: at(r.at)!, who: r.who, code: r.code, url: r.url, hint: r.hint })),

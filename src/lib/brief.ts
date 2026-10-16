@@ -1,7 +1,11 @@
 import type { Preferences } from "./preferences";
-import { discoveryText } from "./discovery";
+import { ladderText } from "./discovery";
 import { FACTS_RULE } from "./facts";
 import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel } from "./preferences";
+
+// Bump when the brief's wording changes in a way every existing headhunter should get: the next
+// search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
+export const BRIEF_VERSION = 2;
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -33,7 +37,7 @@ HOW WE WORK
   2. For each, open its application form and copy every question into "formQuestions" (skip name, email, phone, resume and cover letter). Write an application pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE}
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
-  5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, other) and a short note. No pack for those. If you had opened the posting before dropping it as poor_fit, not_eligible or work_setting, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
+  5. Every lead you drop goes in the same POST under "dropped", one line each with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a short note. No pack for those. If you had opened the posting, whatever the reason, add "posting" with the same facts you would send for a job (url, title, company, city, country, workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves as plain text, companyWebsite): no pack, no score, no whyFit. Leads you dropped from the search result alone stay one line. Never open a posting just to fill this in. It's cheap, it shows me why a search came back light, and next time I'll tell you to skip them.
   6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later pushes are refused.
 
 WHAT I WANT
@@ -45,11 +49,22 @@ WHAT I WANT
 ${facts ? `
 ${facts}
 ` : ""}
-WHERE TO LOOK
-- ${discoveryText(prefs.targetRoles, prefs.country, prefs.city)}
+THE LADDER, EVERY SEARCH
+${ladderText(prefs)}
 
-HOW TO SPEND MY COGNITION
-- Work cheaply: for each lead, check what the job actually is first, from its summary or first lines, not just its title: titles vary, so judge by the scope of the work. If the day-to-day work is not what my target roles do (for example, a product manager owns a product or feature and decides what gets built and why; a job that is mainly marketing campaigns, account management or sales is not that, whatever it is called), drop it as poor_fit with the note "different role" and don't go further. Postings that are plainly another function from the title alone (sales, support, engineering, design, finance, interns) are not leads at all: don't open them and don't report them, and don't walk a company's whole careers board; only the postings that could be my role count as leads. Then check the posting date and the location line (from the search result, the listing's summary or its JSON-LD) and drop it before opening the full posting or form if it fails. Only read the full posting and form for leads that pass those two. For a job you verified on an earlier search, just confirm the posting is still open; don't rebuild its pack. Dropping most leads is normal: expect to look at 30 to 60 to find 5, so never stop just because leads keep failing. Cast the net wide before you judge the market: run every title variant with the place and with "remote", plus the job-system site searches, and don't take all your leads from the same three or four companies; each new search should surface new employers, not ones you already checked. Stop only when all of those searches turn up nothing new, or 90 minutes pass without sending a job: then POST {"jobs":[],"final":true} and say so in one line.
+KILL ON SIGHT (from the search result, without opening)
+- Another function in the title (sales, support, engineering, design, finance, interns), unless my roles include it.
+- Recruiter, staffing agency or job-board mirror as the source.
+- A location naming only another country, with no mention of ${prefs.country}, my region or anywhere.
+- A visible date past my posting age limit.
+- Anything on the skip list in the search request.
+Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
+
+STOP
+- Quota reached: POST {"jobs":[],"final":true} and stop.
+- Every rung you are allowed is dry: POST {"jobs":[],"final":true} with one honest line in chat: "Opened X, sent Y, rungs 0 to N exhausted, most drops were ...". Do not widen past the last rung to make up the number.
+- Two hours in, whatever the count: final, same one line.
+Dropping most leads is normal. Never stop early because leads keep failing; move to the next rung instead.
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
@@ -85,10 +100,11 @@ Header: x-unemploy-key: <the key from your brief>
 Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...]}  (0–50 jobs)
   "final": true only when you have stopped searching for good. It closes the search; pushes after it are refused.
   Mid-search pushes, including ones that only carry "dropped", are "final": false (or leave it out).
-DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|other,"note"(short),"posting"(optional)}
-  "posting": only for a lead you opened and dropped as poor_fit, not_eligible or work_setting: the JOB fields url, title, company, city, country,
+DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|unreachable|other,"note"(short),"posting"(optional)}
+  "posting": for every lead you opened before dropping it, whatever the reason: the JOB fields url, title, company, city, country,
   workSetting, jobType, level, salary, postedAt, locationText, summary, mustHaves (plain text), companyWebsite. No pack, matchScore, whyFit or gaps.
   Every lead you looked at and dropped. Send them with the next push (or on their own with "jobs":[]).
+  unreachable: the page blocked you or would not load. Hosts that blocked you are skipped for a week.
 Send each job as soon as it passes every check (one per push is fine) so the user sees it straight away. Don't hold jobs for one batch at the end.
 Only send during a search the user requested (a "SEARCH REQUEST" message). Other pushes are refused.
 

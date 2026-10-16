@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { ratio, stageLabel, when } from "@/lib/admin";
+import { stageLabel, when } from "@/lib/admin";
 import { searchDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
 import type { Mood } from "@/components/brand";
@@ -38,14 +38,16 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
         </div>
       </Hero>
 
-      <Tiles cols={6} className="mt-6">
+      <Tiles cols={8} className="mt-6">
         <Stat label="Status" value={search.endedAt ? search.endReason ?? "ended" : "running"} hint={search.endedAt ? when(search.endedAt) : `${minutes} min so far`} />
         <Stat label="Wanted" value={search.jobsWanted} />
         <Stat label="Delivered" value={search.jobsAdded ?? jobs.length} hint={`${jobs.length} jobs in this window`} />
         <Stat label="Cognition" value={cognition ?? "–"} hint={cognition != null && jobs.length ? `${Math.round(cognition / jobs.length)} per job` : "read from the ledger at the end"} />
         <Stat label="Minutes" value={minutes} />
-        <Stat label="Jobs per hour" value={ratio(jobs.length, minutes / 60)} />
+        <Stat label="Via pool" value={search.poolHits} hint="jobs the pool pointed to" />
+        <Stat label="Opened" value={search.opened ?? jobs.length + leads.length} hint={search.opened != null ? "jobs plus dropped leads" : "so far"} />
       </Tiles>
+      {search.summary && <p className="admin-text-2 mt-4 text-sm">How it went: {search.summary}.</p>}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <Card title="Timeline">
@@ -83,8 +85,8 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
       <SectionTitle title={`Jobs delivered (${jobs.length})`} />
       <div className="mt-3">
         <Table
-          head={["When", "Company", "Title", "Match", "Place", "Stage"]}
-          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, j.place, <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>])}
+          head={["When", "Company", "Title", "Match", "Place", "Stage", "Source"]}
+          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, j.place, <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>, j.fromPool ? <Badge key="p" tone="teal">pool</Badge> : ""])}
           empty="No jobs arrived during this search."
           emptyMood={open ? "searching" : "sad"}
         />
