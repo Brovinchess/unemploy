@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { desc, gte } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { daysAgo, directory, mins, ratio, sortParams, sortRows, sum, when, queue } from "@/lib/admin";
+import { ratio, sortParams, when } from "@/lib/admin";
+import { searches } from "@/lib/admin-data";
 import { Badge, Cap, Check, Clamp, ClearLink, DaysPicker, FilterForm, Page, PageHead, SortLink, Stat, Table, TextInput, Tiles, UserLink, daysParam, endTone } from "../ui";
 
 const BASE = "/admin/searches";
@@ -10,53 +9,15 @@ const MAX_ROWS = 500;
 export default async function Searches({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const days = daysParam(q, 14);
-  const since = daysAgo(days);
-  const now = daysAgo(0);
   const { key, dir } = sortParams(q, "started");
-  const [d, searches, jobs, leads] = await queue([
-    () => directory(),
-    () => db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), orderBy: desc(schema.searches.startedAt) }),
-    () => db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), columns: { profileId: true, createdAt: true } }),
-    () => db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { profileId: true, createdAt: true } }),
-  ]);
-  // Jobs and leads belong to a search when they arrived between its start and its end.
-  const inWindow = (list: { profileId: string; createdAt: Date }[], s: (typeof searches)[number]) =>
-    list.filter((x) => x.profileId === s.profileId && x.createdAt >= s.startedAt && x.createdAt <= (s.endedAt ?? now)).length;
-
-  let rows = searches.map((s) => ({
-    ...s,
-    who: d.who(s.profileId),
-    userId: d.userOfProfile(s.profileId),
-    delivered: inWindow(jobs, s),
-    dropped: inWindow(leads, s),
-    minutes: mins(s.startedAt, s.endedAt ?? now),
-  }));
-  const user = d.userByName(q.user);
-  if (q.user) rows = user ? rows.filter((r) => r.userId === user.id) : [];
-  if (q.open) rows = rows.filter((r) => !r.endedAt);
-  if (q.empty) rows = rows.filter((r) => r.endedAt && (r.jobsAdded ?? 0) === 0);
-  rows = sortRows(rows, key, dir, {
-    started: (r) => r.startedAt,
-    who: (r) => r.who,
-    wanted: (r) => r.jobsWanted,
-    delivered: (r) => r.delivered,
-    dropped: (r) => r.dropped,
-    cognition: (r) => r.cognitionUsed,
-    minutes: (r) => r.minutes,
-    ended: (r) => r.endReason ?? (r.endedAt ? "" : "open"),
-  });
+  const { total, userFound, avgMinutes, jobsPerSearch, cogPerSearch, cogPerJob, rows } = await searches({ days, user: q.user || undefined, open: !!q.open, empty: !!q.empty, sort: key, dir });
   const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
-
-  const done = rows.filter((s) => s.endedAt);
-  const totalMin = sum(done, (s) => s.minutes);
-  const totalJobs = sum(rows, (s) => s.delivered);
-  const totalCog = sum(rows, (s) => s.cognitionUsed);
 
   return (
     <Page>
       <PageHead
         section="Searches"
-        title={`${rows.length} searches`}
+        title={`${total} searches`}
         description="Every time a headhunter went out, what it was asked for and what came back."
         controls={
           <>
@@ -70,20 +31,20 @@ export default async function Searches({ searchParams }: { searchParams: Promise
           </>
         }
       >
-        {q.user && !user && <p className="mt-2 text-sm text-rose-300">No user called “{q.user}”.</p>}
+        {q.user && !userFound && <p className="mt-2 text-sm text-rose-300">No user called “{q.user}”.</p>}
       </PageHead>
       <Tiles cols={4} className="mt-6">
-        <Stat label="Average length" value={done.length ? `${Math.round(totalMin / done.length)} min` : "–"} />
-        <Stat label="Jobs per search" value={ratio(totalJobs, rows.length)} />
-        <Stat label="Cognition per search" value={rows.length ? Math.round(totalCog / rows.length) : "–"} />
-        <Stat label="Cognition per job" value={totalJobs ? Math.round(totalCog / totalJobs) : "–"} />
+        <Stat label="Average length" value={avgMinutes != null ? `${avgMinutes} min` : "–"} />
+        <Stat label="Jobs per search" value={ratio(jobsPerSearch[0], jobsPerSearch[1])} />
+        <Stat label="Cognition per search" value={cogPerSearch ?? "–"} />
+        <Stat label="Cognition per job" value={cogPerJob ?? "–"} />
       </Tiles>
       <div className="mt-6">
         <Table
           head={[col("started", "Started"), col("who", "Who"), col("wanted", "Asked"), col("delivered", "Delivered"), col("dropped", "Leads dropped"), col("cognition", "Cognition"), col("minutes", "Took"), col("ended", "Ended because"), "Focus"]}
           empty="No searches in this window."
           emptyMood="sleeping"
-          rows={rows.slice(0, MAX_ROWS).map((s) => [
+          rows={rows.map((s) => [
             <Link key={s.id} href={`/admin/searches/${s.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{when(s.startedAt)}</Link>,
             <UserLink key="u" id={s.userId} name={s.who} />,
             s.jobsWanted,
@@ -95,7 +56,7 @@ export default async function Searches({ searchParams }: { searchParams: Promise
             <Clamp key="f" text={s.focus} className="max-w-xs" />,
           ])}
         />
-        <Cap shown={MAX_ROWS} total={rows.length} />
+        <Cap shown={MAX_ROWS} total={total} />
       </div>
     </Page>
   );

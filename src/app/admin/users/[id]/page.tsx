@@ -1,43 +1,20 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { desc, eq, inArray } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, maskEmail, maskPhone, mins, stageLabel, sum, when, queue } from "@/lib/admin";
+import { WAITING_QUESTION, maskEmail, maskPhone, stageLabel, when } from "@/lib/admin";
+import { userDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
 import { Badge, Breadcrumb, Card, Clamp, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
 
 const MAX_ROWS = 500;
+const QUESTION_LABEL: Record<string, string> = { review: "Answered, waiting for a check", needs_you: "Needs the person", ignored: "Ignored", new: "Needs the person (legacy)", asked: "Needs the person (legacy)" };
 
 // Everything about one account, read-only. There is no way to act as the person from here.
 export default async function UserDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const user = await db.query.users.findFirst({ where: eq(schema.users.id, id) });
-  if (!user) notFound();
-  const now = daysAgo(0);
-  const profiles = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, id), orderBy: desc(schema.profiles.createdAt) });
-  const pids = profiles.map((p) => p.id);
-  const none = pids.length === 0;
-  const [searches, jobs, questions, tokens, sessions, made, received, referrer, referredUsers] = await queue([
-    async () => (none ? [] : db.query.searches.findMany({ where: inArray(schema.searches.profileId, pids), orderBy: desc(schema.searches.startedAt), limit: MAX_ROWS })),
-    async () => (none ? [] : db.query.jobs.findMany({ where: inArray(schema.jobs.profileId, pids), orderBy: desc(schema.jobs.createdAt), limit: MAX_ROWS })),
-    () => db.query.questions.findMany({ where: eq(schema.questions.userId, id), orderBy: desc(schema.questions.createdAt) }),
-    () => db.query.extensionTokens.findMany({ where: eq(schema.extensionTokens.userId, id), columns: { id: true, createdAt: true, lastUsedAt: true } }),
-    () => db.query.sessions.findMany({ where: eq(schema.sessions.userId, id), columns: { expiresAt: true } }),
-    () => db.query.referrals.findMany({ where: eq(schema.referrals.referrerId, id) }),
-    () => db.query.referrals.findMany({ where: eq(schema.referrals.referredId, id) }),
-    async () => (user.referredBy ? db.query.users.findFirst({ where: eq(schema.users.referralCode, user.referredBy), columns: { id: true, username: true } }) : null),
-    // Names for both sides of the referral rows (all usernames; a small table).
-    () => db.query.users.findMany({ columns: { id: true, username: true } }),
-  ]);
-  const name = new Map(referredUsers.map((u) => [u.id, u.username ?? "(no name yet)"]));
-  const label = new Map(profiles.map((p) => [p.id, p.label]));
+  const data = await userDetail(id);
+  if (!data) notFound();
+  const { user, referrer, sessions, profiles, main, totals, searches, jobs, questions, questionTotal, waiting, tokens, tokenTotal, made, received } = data;
   const a = user.applicant;
-  const main = profiles.find((p) => p.status === "hunting" || p.status === "paused") ?? profiles[0];
-  const waiting = questions.filter((x) => WAITING_QUESTION.has(x.status));
-  const QUESTION_LABEL: Record<string, string> = { review: "Answered, waiting for a check", needs_you: "Needs the person", ignored: "Ignored", new: "Needs the person (legacy)", asked: "Needs the person (legacy)" };
-
-  const keptN = jobs.filter((j) => KEPT.has(j.status)).length;
-  const appliedN = jobs.filter((j) => APPLIED_PLUS.has(j.status)).length;
   const displayName = user.username ?? "(no name yet)";
 
   return (
@@ -47,8 +24,8 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         <Breadcrumb items={[["Users", "/admin/users"], [displayName]]} />
       </div>
       <Hero
-        mood={keptN > 0 ? "happy" : "thinking"}
-        title={keptN > 0 ? `Kept ${keptN} ${keptN === 1 ? "job" : "jobs"}` : jobs.length ? "Got jobs, kept none yet" : searches.length ? "Searched, nothing delivered yet" : main?.mindId ? "Deployed, never searched" : "Still setting up"}
+        mood={totals.kept > 0 ? "happy" : "thinking"}
+        title={totals.kept > 0 ? `Kept ${totals.kept} ${totals.kept === 1 ? "job" : "jobs"}` : totals.jobs ? "Got jobs, kept none yet" : totals.searches ? "Searched, nothing delivered yet" : main?.mindId ? "Deployed, never searched" : "Still setting up"}
         subtitle={main ? `${main.label}${main.mindName ? ` (${main.mindName})` : ""} · ${main.status.replace(/_/g, " ")}` : "No headhunter yet."}
         badge={main ? <Badge tone={hhTone(main.status)}>{main.status.replace(/_/g, " ")}</Badge> : undefined}
       >
@@ -57,19 +34,19 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
             rows={[
               ["Email", user.email ? <span key="e">{user.email} <Badge tone={user.emailVerifiedAt ? "green" : "muted"}>{user.emailVerifiedAt ? "verified" : "not verified"}</Badge></span> : ""],
               ["Referred by", referrer ? <Link key="r" href={`/admin/users/${referrer.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{referrer.username ?? "(no name yet)"}</Link> : user.referredBy ? `code ${user.referredBy}` : ""],
-              ["Extension", tokens.length ? `connected, ${tokens.length} ${tokens.length === 1 ? "token" : "tokens"}` : "not connected"],
+              ["Extension", tokenTotal ? `connected, ${tokenTotal} ${tokenTotal === 1 ? "token" : "tokens"}` : "not connected"],
             ]}
           />
         </div>
       </Hero>
 
       <Tiles cols={6} className="mt-6">
-        <Stat label="Searches" value={searches.length} />
-        <Stat label="Jobs" value={jobs.length} />
-        <Stat label="Kept" value={keptN} />
-        <Stat label="Applied+" value={appliedN} />
-        <Stat label="Cognition" value={Math.round(sum(searches, (s) => s.cognitionUsed))} />
-        <Stat label="Sessions" value={sessions.length} hint={`${sessions.filter((s) => s.expiresAt > now).length} still valid`} />
+        <Stat label="Searches" value={totals.searches} />
+        <Stat label="Jobs" value={totals.jobs} />
+        <Stat label="Kept" value={totals.kept} />
+        <Stat label="Applied+" value={totals.applied} />
+        <Stat label="Cognition" value={totals.cognition} />
+        <Stat label="Sessions" value={sessions.total} hint={`${sessions.valid} still valid`} />
       </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -146,67 +123,64 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
         )}
       </div>
 
-      <SectionTitle title={`Searches (${searches.length})`} />
+      <SectionTitle title={`Searches (${totals.searches})`} />
       <div className="mt-3">
         <Table
           head={["Started", "Headhunter", "Asked", "Got", "Cognition", "Took", "Ended", "Focus"]}
           empty="No searches yet."
           emptyMood="sleeping"
-          rows={searches.map((s) => {
-            const m = mins(s.startedAt, s.endedAt);
-            return [
-              <Link key={s.id} href={`/admin/searches/${s.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{when(s.startedAt)}</Link>,
-              label.get(s.profileId) ?? "?",
-              s.jobsWanted,
-              s.jobsAdded ?? (s.endedAt ? 0 : "…"),
-              s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
-              m ? `${m} min` : "running",
-              <Badge key="e" tone={endTone(s.endReason, !s.endedAt)}>{s.endReason ?? (s.endedAt ? "ended" : "open")}</Badge>,
-              <Clamp key="f" text={s.focus} className="max-w-xs" />,
-            ];
-          })}
+          rows={searches.map((s) => [
+            <Link key={s.id} href={`/admin/searches/${s.id}`} className="text-white underline decoration-white/20 underline-offset-2 hover:decoration-coral">{when(s.startedAt)}</Link>,
+            s.label,
+            s.jobsWanted,
+            s.jobsAdded ?? (s.endedAt ? 0 : "…"),
+            s.cognitionUsed != null ? Math.round(Number(s.cognitionUsed)) : "",
+            s.minutes ? `${s.minutes} min` : "running",
+            <Badge key="e" tone={endTone(s.endReason, !s.endedAt)}>{s.endReason ?? (s.endedAt ? "ended" : "open")}</Badge>,
+            <Clamp key="f" text={s.focus} className="max-w-xs" />,
+          ])}
         />
         {searches.length >= MAX_ROWS && <p className="admin-text-3 mt-2 text-xs">Showing the latest {MAX_ROWS}.</p>}
       </div>
 
-      <SectionTitle title={`Jobs (${jobs.length})`} />
+      <SectionTitle title={`Jobs (${totals.jobs})`} />
       <div className="mt-3">
         <Table
           head={["When", "Company", "Title", "Match", "Place", "Stage", "Stage changed"]}
           empty="No jobs delivered yet."
           emptyMood="sleeping"
-          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, [j.city, j.country].filter(Boolean).join(", "), <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>, when(j.statusChangedAt)])}
+          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, j.place, <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>, when(j.statusChangedAt)])}
         />
         {jobs.length >= MAX_ROWS && <p className="admin-text-3 mt-2 text-xs">Showing the latest {MAX_ROWS}.</p>}
       </div>
 
       <div className="mt-10 grid gap-4 lg:grid-cols-2">
         <div>
-          <SectionTitle className="" title={`Questions (${questions.length})`} hint={`${waiting.length} waiting on the person.`} />
+          <SectionTitle className="" title={`Questions (${questionTotal})`} hint={`${waiting} waiting on the person.`} />
           <div className="mt-3">
             <Table
               head={["Status", "Question", "Company", "Asked"]}
-              rows={questions.map((x) => [<Badge key="s" tone={WAITING_QUESTION.has(x.status) ? "amber" : x.status === "ignored" ? "muted" : "teal"}>{QUESTION_LABEL[x.status] ?? x.status}</Badge>, <Clamp key="q" text={x.question} />, x.company ?? "", when(x.askedAt ?? x.createdAt)])}
+              rows={questions.map((x) => [<Badge key="s" tone={WAITING_QUESTION.has(x.status) ? "amber" : x.status === "ignored" ? "muted" : "teal"}>{QUESTION_LABEL[x.status] ?? x.status}</Badge>, <Clamp key="q" text={x.question} />, x.company ?? "", when(x.askedAt)])}
               empty="No form questions yet."
             />
           </div>
         </div>
         <div>
-          <SectionTitle className="" title={`Saved answers (${user.savedAnswers?.length ?? 0})`} hint="Reused by the extension on later forms." />
+          <SectionTitle className="" title={`Saved answers (${user.savedAnswers.length})`} hint="Reused by the extension on later forms." />
           <div className="mt-3">
-            <Table head={["Question", "Answer", "Updated"]} rows={(user.savedAnswers ?? []).map((x) => [x.question, <span key="a" className="block max-w-md whitespace-pre-wrap">{x.answer}</span>, x.updatedAt.slice(0, 10)])} empty="No saved answers." />
+            <Table head={["Question", "Answer", "Updated"]} rows={user.savedAnswers.map((x) => [x.question, <span key="a" className="block max-w-md whitespace-pre-wrap">{x.answer}</span>, x.updatedAt.slice(0, 10)])} empty="No saved answers." />
           </div>
         </div>
       </div>
 
       <div className="mt-10 grid gap-4 lg:grid-cols-3">
         <Card title={`Referrals made (${made.length})`}>
-          <Table head={["Friend", "Status", "Joined"]} rows={made.map((r) => [<UserLink key={r.id} id={r.referredId} name={name.get(r.referredId) ?? "?"} />, r.status, when(r.createdAt)])} empty="Nobody yet." />
+          <Table head={["Friend", "Status", "Joined"]} rows={made.map((r) => [<UserLink key={r.id} id={r.friendId} name={r.friend} />, r.status, when(r.createdAt)])} empty="Nobody yet." />
         </Card>
         <Card title="Referred by">
-          <Table head={["Referrer", "Status", "Joined"]} rows={received.map((r) => [<UserLink key={r.id} id={r.referrerId} name={name.get(r.referrerId) ?? "?"} />, r.status, when(r.createdAt)])} empty="Signed up without a link." />
+          <Table head={["Referrer", "Status", "Joined"]} rows={received.map((r) => [<UserLink key={r.id} id={r.referrerId} name={r.referrer} />, r.status, when(r.createdAt)])} empty="Signed up without a link." />
         </Card>
-        <Card title={`Extension tokens (${tokens.length})`} hint="Only when they were made and last used; never the token itself.">
+        <Card title={`Extension tokens (${tokenTotal})`} hint="Only when they were made and last used; never the token itself.">
           <Table head={["Created", "Last used"]} rows={tokens.map((t) => [when(t.createdAt), when(t.lastUsedAt) || "never"])} empty="Extension not connected." />
         </Card>
       </div>

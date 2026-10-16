@@ -1,8 +1,6 @@
 import { notFound } from "next/navigation";
-import { and, asc, eq, gte, lte } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { daysAgo, mins, pushDetails, ratio, stageLabel, tally, when, queue } from "@/lib/admin";
-import { DROP_LABELS } from "@/lib/dropped";
+import { ratio, stageLabel, when } from "@/lib/admin";
+import { searchDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
 import type { Mood } from "@/components/brand";
 import { Badge, Breadcrumb, Card, Clamp, Counts, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
@@ -10,37 +8,10 @@ import { Badge, Breadcrumb, Card, Clamp, Counts, Empty, Ext, Facts, Hero, Page, 
 // One search, with everything that happened between its start and end.
 export default async function SearchDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const now = daysAgo(0);
-  const search = await db.query.searches.findFirst({ where: eq(schema.searches.id, id) });
-  if (!search) notFound();
-  const end = search.endedAt ?? now;
-  const between = (col: typeof schema.jobs.createdAt | typeof schema.leads.createdAt | typeof schema.ingestLog.createdAt) => and(gte(col, search.startedAt), lte(col, end));
-  const [profile, jobs, leads, pushes] = await queue([
-    () => db.query.profiles.findFirst({ where: eq(schema.profiles.id, search.profileId), columns: { id: true, userId: true, label: true, mindName: true, status: true, preferences: true } }),
-    () => db.query.jobs.findMany({ where: and(eq(schema.jobs.profileId, search.profileId), between(schema.jobs.createdAt)), orderBy: asc(schema.jobs.createdAt) }),
-    () => db.query.leads.findMany({ where: and(eq(schema.leads.profileId, search.profileId), between(schema.leads.createdAt)), orderBy: asc(schema.leads.createdAt) }),
-    () => db.query.ingestLog.findMany({ where: and(eq(schema.ingestLog.profileId, search.profileId), between(schema.ingestLog.createdAt)), orderBy: asc(schema.ingestLog.createdAt) }),
-  ]);
-  const user = profile ? await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId), columns: { id: true, username: true } }) : null;
-  const minutes = mins(search.startedAt, end) ?? 1;
-  const cognition = search.cognitionUsed != null ? Math.round(Number(search.cognitionUsed)) : null;
-  const refused = pushes.flatMap((p) => pushDetails(p.detail).filter((x) => x.code));
+  const data = await searchDetail(id);
+  if (!data) notFound();
+  const { search, profile, user, open, minutes, cognition, events, jobs, leads, leadsByReason, leadGroups, pushes, refused } = data;
 
-  // Timeline: start, nudge, every push, end.
-  type Event = { at: Date; what: string; detail?: string };
-  const events: Event[] = [{ at: search.startedAt, what: "Search started", detail: `${search.jobsWanted} jobs wanted${search.focus ? `, focus: ${search.focus}` : ""}` }];
-  if (search.nudgedAt) events.push({ at: search.nudgedAt, what: "Nudged", detail: "Nothing had arrived; the Mind was asked to send what it had." });
-  for (const p of pushes) {
-    const codes = tally(pushDetails(p.detail).filter((x) => x.code), (x) => x.code!).map(([c, n]) => `${c} ×${n}`).join(", ");
-    events.push({ at: p.createdAt, what: p.dryRun ? "Dry run" : "Push", detail: `${p.accepted} accepted, ${p.rejected} rejected${codes ? ` (${codes})` : ""}` });
-  }
-  if (search.endedAt) events.push({ at: search.endedAt, what: `Ended: ${search.endReason ?? "unknown"}`, detail: `${search.jobsAdded ?? 0} jobs added` });
-  events.sort((a, b) => a.at.getTime() - b.at.getTime());
-
-  const byReason = new Map<string, typeof leads>();
-  for (const l of leads) byReason.set(l.reason, [...(byReason.get(l.reason) ?? []), l]);
-
-  const open = !search.endedAt;
   const mood: Mood = open ? "searching" : search.endReason === "finished" ? "happy" : "sad";
   const who = `${user?.username ?? "(no name yet)"}${profile ? ` · ${profile.label}${profile.mindName ? ` (${profile.mindName})` : ""}` : ""}`;
 
@@ -113,7 +84,7 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
       <div className="mt-3">
         <Table
           head={["When", "Company", "Title", "Match", "Place", "Stage"]}
-          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, [j.city, j.country].filter(Boolean).join(", "), <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>])}
+          rows={jobs.map((j) => [when(j.createdAt), j.company, <Ext key={j.id} href={j.url}>{j.title}</Ext>, `${Math.round(j.matchScore)}%`, j.place, <Badge key="s" tone={stageTone(j.status)}>{stageLabel(j.status)}</Badge>])}
           empty="No jobs arrived during this search."
           emptyMood={open ? "searching" : "sad"}
         />
@@ -121,14 +92,14 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
 
       <SectionTitle title={`Leads dropped (${leads.length})`} />
       <div className="mt-3 grid gap-4 md:grid-cols-3">
-        <Counts title="By reason" total={leads.length} rows={tally(leads, (l) => DROP_LABELS[l.reason] ?? l.reason)} />
+        <Counts title="By reason" total={leads.length} rows={leadsByReason} />
         <div className="space-y-6 md:col-span-2">
-          {[...byReason.entries()].map(([reason, list]) => (
-            <div key={reason}>
+          {leadGroups.map((g) => (
+            <div key={g.reason}>
               <h3 className="admin-text-2 mb-2 text-sm font-medium">
-                {DROP_LABELS[reason as keyof typeof DROP_LABELS] ?? reason} <span className="admin-text-3">({list.length})</span>
+                {g.label} <span className="admin-text-3">({g.leads.length})</span>
               </h3>
-              <Table head={["When", "Company", "Title", "The Mind's note"]} rows={list.map((l) => [when(l.createdAt), l.company, l.url ? <Ext key={l.id} href={l.url}>{l.title}</Ext> : l.title, <Clamp key="n" text={l.note} />])} />
+              <Table head={["When", "Company", "Title", "The Mind's note"]} rows={g.leads.map((l) => [when(l.createdAt), l.company, l.url ? <Ext key={l.id} href={l.url}>{l.title}</Ext> : l.title, <Clamp key="n" text={l.note} />])} />
             </div>
           ))}
           {!leads.length && (
@@ -143,14 +114,14 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
       <div className="mt-3">
         <Table
           head={["When", "Kind", "Accepted", "Rejected", "Codes"]}
-          rows={pushes.map((p) => [when(p.createdAt), p.dryRun ? <Badge key="k" tone="muted">dry run</Badge> : <Badge key="k" tone="teal">push</Badge>, p.accepted, p.rejected ? <span key="r" className="text-rose-300">{p.rejected}</span> : 0, tally(pushDetails(p.detail).filter((x) => x.code), (x) => x.code!).map(([c, n]) => `${c} ×${n}`).join(", ")])}
+          rows={pushes.map((p) => [when(p.createdAt), p.dryRun ? <Badge key="k" tone="muted">dry run</Badge> : <Badge key="k" tone="teal">push</Badge>, p.accepted, p.rejected ? <span key="r" className="text-rose-300">{p.rejected}</span> : 0, p.codes])}
           empty="The Mind made no pushes during this search."
           emptyMood="sleeping"
         />
       </div>
       {refused.length > 0 && (
         <div className="mt-4">
-          <Table head={["Code", "Link", "What it was told"]} rows={refused.map((r) => [r.code, (r.url ?? "").replace(/^https?:\/\//, "").slice(0, 60), <Clamp key="h" text={(r.hint ?? "").slice(0, 220)} />])} />
+          <Table head={["Code", "Link", "What it was told"]} rows={refused.map((r) => [r.code, r.url.replace(/^https?:\/\//, "").slice(0, 60), <Clamp key="h" text={r.hint.slice(0, 220)} />])} />
         </div>
       )}
     </Page>

@@ -1,97 +1,61 @@
-import { and, count, desc, eq, gte, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { daysAgo, when, queue } from "@/lib/admin";
+import { when } from "@/lib/admin";
+import { system, type Freshness } from "@/lib/admin-data";
 import { extensionLive } from "@/lib/flags";
 import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
-import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles } from "../ui";
+import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles, type Tone } from "../ui";
+
+const QUESTION_LABEL: Record<string, string> = { review: "Answered, waiting for a check", needs_you: "Needs the person", ignored: "Ignored", new: "Needs the person (legacy)", asked: "Needs the person (legacy)" };
+const freshness = (f: Freshness) => (f.hours == null ? "never" : f.hours < 30 ? `${f.hours}h ago` : `${Math.round(f.hours / 24)} days ago`);
+const fresh = (f: Freshness): Tone => (f.hours == null ? "muted" : f.hours < 30 ? "green" : f.hours < 72 ? "amber" : "rose");
 
 // Health counters and the environment switches. No secrets: only which mode each one is in.
 export default async function System() {
-  const now = daysAgo(0);
-  const n = async (q: Promise<{ n: number }[]>) => (await q)[0]?.n ?? 0;
-  const [sessions, tokens, questions, poolOpen, poolClosed, poolFresh, openSearches, logs24h, watchdog, lastExpired, pool, qStatus, tok7, tok30, tokNever] = await queue([
-    () => n(db.select({ n: count() }).from(schema.sessions).where(gte(schema.sessions.expiresAt, now))),
-    () => n(db.select({ n: count() }).from(schema.extensionTokens)),
-    () => n(db.select({ n: count() }).from(schema.questions).where(ne(schema.questions.status, "ignored"))),
-    () => n(db.select({ n: count() }).from(schema.postings).where(isNull(schema.postings.closedAt))),
-    () => n(db.select({ n: count() }).from(schema.postings).where(isNotNull(schema.postings.closedAt))),
-    () => n(db.select({ n: count() }).from(schema.postings).where(gte(schema.postings.lastSeenAt, daysAgo(7)))),
-    () => n(db.select({ n: count() }).from(schema.profiles).where(and(isNotNull(schema.profiles.searchStartedAt), isNull(schema.profiles.searchEndedAt)))),
-    () => n(db.select({ n: count() }).from(schema.ingestLog).where(gte(schema.ingestLog.createdAt, daysAgo(1)))),
-    // Watchdog freshness: the newest posting it verified open, and the newest job it marked closed.
-    () => db.select({ at: max(schema.postings.lastVerifiedOpenAt), checked: max(schema.postings.lastCheckedAt) }).from(schema.postings),
-    () => db.select({ at: max(schema.jobs.statusChangedAt) }).from(schema.jobs).where(eq(schema.jobs.status, "expired")),
-    // Pool by country, open and closed.
-    () => db
-      .select({ country: schema.postings.countryCode, total: count(), open: sql<number>`count(*) filter (where ${schema.postings.closedAt} is null)`.mapWith(Number) })
-      .from(schema.postings)
-      .groupBy(schema.postings.countryCode)
-      .orderBy(desc(count()))
-      .limit(10),
-    () => db.select({ status: schema.questions.status, n: count() }).from(schema.questions).groupBy(schema.questions.status),
-    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(gte(schema.extensionTokens.lastUsedAt, daysAgo(7)))),
-    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(and(gte(schema.extensionTokens.lastUsedAt, daysAgo(30)), lt(schema.extensionTokens.lastUsedAt, daysAgo(7))))),
-    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(isNull(schema.extensionTokens.lastUsedAt))),
-  ]);
-  const verifiedAt = watchdog[0]?.at ?? null;
-  const checkedAt = watchdog[0]?.checked ?? null;
-  const expiredAt = lastExpired[0]?.at ?? null;
-  const hoursSince = (d: Date | null) => (d ? Math.round((now.getTime() - d.getTime()) / 3_600_000) : null);
-  const freshness = (d: Date | null) => {
-    const h = hoursSince(d);
-    return h == null ? "never" : h < 30 ? `${h}h ago` : `${Math.round(h / 24)} days ago`;
-  };
-  const QUESTION_LABEL: Record<string, string> = { review: "Answered, waiting for a check", needs_you: "Needs the person", ignored: "Ignored", new: "Needs the person (legacy)", asked: "Needs the person (legacy)" };
-  const questionTotal = qStatus.reduce((a, r) => a + r.n, 0);
-  const tokOlder = Math.max(0, tokens - tok7 - tok30 - tokNever);
-
-  const stale = (hoursSince(checkedAt) ?? 0) > 48;
-  const fresh = (d: Date | null) => {
-    const h = hoursSince(d);
-    return h == null ? "muted" : h < 30 ? "green" : h < 72 ? "amber" : "rose";
-  };
+  const d = await system();
+  const { verified, checked, expired } = d.watchdog;
+  const questionTotal = d.questionsByStatus.reduce((a, r) => a + r.n, 0);
+  const stale = (checked.hours ?? 0) > 48;
 
   return (
     <Page>
       <PageHead section="System" title="Health and switches" description="Counters that should move, the watchdog's freshness, and which mode each switch is in. No secrets." />
       <Tiles cols={4} className="mt-6">
-        <Stat label="Active sessions" value={sessions} />
-        <Stat label="Extension tokens" value={tokens} />
-        <Stat label="Questions waiting on people" value={questions} href="/admin/applications" />
-        <Stat label="Searches open right now" value={openSearches} href="/admin/searches?open=1" />
-        <Stat label="Pushes from Minds, 24h" value={logs24h} />
-        <Stat label="Pool: open postings" value={poolOpen} hint={`${poolFresh} seen this week`} />
-        <Stat label="Pool: closed postings" value={poolClosed} />
+        <Stat label="Active sessions" value={d.sessions} />
+        <Stat label="Extension tokens" value={d.tokens} />
+        <Stat label="Questions waiting on people" value={d.questions} href="/admin/applications" />
+        <Stat label="Searches open right now" value={d.openSearches} href="/admin/searches?open=1" />
+        <Stat label="Pushes from Minds, 24h" value={d.logs24h} />
+        <Stat label="Pool: open postings" value={d.poolOpen} hint={`${d.poolFresh} seen this week`} />
+        <Stat label="Pool: closed postings" value={d.poolClosed} />
       </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card title="Watchdog" hint="The daily recheck of postings. Proxies: the newest things it touched.">
           <Facts
             rows={[
-              ["Verified open", <span key="v"><Badge tone={fresh(verifiedAt)}>{freshness(verifiedAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(verifiedAt)}</span></span>],
-              ["Checked", <span key="c"><Badge tone={fresh(checkedAt)}>{freshness(checkedAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(checkedAt)}</span></span>],
-              ["Job marked closed", <span key="e"><Badge tone={fresh(expiredAt)}>{freshness(expiredAt)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(expiredAt)}</span></span>],
+              ["Verified open", <span key="v"><Badge tone={fresh(verified)}>{freshness(verified)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(verified.at)}</span></span>],
+              ["Checked", <span key="c"><Badge tone={fresh(checked)}>{freshness(checked)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(checked.at)}</span></span>],
+              ["Job marked closed", <span key="e"><Badge tone={fresh(expired)}>{freshness(expired)}</Badge> <span className="admin-text-3 ml-1 text-xs">{when(expired.at)}</span></span>],
             ]}
           />
           {stale && <p className="mt-4 text-sm text-rose-300">Nothing checked in two days: is the cron running?</p>}
         </Card>
         <Card title="Pool by country" hint="Top 10 by postings; open ones in brackets.">
           <ul className="space-y-2 text-sm">
-            {pool.map((r) => (
+            {d.pool.map((r) => (
               <li key={r.country ?? "none"} className="flex justify-between gap-4">
                 <span className="admin-text-2">{r.country ?? "unknown"}</span>
                 <span className="tabular-nums text-white">{r.total} <span className="admin-text-3">({r.open} open)</span></span>
               </li>
             ))}
           </ul>
-          {!pool.length && <Empty mood="sleeping">The pool is empty.</Empty>}
+          {!d.pool.length && <Empty mood="sleeping">The pool is empty.</Empty>}
         </Card>
-        <Counts title="Questions by status" total={questionTotal} rows={qStatus.map((r) => [QUESTION_LABEL[r.status] ?? r.status, r.n] as [string, number]).sort((a, b) => b[1] - a[1])} />
+        <Counts title="Questions by status" total={questionTotal} rows={d.questionsByStatus.map((r) => [QUESTION_LABEL[r.status] ?? r.status, r.n] as [string, number]).sort((a, b) => b[1] - a[1])} />
       </div>
 
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Counts title="Extension tokens by last use" total={tokens} rows={[["Used in the last 7 days", tok7], ["Used 7 to 30 days ago", tok30], ["Older", tokOlder], ["Never used", tokNever]]} />
+        <Counts title="Extension tokens by last use" total={d.tokens} rows={[["Used in the last 7 days", d.tokensByUse.last7], ["Used 7 to 30 days ago", d.tokensByUse.last30], ["Older", d.tokensByUse.older], ["Never used", d.tokensByUse.never]]} />
         <Card title="Switches" className="lg:col-span-2">
           <Facts
             rows={[

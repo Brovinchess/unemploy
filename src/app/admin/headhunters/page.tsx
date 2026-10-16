@@ -1,7 +1,6 @@
 import Link from "next/link";
-import { db } from "@/db";
-import { directory, mins, ratio, sortParams, sortRows, sum, when, queue } from "@/lib/admin";
-import { postingAgeDays, workSettingLabel } from "@/lib/preferences";
+import { ratio, sortParams, when } from "@/lib/admin";
+import { headhunters } from "@/lib/admin-data";
 import { Badge, Clamp, ClearLink, FilterForm, Page, PageHead, Select, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
 
 const BASE = "/admin/headhunters";
@@ -10,67 +9,15 @@ const STATUSES = ["draft", "needs_resume", "needs_preferences", "needs_topup", "
 export default async function Headhunters({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const { key, dir } = sortParams(q, "lastSearch");
-  const [d, profiles, searches, jobs] = await queue([
-    () => directory(),
-    () => db.query.profiles.findMany({ columns: { id: true, userId: true, label: true, mindName: true, status: true, mindId: true, preferences: true, lastDeliveryAt: true, createdAt: true } }),
-    () => db.query.searches.findMany({ columns: { profileId: true, startedAt: true, endedAt: true, cognitionUsed: true, jobsAdded: true } }),
-    () => db.query.jobs.findMany({ columns: { profileId: true } }),
-  ]);
-
-  // One row per headhunter, with its search and job totals folded in.
-  let rows = profiles.map((p) => {
-    const s = searches.filter((x) => x.profileId === p.id);
-    const done = s.filter((x) => x.endedAt);
-    const jobsN = jobs.filter((x) => x.profileId === p.id).length;
-    const cognition = sum(s, (x) => x.cognitionUsed);
-    const pr = p.preferences;
-    return {
-      ...p,
-      user: d.nameOf(p.userId),
-      roles: pr?.targetRoles ?? "",
-      place: pr ? [pr.city, pr.country].filter(Boolean).join(", ") : "",
-      settings: pr ? pr.workSettings.map(workSettingLabel).join(", ") : "",
-      perSearch: pr?.jobsPerDay ?? null,
-      age: pr ? postingAgeDays(pr) : null,
-      searches: s.length,
-      jobs: jobsN,
-      jobsPerSearch: s.length ? jobsN / s.length : null,
-      avgMinutes: done.length ? Math.round(sum(done, (x) => mins(x.startedAt, x.endedAt)) / done.length) : null,
-      cognition,
-      // Cognition per job from the searches table (jobs_added), as the ledger records it.
-      perJob: sum(s, (x) => x.jobsAdded) ? cognition / sum(s, (x) => x.jobsAdded) : null,
-      lastSearch: s.map((x) => x.startedAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null,
-    };
-  });
-  if (q.status) rows = rows.filter((r) => r.status === q.status);
-  if (q.user) rows = rows.filter((r) => r.user.toLowerCase().includes(q.user!.toLowerCase()));
-  rows = sortRows(rows, key, dir, {
-    user: (r) => r.user,
-    label: (r) => r.label,
-    mind: (r) => r.mindName,
-    status: (r) => r.status,
-    roles: (r) => r.roles,
-    place: (r) => r.place,
-    settings: (r) => r.settings,
-    perSearch: (r) => r.perSearch,
-    age: (r) => r.age,
-    searches: (r) => r.searches,
-    jobs: (r) => r.jobs,
-    jobsPerSearch: (r) => r.jobsPerSearch,
-    avgMinutes: (r) => r.avgMinutes,
-    perJob: (r) => r.perJob,
-    lastSearch: (r) => r.lastSearch,
-    lastDelivery: (r) => r.lastDeliveryAt,
-    created: (r) => r.createdAt,
-  });
+  const { total, deployed, hunting, paused, rows } = await headhunters({ status: q.status || undefined, user: q.user || undefined, sort: key, dir });
   const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
 
   return (
     <Page>
       <PageHead
         section="Headhunters"
-        title={`${rows.length} headhunters`}
-        description={`${profiles.filter((p) => p.mindId).length} deployed, ${profiles.filter((p) => p.status === "hunting").length} hunting, ${profiles.filter((p) => p.status === "paused").length} paused.`}
+        title={`${total} headhunters`}
+        description={`${deployed} deployed, ${hunting} hunting, ${paused} paused.`}
         controls={
           <FilterForm q={q}>
             <TextInput name="user" value={q.user} placeholder="User" size={14} />

@@ -1,6 +1,5 @@
 import "server-only";
 import { notFound, redirect } from "next/navigation";
-import { db } from "@/db";
 import type { JobStatus, QuestionStatus } from "@/db/schema";
 import { mindsConfig } from "./minds/config";
 import { getCurrentUser } from "./session";
@@ -172,27 +171,7 @@ export const maskPhone = (p: string | null | undefined) => {
   return digits.length > 3 ? `***${digits.slice(-3)}` : "***";
 };
 
-// ---- shared lookups ----------------------------------------------------------------------
-
-// Users and headhunters, with the lookups every page needs to put a name on a row.
-export async function directory() {
-  const users = await db.query.users.findMany({ columns: { id: true, username: true, email: true, emailVerifiedAt: true, referralCode: true, referredBy: true, createdAt: true } });
-  const profiles = await db.query.profiles.findMany({
-    columns: { id: true, userId: true, label: true, status: true, mindId: true, mindName: true, searchStartedAt: true, searchEndedAt: true, lastDeliveryAt: true },
-  });
-  const userName = new Map(users.map((u) => [u.id, u.username ?? "(no name yet)"]));
-  const profileById = new Map(profiles.map((p) => [p.id, p]));
-  const nameOf = (userId: string) => userName.get(userId) ?? "?";
-  const who = (profileId: string) => {
-    const p = profileById.get(profileId);
-    return p ? `${nameOf(p.userId)} · ${p.label}` : "?";
-  };
-  const userOfProfile = (profileId: string) => profileById.get(profileId)?.userId;
-  const userByName = (username: string | undefined) => (username ? users.find((u) => u.username?.toLowerCase() === username.trim().toLowerCase()) : undefined);
-  const profileIdsOf = (userId: string) => new Set(profiles.filter((p) => p.userId === userId).map((p) => p.id));
-  return { users, profiles, userName, profileById, nameOf, who, userOfProfile, userByName, profileIdsOf };
-}
-export type Directory = Awaited<ReturnType<typeof directory>>;
+// ---- pushes -------------------------------------------------------------------------------
 
 // A push's rejection details, as stored in ingest_log.detail.
 export type PushDetail = { url?: string; code?: string; hint?: string };

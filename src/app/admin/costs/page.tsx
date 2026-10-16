@@ -1,6 +1,5 @@
-import { desc, gte } from "drizzle-orm";
-import { db, schema } from "@/db";
-import { dayKeys, daysAgo, directory, median, perDay, ratio, sortParams, sortRows, sum } from "@/lib/admin";
+import { ratio, sortParams } from "@/lib/admin";
+import { costs } from "@/lib/admin-data";
 import { COGNITION_USD } from "@/lib/preferences";
 import { BarChart, CHART, Card, DaysPicker, Empty, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
@@ -11,37 +10,9 @@ const BASE = "/admin/costs";
 export default async function Costs({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const days = daysParam(q, 30);
-  const since = daysAgo(days);
   const { key, dir } = sortParams(q, "cognition");
-  const [d, searches] = await Promise.all([directory(), db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), orderBy: desc(schema.searches.startedAt) })]);
-  const { userOfProfile, nameOf } = d;
-
-  const costed = searches.filter((s) => s.cognitionUsed != null);
-  const cognition = sum(costed, (s) => s.cognitionUsed);
-  const jobs = sum(searches, (s) => s.jobsAdded);
-  const keys = dayKeys(days);
-  const perDayCog = perDay(costed, keys, (s) => s.endedAt ?? s.startedAt, (s) => Number(s.cognitionUsed));
-
-  // Per user.
-  const perUser = [...new Set(searches.map((s) => userOfProfile(s.profileId)).filter((x): x is string => !!x))].map((uid) => {
-    const mine = searches.filter((s) => userOfProfile(s.profileId) === uid);
-    const cog = sum(mine, (s) => s.cognitionUsed);
-    const j = sum(mine, (s) => s.jobsAdded);
-    return { uid, name: nameOf(uid), searches: mine.length, jobs: j, cognition: Math.round(cog), perJob: j ? cog / j : null, perSearch: mine.length ? cog / mine.length : null };
-  });
-  const rows = sortRows(perUser, key, dir, {
-    name: (r) => r.name,
-    searches: (r) => r.searches,
-    jobs: (r) => r.jobs,
-    cognition: (r) => r.cognition,
-    perJob: (r) => r.perJob,
-    perSearch: (r) => r.perSearch,
-  });
+  const d = await costs({ days, sort: key, dir });
   const col = (k: string, label: string) => <SortLink k={k} label={label} base={BASE} q={q} sort={key} dir={dir} />;
-
-  // Distribution of cost per search.
-  const costs = costed.map((s) => Number(s.cognitionUsed)).sort((a, b) => a - b);
-  const med = median(costs);
   const usd = (c: number) => `$${(c * COGNITION_USD).toFixed(2)}`;
 
   return (
@@ -54,25 +25,25 @@ export default async function Costs({ searchParams }: { searchParams: Promise<Re
       />
 
       <Tiles cols={6} className="mt-6">
-        <Stat label="Cognition" value={Math.round(cognition)} hint={usd(cognition)} />
-        <Stat label="Searches" value={searches.length} hint={`${costed.length} with a cost recorded`} />
-        <Stat label="Jobs delivered" value={jobs} />
-        <Stat label="Per search" value={costed.length ? Math.round(cognition / costed.length) : "–"} hint={costed.length ? usd(cognition / costed.length) : undefined} />
-        <Stat label="Per job" value={jobs ? Math.round(cognition / jobs) : "–"} hint={jobs ? usd(cognition / jobs) : undefined} />
-        <Stat label="Per day" value={Math.round(cognition / (days + 1))} hint={usd(cognition / (days + 1))} />
+        <Stat label="Cognition" value={Math.round(d.cognition)} hint={usd(d.cognition)} />
+        <Stat label="Searches" value={d.searches} hint={`${d.costed} with a cost recorded`} />
+        <Stat label="Jobs delivered" value={d.jobs} />
+        <Stat label="Per search" value={d.costed ? Math.round(d.cognition / d.costed) : "–"} hint={d.costed ? usd(d.cognition / d.costed) : undefined} />
+        <Stat label="Per job" value={d.jobs ? Math.round(d.cognition / d.jobs) : "–"} hint={d.jobs ? usd(d.cognition / d.jobs) : undefined} />
+        <Stat label="Per day" value={Math.round(d.cognition / (days + 1))} hint={usd(d.cognition / (days + 1))} />
       </Tiles>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <BarChart title="Cognition per day (by search end)" keys={keys} series={[{ label: "Cognition", values: perDayCog, color: CHART.amber }]} height={170} />
+          <BarChart title="Cognition per day (by search end)" keys={d.keys} series={[{ label: "Cognition", values: d.perDay, color: CHART.amber }]} height={170} />
         </Card>
-        <Card title="Cost per search" hint={`${costs.length} finished searches with a cost.`}>
-          {costs.length ? (
+        <Card title="Cost per search" hint={`${d.costed} finished searches with a cost.`}>
+          {d.costed ? (
             <dl className="grid grid-cols-3 gap-4 text-center">
               {[
-                ["Min", costs[0]],
-                ["Median", med ?? 0],
-                ["Max", costs[costs.length - 1]],
+                ["Min", d.min ?? 0],
+                ["Median", d.median ?? 0],
+                ["Max", d.max ?? 0],
               ].map(([k, v]) => (
                 <div key={k}>
                   <dt className="admin-text-3 text-[11px] font-semibold uppercase tracking-wide">{k}</dt>
@@ -84,19 +55,19 @@ export default async function Costs({ searchParams }: { searchParams: Promise<Re
           ) : (
             <Empty mood="sleeping">No finished searches in this window.</Empty>
           )}
-          {costs.length > 0 && (
+          {d.costed > 0 && (
             <p className="admin-text-3 mt-4 text-xs">
-              {costs.filter((c) => c === 0).length} searches recorded zero cognition (the Mind did nothing, or the ledger was empty).
+              {d.zeros} searches recorded zero cognition (the Mind did nothing, or the ledger was empty).
             </p>
           )}
         </Card>
       </div>
 
-      <SectionTitle title="Per user" hint={`Jobs here are the searches' own counts (jobs added by the end of each search); the Jobs page counts by delivery time. Jobs per search overall: ${ratio(jobs, searches.length)}.`} />
+      <SectionTitle title="Per user" hint={`Jobs here are the searches' own counts (jobs added by the end of each search); the Jobs page counts by delivery time. Jobs per search overall: ${ratio(d.jobs, d.searches)}.`} />
       <div className="mt-3">
         <Table
           head={[col("name", "User"), col("searches", "Searches"), col("jobs", "Jobs"), col("cognition", "Cognition"), col("perJob", "Per job"), col("perSearch", "Per search"), "Cost"]}
-          rows={rows.map((r) => [<UserLink key={r.uid} id={r.uid} name={r.name} />, r.searches, r.jobs, r.cognition, r.perJob != null ? Math.round(r.perJob) : "–", r.perSearch != null ? Math.round(r.perSearch) : "–", usd(r.cognition)])}
+          rows={d.rows.map((r) => [<UserLink key={r.uid} id={r.uid} name={r.name} />, r.searches, r.jobs, r.cognition, r.perJob != null ? Math.round(r.perJob) : "–", r.perSearch != null ? Math.round(r.perSearch) : "–", usd(r.cognition)])}
           empty="No searches in this window."
           emptyMood="sleeping"
         />
