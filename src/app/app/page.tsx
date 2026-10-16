@@ -167,7 +167,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         {/* The very first search is running: show it clearly busy and say what happens next. */}
         {fresh.length === 0 && searching && !everDelivered && (
           <SearchingScene
-            mindName={current.mindName ?? "Your headhunter"}
+            profileId={current.id}
+            startedAt={current.searchStartedAt?.toISOString() ?? null}
             notifyEmail={
               user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null
             }
