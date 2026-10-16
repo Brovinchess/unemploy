@@ -10,7 +10,7 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await searchDetail(id);
   if (!data) notFound();
-  const { search, profile, user, open, minutes, cognition, events, jobs, leads, leadsByReason, leadGroups, pushes, refused } = data;
+  const { search, profile, user, open, minutes, cognition, events, jobs, leads, leadsByReason, leadGroups, pushes, refused, usage, usageLive } = data;
 
   const mood: Mood = open ? "searching" : search.endReason === "finished" ? "happy" : "sad";
   const who = `${user?.username ?? "(no name yet)"}${profile ? ` · ${profile.label}${profile.mindName ? ` (${profile.mindName})` : ""}` : ""}`;
@@ -80,6 +80,16 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
             <Empty mood="sad">This headhunter was deleted.</Empty>
           )}
         </Card>
+      </div>
+
+      <SectionTitle title="Where the cognition went" hint={usageLive ? "Read from Hello Minds just now; the search is still running." : usage.length ? "From the Hello Minds ledger, read when the search ended." : "No ledger for this search."} />
+      <div className="mt-3">
+        <Table
+          head={["What", "Times", "Cognition", "Per time"]}
+          rows={usage.map((u) => [u.label, u.calls, u.cognition, u.calls ? (u.cognition / u.calls).toFixed(1) : ""])}
+          empty="Nothing recorded yet."
+          emptyMood="sleeping"
+        />
       </div>
 
       <SectionTitle title={`Jobs delivered (${jobs.length})`} />

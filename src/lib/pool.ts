@@ -6,6 +6,8 @@ import { countryCodeOf } from "./normalise";
 import { postingAgeDays } from "./preferences";
 import { checkPosting, eligibilityProblem } from "./quality";
 import { isPublicHttpUrl } from "./ingest";
+import { discoveryHints } from "./discovery";
+import type { Preferences } from "./preferences";
 
 // The shared pool, read by a Mind at the start of a search: postings any headhunter opened
 // recently that are still open and could suit this person. It is a locator only. The Mind
@@ -102,6 +104,36 @@ async function stillOpen<T extends { postingKey: string; url: string; lastVerifi
     }),
   );
   return rows.filter((p) => !closed.has(p.postingKey));
+}
+
+// Companies near the person that have posted their kind of role lately, from the pool: a head
+// start for rung 1. Their own city first, then the rest of the country; ten at most.
+const STOP = new Set(["senior", "junior", "lead", "head", "staff", "principal", "associate", "manager", "engineer", "specialist", "officer", "executive", "assistant", "director", "intern", "remote", "with", "and"]);
+export async function localEmployers(prefs: Preferences, limit = 10) {
+  const code = countryCodeOf(prefs.country);
+  if (!code) return [];
+  const { titles } = discoveryHints(prefs.targetRoles);
+  const words = [...new Set(titles.flatMap((t) => t.toLowerCase().split(/[^a-z]+/)).filter((w) => w.length > 3 && !STOP.has(w)))].slice(0, 12);
+  if (!words.length) return [];
+  const since = new Date(Date.now() - 90 * 86_400_000);
+  const city = prefs.city?.trim().toLowerCase() || null;
+  const inCity = city ? sql`lower(coalesce(${schema.postings.city}, '')) = ${city}` : sql`false`;
+  const rows = await db
+    .select({ company: schema.postings.company })
+    .from(schema.postings)
+    .where(
+      and(
+        eq(schema.postings.demo, false),
+        eq(schema.postings.countryCode, code),
+        gte(schema.postings.lastSeenAt, since),
+        isNull(schema.postings.closedAt),
+        or(...words.map((w) => sql`lower(${schema.postings.title}) like ${"%" + w + "%"}`)),
+      ),
+    )
+    .groupBy(schema.postings.company)
+    .orderBy(sql`bool_or(${inCity}) desc`, sql`count(*) desc`, sql`max(${schema.postings.lastSeenAt}) desc`)
+    .limit(limit);
+  return rows.map((r) => r.company);
 }
 
 export function poolText(rows: Awaited<ReturnType<typeof poolFor>>) {

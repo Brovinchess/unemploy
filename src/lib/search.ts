@@ -9,6 +9,7 @@ import { track } from "./analytics/server";
 import { mindsConfig } from "./minds/config";
 import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
+import { PACK_RULES } from "./brief";
 import { postingAgeDays } from "./preferences";
 import type { DropReason } from "@/db/schema";
 
@@ -81,12 +82,13 @@ export function searchRequestText(args: {
   focus?: string;
   skip?: string[];
   blocked?: string[];
+  employers?: string[]; // companies near the person that post their kind of role, from the pool
   lastTime?: string;
   maxAgeDays?: number;
   resumeChanged?: boolean;
   facts?: string;
 }) {
-  const { username, jobs, n, focus, skip = [], blocked = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "" } = args;
+  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "" } = args;
   const base = mindsConfig.ingestUrl;
   const resume = resumeChanged
     ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
@@ -97,6 +99,7 @@ export function searchRequestText(args: {
     `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
     `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Cards only: no cover letter, answers or form questions during the search. I ask for packs separately, for the jobs I keep.`,
     `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, one short line each; a "posting" only as step 5 of your brief says. Keep to the BUDGET in your brief: at most 12 web searches and 40 opened postings.`,
+    employers.length ? `Employers near me that post my kind of role: ${employers.join(", ")}. In rung 1, open each one's careers page before searching the web; a careers page lists every open role at once.` : "",
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
     focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies.` : "",
     lastTime,
@@ -133,7 +136,8 @@ export function packRequestText(username: string, jobs: { title: string; company
   return [
     `PACK REQUEST from ${username}. I kept ${jobs.length === 1 ? "this job" : `these ${jobs.length} jobs`}; write the application pack for ${jobs.length === 1 ? "it" : "each"} now.`,
     jobs.map((j, i) => `${i + 1}. ${j.title} at ${j.company}: ${j.url}`).join("\n"),
-    `For each: open the posting and its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English as your brief's WRITING RULES say: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Do not search for new jobs now; packs only.`,
+    `For each: open the posting and its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Do not search for new jobs now; packs only.`,
+    `WRITING RULES\n${PACK_RULES}`,
     `${facts ? `${facts}\n` : ""}${FACTS_RULE}`,
     `Reply with one line when all are sent. (${new Date().toISOString()})`,
   ]
@@ -233,6 +237,18 @@ export async function endSearch(profile: Profile, reason: EndReason = "finished"
   await requestPacks(profile.id).catch((e) => console.error("[search] pack request failed", profile.id, e));
 }
 
+export type ToolUsage = Record<string, { calls: number; cognition: number }>;
+export function usageByTool(ledger: { tool: string; calls: number; cognition: number }[]): ToolUsage {
+  const out: ToolUsage = {};
+  for (const u of ledger) {
+    const t = (out[u.tool] ??= { calls: 0, cognition: 0 });
+    t.calls += u.calls;
+    t.cognition += u.cognition;
+  }
+  for (const t of Object.values(out)) t.cognition = Math.round(t.cognition);
+  return out;
+}
+
 // Closes the search's history row: when, why, jobs added, what it opened, the balance after,
 // and one line about how it went that the next request carries back to the Mind.
 async function recordEnd(profile: Profile, reason: EndReason) {
@@ -267,11 +283,13 @@ async function recordEnd(profile: Profile, reason: EndReason) {
   since.setUTCMinutes(0, 0, 0);
   const ledger = api && profile.mindId ? await api.toolUsage(profile.mindId, since).catch(() => null) : null;
   const fromLedger = ledger ? Math.round(ledger.reduce((a, u) => a + u.cognition, 0)) : null;
+  // Where it went, per tool: web searches, pages opened, files, thinking. Admin shows it.
+  const toolUsage = ledger ? usageByTool(ledger) : null;
   const fromBalance = row.balanceStart != null && balanceEnd != null ? Math.max(0, Math.round(row.balanceStart - balanceEnd)) : null;
   const cognitionUsed = fromLedger ?? fromBalance;
   await db
     .update(schema.searches)
-    .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, opened, summary, balanceEnd, cognitionUsed })
+    .set({ endedAt: new Date(), endReason: reason, jobsAdded: n, opened, summary, balanceEnd, cognitionUsed, toolUsage })
     .where(eq(schema.searches.id, row.id));
   // Cognition burn, per search: what it cost, what it found, how long it took, what's left.
   track(profile.userId, "search_finished", {

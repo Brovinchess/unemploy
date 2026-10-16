@@ -3,7 +3,8 @@ import { buildBrief } from "./brief";
 import { factsText } from "./facts";
 import { mindsConfig } from "./minds/config";
 import { postingAgeDays } from "./preferences";
-import { searchRequestText } from "./search";
+import { searchRequestText, usageByTool } from "./search";
+import { minds } from "./minds/client";
 import { COUNTRY_NAMES, countryCodeOf } from "./normalise";
 import { and, asc, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
@@ -496,6 +497,9 @@ async function loadSearches(params: SearchesParams): Promise<Searches> {
   };
 }
 
+// Plain names for the Hello Minds tools in the ledger.
+const TOOL_LABEL: Record<string, string> = { SEARCH_Web: "Web searches", SEARCH_X: "X searches", HTTP_Execute: "Pages opened", FILE_Analyze: "Files read", LLM_Turn: "Thinking and writing", LLM_CodeInterpreter: "Code run" };
+
 // ---- search detail -------------------------------------------------------------------------
 
 export type SearchDetail = {
@@ -512,6 +516,8 @@ export type SearchDetail = {
   leadGroups: { reason: string; label: string; leads: SearchDetail["leads"] }[];
   pushes: { id: number; createdAt: Date; dryRun: boolean; accepted: number; rejected: number; codes: string }[];
   refused: { code: string; url: string; hint: string }[];
+  usage: { label: string; calls: number; cognition: number }[]; // where the cognition went, per tool
+  usageLive: boolean; // read from Hello Minds just now (search still open)
 };
 
 export const searchDetail = (id: string) => memo(`search:${id}`, DETAIL_TTL, () => loadSearchDetail(id));
@@ -525,7 +531,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     .select({
       id: schema.searches.id, startedAt: schema.searches.startedAt, endedAt: schema.searches.endedAt, endReason: schema.searches.endReason, jobsWanted: schema.searches.jobsWanted, jobsAdded: schema.searches.jobsAdded,
       focus: schema.searches.focus, nudgedAt: schema.searches.nudgedAt, balanceStart: schema.searches.balanceStart, balanceEnd: schema.searches.balanceEnd, cognitionUsed: schema.searches.cognitionUsed, profileId: schema.searches.profileId,
-      poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary,
+      poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary, toolUsage: schema.searches.toolUsage, mindId: schema.profiles.mindId,
       pId: schema.profiles.id, label: schema.profiles.label, mindName: schema.profiles.mindName, status: schema.profiles.status, preferences: schema.profiles.preferences,
       uId: schema.users.id, username: schema.users.username,
     })
@@ -571,6 +577,26 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
   const byReason = new Map<string, SearchDetail["leads"]>();
   for (const l of leads) byReason.set(l.reason, [...(byReason.get(l.reason) ?? []), l]);
 
+  // Where the cognition went. Stored at the end of a search; read live from Hello Minds while it runs.
+  let usageMap = row.toolUsage ?? null;
+  let usageLive = false;
+  if (!usageMap && !row.endedAt && row.mindId && row.uId) {
+    try {
+      const owner = await db.query.users.findFirst({ where: eq(schema.users.id, row.uId) });
+      if (owner) {
+        const since = new Date(row.startedAt);
+        since.setUTCMinutes(0, 0, 0);
+        usageMap = usageByTool(await minds(owner).toolUsage(row.mindId, since));
+        usageLive = true;
+      }
+    } catch (e) {
+      console.error("[admin] ledger", e);
+    }
+  }
+  const usage = Object.entries(usageMap ?? {})
+    .map(([tool, u]) => ({ label: TOOL_LABEL[tool] ?? tool, calls: u.calls, cognition: u.cognition }))
+    .sort((x, y) => y.cognition - x.cognition);
+
   return {
     search: { id: row.id, startedAt: row.startedAt, endedAt: row.endedAt, endReason: row.endReason, jobsWanted: row.jobsWanted, jobsAdded: row.jobsAdded, focus: row.focus, balanceStart: row.balanceStart, balanceEnd: row.balanceEnd, poolHits: row.poolHits, opened: row.opened, summary: row.summary },
     profile: row.pId ? { id: row.pId, label: row.label!, mindName: row.mindName, status: row.status!, preferences: row.preferences ?? null } : null,
@@ -584,6 +610,8 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     leadsByReason: tally(leads, (l) => DROP_LABELS[l.reason] ?? l.reason),
     leadGroups: [...byReason.entries()].map(([reason, list]) => ({ reason, label: DROP_LABELS[reason as DropReason] ?? reason, leads: list })),
     pushes: pushes.map((p) => ({ id: p.id, createdAt: p.createdAt, dryRun: p.dryRun, accepted: p.accepted, rejected: p.rejected, codes: codesOf(p.detail) })),
+    usage,
+    usageLive,
     refused: pushes.flatMap((p) => pushDetails(p.detail).filter((x) => x.code).map((x) => ({ code: x.code!, url: x.url ?? "", hint: x.hint ?? "" }))),
   };
 }

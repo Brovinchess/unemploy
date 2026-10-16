@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 4;
+export const BRIEF_VERSION = 5;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -14,6 +14,17 @@ function rolesNote(roles: string) {
   if (c.ok) return "";
   return ` (${c.vague.map((v) => `"${v}"`).join(", ")} is a field, not a job title: search real titles within it, such as ${c.suggestions.join(", ")}, and judge fit by the work, not the word)`;
 }
+
+// How to write a cover letter and answers. Sent with each PACK REQUEST, not in the brief: the
+// headhunter needs it only when writing, and a shorter brief makes every search turn cheaper.
+export const PACK_RULES = `- Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like "I am excited to" or "passionate about".
+- Every fact about me in the cover letter, about me and answers must come from a "claims" entry whose "evidence" quotes my resume word for word. If you can't quote it, leave it out. No flourishes ("senior scope", "API-first is native to me").
+- Keep each fact with the job, company and project it belongs to on my resume. Don't move numbers or duties between roles.
+- The cover letter, 150 to 220 words, three short paragraphs, written as me:
+  1. Open with the job itself, not with me: one line on the specific problem or product this role owns (from the posting), then the one thing from my resume that matches it best. Never open with "I am writing to apply" or "I am excited".
+  2. Two or three proofs, each one sentence: a result from my resume with its number, tied to a requirement the posting names, using the posting's own words for the skill. Pick the proofs that answer that posting's top requirements, so no two letters share a paragraph.
+  3. Close with one plain line on what I'd do in the first weeks there, or the one question I'd want to answer for them, then "Thanks," and my name. No "I look forward to hearing from you".
+  Address it "Hello [Company] team," unless the posting names a person. No exclamation marks, no adjectives about myself ("driven", "results-oriented"), no restating my job titles in order; the resume does that.`;
 
 // The brief is the one text the Mind keeps re-reading, so it stays short and concrete.
 // The full contract lives at GET /api/ingest?brief=1 and is linked, never pasted.
@@ -47,7 +58,7 @@ HOW WE WORK
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
   5. Every lead you drop goes in the same POST under "dropped": one line each, with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a note under ten words. Only when you opened a posting that is still open and dropped it as poor_fit, not_eligible, work_setting or duplicate, add a short "posting": url, title, company, city, country, workSetting, postedAt, locationText. Nothing more, and never for closed, too old or unreachable ones. Never open a posting just to fill this in.
   6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later job pushes are refused.
-  7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
+  7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. The writing rules come with each PACK REQUEST. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}${rolesNote(prefs.targetRoles)}
@@ -87,15 +98,8 @@ CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs tha
 4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "USD 120,000–150,000 a year").
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
 
-WRITING RULES
-- Write like a person, not a brochure: short plain sentences, commas and full stops only. No dashes (— or –), no bullet points, no headings, no bold, no semicolons, no clichés like "I am excited to" or "passionate about".
-- Every fact about me in the cover letter, about me and answers must come from a "claims" entry whose "evidence" quotes my resume word for word. If you can't quote it, leave it out. No flourishes ("senior scope", "API-first is native to me").
-- Keep each fact with the job, company and project it belongs to on my resume. Don't move numbers or duties between roles.
-- The cover letter, 150 to 220 words, three short paragraphs, written as me:
-  1. Open with the job itself, not with me: one line on the specific problem or product this role owns (from the posting), then the one thing from my resume that matches it best. Never open with "I am writing to apply" or "I am excited".
-  2. Two or three proofs, each one sentence: a result from my resume with its number, tied to a requirement the posting names, using the posting's own words for the skill. Pick the proofs that answer that posting's top requirements, so no two letters share a paragraph.
-  3. Close with one plain line on what I'd do in the first weeks there, or the one question I'd want to answer for them, then "Thanks," and my name. No "I look forward to hearing from you".
-  Address it "Hello [Company] team," unless the posting names a person. No exclamation marks, no adjectives about myself ("driven", "results-oriented"), no restating my job titles in order; the resume does that.
+CARD WRITING
+- Write like a person: short plain sentences, no dashes, no bullet points, no clichés.
 - For the job card: a one-line "summary" of what the job actually is, the company's own website ("companyWebsite"), its stage and size, industry and perks when you can find them, and 2 short "highlights" on why I fit (under 15 words each, never naming the company: they show before the company is revealed). If the posting shows no pay you may estimate it from reliable sources; set "salaryEstimated": true.
 - Write whyFit, gaps and companyNotes to me as "you". Company notes only from the posting or the company's own site; if unsure, leave it out.
 - Say honestly in "gaps" where I fall short, including years of experience and time-zone overlap.

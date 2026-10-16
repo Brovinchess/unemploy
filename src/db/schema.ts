@@ -352,6 +352,8 @@ export const searches = pgTable(
     poolHits: integer("pool_hits").notNull().default(0),
     opened: integer("opened"),
     summary: text("summary"),
+    // Cognition per tool from the Hello Minds ledger, filled when the search ends.
+    toolUsage: jsonb("tool_usage").$type<Record<string, { calls: number; cognition: number }>>(),
   },
   (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
 ).enableRLS();

@@ -18,6 +18,7 @@ import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
 import { guessName, parsePlace } from "@/lib/normalise";
 import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
+import { localEmployers } from "@/lib/pool";
 import { costModel } from "@/lib/cost";
 import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
@@ -493,6 +494,7 @@ export async function requestSearch(profileId: string, jobs: number, focus = "")
         focus: note || undefined,
         skip: await skipLinks(user.id, profile.id),
         blocked: await blockedHosts(profile.id),
+        employers: profile.preferences ? await localEmployers(profile.preferences).catch(() => []) : [],
         lastTime: await lastSearchLine(profile.id),
         maxAgeDays: profile.preferences ? postingAgeDays(profile.preferences) : undefined,
         resumeChanged: newResume,
