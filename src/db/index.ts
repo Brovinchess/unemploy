@@ -28,6 +28,10 @@ const client = (g.__unemploySql ??= postgres(url, {
   prepare: false, // required by Supabase's transaction pooler
   max: local ? 1 : 5,
   ssl: local ? false : "require",
+  // Serverless: let idle connections go so instances don't pile up at the pooler, and never
+  // wait forever for one.
+  idle_timeout: local ? undefined : 20,
+  connect_timeout: 10,
 }));
 
 export const db = drizzle(client, { schema });

@@ -1,6 +1,6 @@
 import { and, count, desc, eq, gte, isNotNull, isNull, lt, max, ne, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { daysAgo, when } from "@/lib/admin";
+import { daysAgo, when, queue } from "@/lib/admin";
 import { extensionLive } from "@/lib/flags";
 import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
@@ -10,29 +10,29 @@ import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles } from "
 export default async function System() {
   const now = daysAgo(0);
   const n = async (q: Promise<{ n: number }[]>) => (await q)[0]?.n ?? 0;
-  const [sessions, tokens, questions, poolOpen, poolClosed, poolFresh, openSearches, logs24h, watchdog, lastExpired, pool, qStatus, tok7, tok30, tokNever] = await Promise.all([
-    n(db.select({ n: count() }).from(schema.sessions).where(gte(schema.sessions.expiresAt, now))),
-    n(db.select({ n: count() }).from(schema.extensionTokens)),
-    n(db.select({ n: count() }).from(schema.questions).where(ne(schema.questions.status, "ignored"))),
-    n(db.select({ n: count() }).from(schema.postings).where(isNull(schema.postings.closedAt))),
-    n(db.select({ n: count() }).from(schema.postings).where(isNotNull(schema.postings.closedAt))),
-    n(db.select({ n: count() }).from(schema.postings).where(gte(schema.postings.lastSeenAt, daysAgo(7)))),
-    n(db.select({ n: count() }).from(schema.profiles).where(and(isNotNull(schema.profiles.searchStartedAt), isNull(schema.profiles.searchEndedAt)))),
-    n(db.select({ n: count() }).from(schema.ingestLog).where(gte(schema.ingestLog.createdAt, daysAgo(1)))),
+  const [sessions, tokens, questions, poolOpen, poolClosed, poolFresh, openSearches, logs24h, watchdog, lastExpired, pool, qStatus, tok7, tok30, tokNever] = await queue([
+    () => n(db.select({ n: count() }).from(schema.sessions).where(gte(schema.sessions.expiresAt, now))),
+    () => n(db.select({ n: count() }).from(schema.extensionTokens)),
+    () => n(db.select({ n: count() }).from(schema.questions).where(ne(schema.questions.status, "ignored"))),
+    () => n(db.select({ n: count() }).from(schema.postings).where(isNull(schema.postings.closedAt))),
+    () => n(db.select({ n: count() }).from(schema.postings).where(isNotNull(schema.postings.closedAt))),
+    () => n(db.select({ n: count() }).from(schema.postings).where(gte(schema.postings.lastSeenAt, daysAgo(7)))),
+    () => n(db.select({ n: count() }).from(schema.profiles).where(and(isNotNull(schema.profiles.searchStartedAt), isNull(schema.profiles.searchEndedAt)))),
+    () => n(db.select({ n: count() }).from(schema.ingestLog).where(gte(schema.ingestLog.createdAt, daysAgo(1)))),
     // Watchdog freshness: the newest posting it verified open, and the newest job it marked closed.
-    db.select({ at: max(schema.postings.lastVerifiedOpenAt), checked: max(schema.postings.lastCheckedAt) }).from(schema.postings),
-    db.select({ at: max(schema.jobs.statusChangedAt) }).from(schema.jobs).where(eq(schema.jobs.status, "expired")),
+    () => db.select({ at: max(schema.postings.lastVerifiedOpenAt), checked: max(schema.postings.lastCheckedAt) }).from(schema.postings),
+    () => db.select({ at: max(schema.jobs.statusChangedAt) }).from(schema.jobs).where(eq(schema.jobs.status, "expired")),
     // Pool by country, open and closed.
-    db
+    () => db
       .select({ country: schema.postings.countryCode, total: count(), open: sql<number>`count(*) filter (where ${schema.postings.closedAt} is null)`.mapWith(Number) })
       .from(schema.postings)
       .groupBy(schema.postings.countryCode)
       .orderBy(desc(count()))
       .limit(10),
-    db.select({ status: schema.questions.status, n: count() }).from(schema.questions).groupBy(schema.questions.status),
-    n(db.select({ n: count() }).from(schema.extensionTokens).where(gte(schema.extensionTokens.lastUsedAt, daysAgo(7)))),
-    n(db.select({ n: count() }).from(schema.extensionTokens).where(and(gte(schema.extensionTokens.lastUsedAt, daysAgo(30)), lt(schema.extensionTokens.lastUsedAt, daysAgo(7))))),
-    n(db.select({ n: count() }).from(schema.extensionTokens).where(isNull(schema.extensionTokens.lastUsedAt))),
+    () => db.select({ status: schema.questions.status, n: count() }).from(schema.questions).groupBy(schema.questions.status),
+    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(gte(schema.extensionTokens.lastUsedAt, daysAgo(7)))),
+    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(and(gte(schema.extensionTokens.lastUsedAt, daysAgo(30)), lt(schema.extensionTokens.lastUsedAt, daysAgo(7))))),
+    () => n(db.select({ n: count() }).from(schema.extensionTokens).where(isNull(schema.extensionTokens.lastUsedAt))),
   ]);
   const verifiedAt = watchdog[0]?.at ?? null;
   const checkedAt = watchdog[0]?.checked ?? null;

@@ -1,6 +1,6 @@
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { dayKeys, daysAgo, directory, perDay, pct, sum, tally, when } from "@/lib/admin";
+import { dayKeys, daysAgo, directory, perDay, pct, sum, tally, when, queue } from "@/lib/admin";
 import { Badge, BarChart, CHART, Card, Counts, DaysPicker, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
 const BASE = "/admin/growth";
@@ -10,11 +10,11 @@ export default async function Growth({ searchParams }: { searchParams: Promise<R
   const q = await searchParams;
   const days = daysParam(q, 30);
   const since = daysAgo(days);
-  const [d, refs, searches, waitlist] = await Promise.all([
-    directory(),
-    db.query.referrals.findMany({ orderBy: desc(schema.referrals.createdAt) }),
-    db.query.searches.findMany({ columns: { profileId: true, cognitionUsed: true } }),
-    db.query.waitlist.findMany({ orderBy: desc(schema.waitlist.createdAt) }),
+  const [d, refs, searches, waitlist] = await queue([
+    () => directory(),
+    () => db.query.referrals.findMany({ orderBy: desc(schema.referrals.createdAt) }),
+    () => db.query.searches.findMany({ columns: { profileId: true, cognitionUsed: true } }),
+    () => db.query.waitlist.findMany({ orderBy: desc(schema.waitlist.createdAt) }),
   ]);
   const { users, profiles, nameOf, profileIdsOf } = d;
 

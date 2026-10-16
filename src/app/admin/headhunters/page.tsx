@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { db } from "@/db";
-import { directory, mins, ratio, sortParams, sortRows, sum, when } from "@/lib/admin";
+import { directory, mins, ratio, sortParams, sortRows, sum, when, queue } from "@/lib/admin";
 import { postingAgeDays, workSettingLabel } from "@/lib/preferences";
 import { Badge, Clamp, ClearLink, FilterForm, Page, PageHead, Select, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
 
@@ -10,11 +10,11 @@ const STATUSES = ["draft", "needs_resume", "needs_preferences", "needs_topup", "
 export default async function Headhunters({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const { key, dir } = sortParams(q, "lastSearch");
-  const [d, profiles, searches, jobs] = await Promise.all([
-    directory(),
-    db.query.profiles.findMany({ columns: { id: true, userId: true, label: true, mindName: true, status: true, mindId: true, preferences: true, lastDeliveryAt: true, createdAt: true } }),
-    db.query.searches.findMany({ columns: { profileId: true, startedAt: true, endedAt: true, cognitionUsed: true, jobsAdded: true } }),
-    db.query.jobs.findMany({ columns: { profileId: true } }),
+  const [d, profiles, searches, jobs] = await queue([
+    () => directory(),
+    () => db.query.profiles.findMany({ columns: { id: true, userId: true, label: true, mindName: true, status: true, mindId: true, preferences: true, lastDeliveryAt: true, createdAt: true } }),
+    () => db.query.searches.findMany({ columns: { profileId: true, startedAt: true, endedAt: true, cognitionUsed: true, jobsAdded: true } }),
+    () => db.query.jobs.findMany({ columns: { profileId: true } }),
   ]);
 
   // One row per headhunter, with its search and job totals folded in.

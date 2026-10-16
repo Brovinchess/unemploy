@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { and, asc, eq, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { daysAgo, mins, pushDetails, ratio, stageLabel, tally, when } from "@/lib/admin";
+import { daysAgo, mins, pushDetails, ratio, stageLabel, tally, when, queue } from "@/lib/admin";
 import { DROP_LABELS } from "@/lib/dropped";
 import { summarizePreferences } from "@/lib/preferences";
 import type { Mood } from "@/components/brand";
@@ -15,11 +15,11 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
   if (!search) notFound();
   const end = search.endedAt ?? now;
   const between = (col: typeof schema.jobs.createdAt | typeof schema.leads.createdAt | typeof schema.ingestLog.createdAt) => and(gte(col, search.startedAt), lte(col, end));
-  const [profile, jobs, leads, pushes] = await Promise.all([
-    db.query.profiles.findFirst({ where: eq(schema.profiles.id, search.profileId), columns: { id: true, userId: true, label: true, mindName: true, status: true, preferences: true } }),
-    db.query.jobs.findMany({ where: and(eq(schema.jobs.profileId, search.profileId), between(schema.jobs.createdAt)), orderBy: asc(schema.jobs.createdAt) }),
-    db.query.leads.findMany({ where: and(eq(schema.leads.profileId, search.profileId), between(schema.leads.createdAt)), orderBy: asc(schema.leads.createdAt) }),
-    db.query.ingestLog.findMany({ where: and(eq(schema.ingestLog.profileId, search.profileId), between(schema.ingestLog.createdAt)), orderBy: asc(schema.ingestLog.createdAt) }),
+  const [profile, jobs, leads, pushes] = await queue([
+    () => db.query.profiles.findFirst({ where: eq(schema.profiles.id, search.profileId), columns: { id: true, userId: true, label: true, mindName: true, status: true, preferences: true } }),
+    () => db.query.jobs.findMany({ where: and(eq(schema.jobs.profileId, search.profileId), between(schema.jobs.createdAt)), orderBy: asc(schema.jobs.createdAt) }),
+    () => db.query.leads.findMany({ where: and(eq(schema.leads.profileId, search.profileId), between(schema.leads.createdAt)), orderBy: asc(schema.leads.createdAt) }),
+    () => db.query.ingestLog.findMany({ where: and(eq(schema.ingestLog.profileId, search.profileId), between(schema.ingestLog.createdAt)), orderBy: asc(schema.ingestLog.createdAt) }),
   ]);
   const user = profile ? await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId), columns: { id: true, username: true } }) : null;
   const minutes = mins(search.startedAt, end) ?? 1;

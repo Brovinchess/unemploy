@@ -176,12 +176,10 @@ export const maskPhone = (p: string | null | undefined) => {
 
 // Users and headhunters, with the lookups every page needs to put a name on a row.
 export async function directory() {
-  const [users, profiles] = await Promise.all([
-    db.query.users.findMany({ columns: { id: true, username: true, email: true, emailVerifiedAt: true, referralCode: true, referredBy: true, createdAt: true } }),
-    db.query.profiles.findMany({
-      columns: { id: true, userId: true, label: true, status: true, mindId: true, mindName: true, searchStartedAt: true, searchEndedAt: true, lastDeliveryAt: true },
-    }),
-  ]);
+  const users = await db.query.users.findMany({ columns: { id: true, username: true, email: true, emailVerifiedAt: true, referralCode: true, referredBy: true, createdAt: true } });
+  const profiles = await db.query.profiles.findMany({
+    columns: { id: true, userId: true, label: true, status: true, mindId: true, mindName: true, searchStartedAt: true, searchEndedAt: true, lastDeliveryAt: true },
+  });
   const userName = new Map(users.map((u) => [u.id, u.username ?? "(no name yet)"]));
   const profileById = new Map(profiles.map((p) => [p.id, p]));
   const nameOf = (userId: string) => userName.get(userId) ?? "?";
@@ -201,3 +199,23 @@ export type PushDetail = { url?: string; code?: string; hint?: string };
 export const pushDetails = (detail: unknown): PushDetail[] => (Array.isArray(detail) ? (detail as PushDetail[]) : []);
 // Codes that mean the Mind did something its brief told it not to (vs. market facts like not_eligible).
 export const MIND_MISTAKES = ["bad_job", "not_employer_link", "job_closed", "stale_posting", "duplicate", "no_search_requested"] as const;
+
+
+// ---- queries ----------------------------------------------------------------------------
+
+// Runs query thunks a few at a time. Admin pages ask for many tables at once; firing them all
+// together exceeds the connection pool and the client then pipelines statements on shared
+// connections, which Supabase's pooler stalls on. Two at a time keeps every statement on its own
+// connection and is still fast at this data size.
+export async function queue<T extends readonly (() => Promise<unknown>)[]>(fns: [...T], width = 2): Promise<{ [K in keyof T]: Awaited<ReturnType<T[K]>> }> {
+  const out: unknown[] = new Array(fns.length);
+  let next = 0;
+  async function worker() {
+    while (next < fns.length) {
+      const i = next++;
+      out[i] = await fns[i]();
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(width, fns.length) }, worker));
+  return out as { [K in keyof T]: Awaited<ReturnType<T[K]>> };
+}

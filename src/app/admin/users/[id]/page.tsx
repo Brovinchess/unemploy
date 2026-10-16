@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { desc, eq, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, maskEmail, maskPhone, mins, stageLabel, sum, when } from "@/lib/admin";
+import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, maskEmail, maskPhone, mins, stageLabel, sum, when, queue } from "@/lib/admin";
 import { summarizePreferences } from "@/lib/preferences";
 import { Badge, Breadcrumb, Card, Clamp, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
 
@@ -17,17 +17,17 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const profiles = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, id), orderBy: desc(schema.profiles.createdAt) });
   const pids = profiles.map((p) => p.id);
   const none = pids.length === 0;
-  const [searches, jobs, questions, tokens, sessions, made, received, referrer, referredUsers] = await Promise.all([
-    none ? [] : db.query.searches.findMany({ where: inArray(schema.searches.profileId, pids), orderBy: desc(schema.searches.startedAt), limit: MAX_ROWS }),
-    none ? [] : db.query.jobs.findMany({ where: inArray(schema.jobs.profileId, pids), orderBy: desc(schema.jobs.createdAt), limit: MAX_ROWS }),
-    db.query.questions.findMany({ where: eq(schema.questions.userId, id), orderBy: desc(schema.questions.createdAt) }),
-    db.query.extensionTokens.findMany({ where: eq(schema.extensionTokens.userId, id), columns: { id: true, createdAt: true, lastUsedAt: true } }),
-    db.query.sessions.findMany({ where: eq(schema.sessions.userId, id), columns: { expiresAt: true } }),
-    db.query.referrals.findMany({ where: eq(schema.referrals.referrerId, id) }),
-    db.query.referrals.findMany({ where: eq(schema.referrals.referredId, id) }),
-    user.referredBy ? db.query.users.findFirst({ where: eq(schema.users.referralCode, user.referredBy), columns: { id: true, username: true } }) : null,
+  const [searches, jobs, questions, tokens, sessions, made, received, referrer, referredUsers] = await queue([
+    async () => (none ? [] : db.query.searches.findMany({ where: inArray(schema.searches.profileId, pids), orderBy: desc(schema.searches.startedAt), limit: MAX_ROWS })),
+    async () => (none ? [] : db.query.jobs.findMany({ where: inArray(schema.jobs.profileId, pids), orderBy: desc(schema.jobs.createdAt), limit: MAX_ROWS })),
+    () => db.query.questions.findMany({ where: eq(schema.questions.userId, id), orderBy: desc(schema.questions.createdAt) }),
+    () => db.query.extensionTokens.findMany({ where: eq(schema.extensionTokens.userId, id), columns: { id: true, createdAt: true, lastUsedAt: true } }),
+    () => db.query.sessions.findMany({ where: eq(schema.sessions.userId, id), columns: { expiresAt: true } }),
+    () => db.query.referrals.findMany({ where: eq(schema.referrals.referrerId, id) }),
+    () => db.query.referrals.findMany({ where: eq(schema.referrals.referredId, id) }),
+    async () => (user.referredBy ? db.query.users.findFirst({ where: eq(schema.users.referralCode, user.referredBy), columns: { id: true, username: true } }) : null),
     // Names for both sides of the referral rows (all usernames; a small table).
-    db.query.users.findMany({ columns: { id: true, username: true } }),
+    () => db.query.users.findMany({ columns: { id: true, username: true } }),
   ]);
   const name = new Map(referredUsers.map((u) => [u.id, u.username ?? "(no name yet)"]));
   const label = new Map(profiles.map((p) => [p.id, p.label]));

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { desc, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { APPLIED_PLUS_LIST, PIPELINE, STAGE_ORDER, WAITING_QUESTION_LIST, daysAgo, daysBetween, directory, sortParams, sortRows, stageLabel, when } from "@/lib/admin";
+import { APPLIED_PLUS_LIST, PIPELINE, STAGE_ORDER, WAITING_QUESTION_LIST, daysAgo, daysBetween, directory, sortParams, sortRows, stageLabel, when, queue } from "@/lib/admin";
 import { Badge, Cap, Card, Ext, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, stageTone } from "../ui";
 
 const BASE = "/admin/applications";
@@ -13,11 +13,11 @@ export default async function Applications({ searchParams }: { searchParams: Pro
   const q = await searchParams;
   const now = daysAgo(0);
   const { key, dir } = sortParams(q, "changed");
-  const [d, counts, applied, questions] = await Promise.all([
-    directory(),
-    db.query.jobs.findMany({ where: inArray(schema.jobs.status, PIPELINE), columns: { status: true } }),
-    db.query.jobs.findMany({ where: inArray(schema.jobs.status, APPLIED_PLUS_LIST), orderBy: desc(schema.jobs.statusChangedAt) }),
-    db.query.questions.findMany({ where: inArray(schema.questions.status, WAITING_QUESTION_LIST), columns: { userId: true, createdAt: true } }),
+  const [d, counts, applied, questions] = await queue([
+    () => directory(),
+    () => db.query.jobs.findMany({ where: inArray(schema.jobs.status, PIPELINE), columns: { status: true } }),
+    () => db.query.jobs.findMany({ where: inArray(schema.jobs.status, APPLIED_PLUS_LIST), orderBy: desc(schema.jobs.statusChangedAt) }),
+    () => db.query.questions.findMany({ where: inArray(schema.questions.status, WAITING_QUESTION_LIST), columns: { userId: true, createdAt: true } }),
   ]);
   const byStage = new Map<string, number>();
   for (const j of counts) byStage.set(j.status, (byStage.get(j.status) ?? 0) + 1);

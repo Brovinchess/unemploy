@@ -1,6 +1,6 @@
 import { desc } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, directory, includes, sessionCreatedAt, sortParams, sortRows, sum, when } from "@/lib/admin";
+import { APPLIED_PLUS, KEPT, WAITING_QUESTION, daysAgo, directory, includes, sessionCreatedAt, sortParams, sortRows, sum, when, queue } from "@/lib/admin";
 import { Badge, Cap, Check, ClearLink, FilterForm, Page, PageHead, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
 
 const BASE = "/admin/users";
@@ -9,14 +9,14 @@ const MAX_ROWS = 500;
 export default async function Users({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const { key, dir } = sortParams(q, "joined");
-  const [d, fullUsers, searches, jobs, tokens, sessions, questions] = await Promise.all([
-    directory(),
-    db.query.users.findMany({ columns: { id: true, savedAnswers: true }, orderBy: desc(schema.users.createdAt) }),
-    db.query.searches.findMany({ columns: { profileId: true, startedAt: true, cognitionUsed: true } }),
-    db.query.jobs.findMany({ columns: { profileId: true, status: true } }),
-    db.query.extensionTokens.findMany({ columns: { userId: true, lastUsedAt: true, createdAt: true } }),
-    db.query.sessions.findMany({ columns: { userId: true, expiresAt: true } }),
-    db.query.questions.findMany({ columns: { userId: true, status: true } }),
+  const [d, fullUsers, searches, jobs, tokens, sessions, questions] = await queue([
+    () => directory(),
+    () => db.query.users.findMany({ columns: { id: true, savedAnswers: true }, orderBy: desc(schema.users.createdAt) }),
+    () => db.query.searches.findMany({ columns: { profileId: true, startedAt: true, cognitionUsed: true } }),
+    () => db.query.jobs.findMany({ columns: { profileId: true, status: true } }),
+    () => db.query.extensionTokens.findMany({ columns: { userId: true, lastUsedAt: true, createdAt: true } }),
+    () => db.query.sessions.findMany({ columns: { userId: true, expiresAt: true } }),
+    () => db.query.questions.findMany({ columns: { userId: true, status: true } }),
   ]);
   const { users, profiles, profileIdsOf } = d;
   const answers = new Map(fullUsers.map((u) => [u.id, u.savedAnswers?.length ?? 0]));

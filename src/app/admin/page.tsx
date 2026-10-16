@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { APPLIED_PLUS, KEPT, WAITING_QUESTION, dayKeys, daysAgo, directory, hoursAgo, mins, perDay, pct, stageLabel, sum, tally, when } from "@/lib/admin";
+import { APPLIED_PLUS, KEPT, WAITING_QUESTION, dayKeys, daysAgo, directory, hoursAgo, mins, perDay, pct, stageLabel, sum, tally, when, queue } from "@/lib/admin";
 import { DROP_LABELS } from "@/lib/dropped";
 import { Alerts, Badge, BarChart, CHART, Card, Counts, DaysPicker, Funnel, GroupLabel, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, daysParam, endTone } from "./ui";
 
@@ -10,15 +10,15 @@ export default async function Overview({ searchParams }: { searchParams: Promise
   const days = daysParam(q, 7);
   const since = daysAgo(days);
   const now = daysAgo(0);
-  const [dir, fullProfiles, allSearches, allJobs, leads, tokens, pushes24h, questions] = await Promise.all([
-    directory(),
-    db.query.profiles.findMany({ columns: { id: true, userId: true, resumeFileName: true, preferences: true, mindId: true, status: true } }),
-    db.query.searches.findMany({ orderBy: desc(schema.searches.startedAt) }),
-    db.query.jobs.findMany({ columns: { id: true, status: true, profileId: true, createdAt: true } }),
-    db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { reason: true } }),
-    db.query.extensionTokens.findMany({ columns: { userId: true } }),
-    db.query.ingestLog.findMany({ where: gte(schema.ingestLog.createdAt, daysAgo(1)), columns: { rejected: true, dryRun: true } }),
-    db.query.questions.findMany({ columns: { userId: true, status: true, createdAt: true } }),
+  const [dir, fullProfiles, allSearches, allJobs, leads, tokens, pushes24h, questions] = await queue([
+    () => directory(),
+    () => db.query.profiles.findMany({ columns: { id: true, userId: true, resumeFileName: true, preferences: true, mindId: true, status: true } }),
+    () => db.query.searches.findMany({ orderBy: desc(schema.searches.startedAt) }),
+    () => db.query.jobs.findMany({ columns: { id: true, status: true, profileId: true, createdAt: true } }),
+    () => db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { reason: true } }),
+    () => db.query.extensionTokens.findMany({ columns: { userId: true } }),
+    () => db.query.ingestLog.findMany({ where: gte(schema.ingestLog.createdAt, daysAgo(1)), columns: { rejected: true, dryRun: true } }),
+    () => db.query.questions.findMany({ columns: { userId: true, status: true, createdAt: true } }),
   ]);
   const { users, profiles, who, userOfProfile } = dir;
 

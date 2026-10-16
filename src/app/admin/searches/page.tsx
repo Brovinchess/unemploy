@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { daysAgo, directory, mins, ratio, sortParams, sortRows, sum, when } from "@/lib/admin";
+import { daysAgo, directory, mins, ratio, sortParams, sortRows, sum, when, queue } from "@/lib/admin";
 import { Badge, Cap, Check, Clamp, ClearLink, DaysPicker, FilterForm, Page, PageHead, SortLink, Stat, Table, TextInput, Tiles, UserLink, daysParam, endTone } from "../ui";
 
 const BASE = "/admin/searches";
@@ -13,11 +13,11 @@ export default async function Searches({ searchParams }: { searchParams: Promise
   const since = daysAgo(days);
   const now = daysAgo(0);
   const { key, dir } = sortParams(q, "started");
-  const [d, searches, jobs, leads] = await Promise.all([
-    directory(),
-    db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), orderBy: desc(schema.searches.startedAt) }),
-    db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), columns: { profileId: true, createdAt: true } }),
-    db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { profileId: true, createdAt: true } }),
+  const [d, searches, jobs, leads] = await queue([
+    () => directory(),
+    () => db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), orderBy: desc(schema.searches.startedAt) }),
+    () => db.query.jobs.findMany({ where: gte(schema.jobs.createdAt, since), columns: { profileId: true, createdAt: true } }),
+    () => db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), columns: { profileId: true, createdAt: true } }),
   ]);
   // Jobs and leads belong to a search when they arrived between its start and its end.
   const inWindow = (list: { profileId: string; createdAt: Date }[], s: (typeof searches)[number]) =>

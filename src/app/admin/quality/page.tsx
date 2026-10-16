@@ -1,7 +1,7 @@
 import { desc, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DropReason } from "@/db/schema";
-import { MIND_MISTAKES, dayKeys, daysAgo, directory, perDay, pushDetails, sortParams, sortRows, sum, tally, when } from "@/lib/admin";
+import { MIND_MISTAKES, dayKeys, daysAgo, directory, perDay, pushDetails, sortParams, sortRows, sum, tally, when, queue } from "@/lib/admin";
 import { BarChart, CHART, Cap, Card, Clamp, Counts, DaysPicker, Ext, Page, PageHead, SectionTitle, SortLink, Stat, Table, Tiles, UserLink, daysParam } from "../ui";
 
 const BASE = "/admin/quality";
@@ -57,11 +57,11 @@ export default async function Quality({ searchParams }: { searchParams: Promise<
   const days = daysParam(q, 3);
   const since = daysAgo(days);
   const { key, dir } = sortParams(q, "when");
-  const [d, leads, logs, searches] = await Promise.all([
-    directory(),
-    db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), orderBy: desc(schema.leads.createdAt) }),
-    db.query.ingestLog.findMany({ where: gte(schema.ingestLog.createdAt, since), orderBy: desc(schema.ingestLog.createdAt) }),
-    db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), columns: { cognitionUsed: true, jobsAdded: true } }),
+  const [d, leads, logs, searches] = await queue([
+    () => directory(),
+    () => db.query.leads.findMany({ where: gte(schema.leads.createdAt, since), orderBy: desc(schema.leads.createdAt) }),
+    () => db.query.ingestLog.findMany({ where: gte(schema.ingestLog.createdAt, since), orderBy: desc(schema.ingestLog.createdAt) }),
+    () => db.query.searches.findMany({ where: gte(schema.searches.startedAt, since), columns: { cognitionUsed: true, jobsAdded: true } }),
   ]);
   const { who, userOfProfile } = d;
   const refused = logs.flatMap((g) => pushDetails(g.detail).filter((x) => x.code).map((x) => ({ at: g.createdAt, profileId: g.profileId, who: who(g.profileId), code: x.code!, url: x.url ?? "", hint: x.hint ?? "" })));
