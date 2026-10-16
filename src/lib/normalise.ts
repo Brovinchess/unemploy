@@ -62,6 +62,15 @@ const COUNTRIES: [RegExp, string][] = [
 ];
 
 // ISO-2 country for a posting, from its stated country first, then its location line.
+// Display names for the codes above (admin charts group free-text countries by these).
+export const COUNTRY_NAMES: Record<string, string> = {
+  AU: "Australia", GB: "United Kingdom", US: "United States", MY: "Malaysia", SG: "Singapore", HK: "Hong Kong", ID: "Indonesia", TH: "Thailand", PH: "Philippines", VN: "Vietnam",
+  TW: "Taiwan", JP: "Japan", KR: "South Korea", CN: "China", IN: "India", PK: "Pakistan", BD: "Bangladesh", LK: "Sri Lanka", NZ: "New Zealand", AE: "United Arab Emirates",
+  SA: "Saudi Arabia", QA: "Qatar", IL: "Israel", EG: "Egypt", NG: "Nigeria", KE: "Kenya", ZA: "South Africa", IE: "Ireland", NL: "Netherlands", DE: "Germany", FR: "France",
+  ES: "Spain", PT: "Portugal", IT: "Italy", BE: "Belgium", CH: "Switzerland", AT: "Austria", PL: "Poland", CZ: "Czechia", RO: "Romania", SE: "Sweden", DK: "Denmark", NO: "Norway",
+  FI: "Finland", UA: "Ukraine", GR: "Greece", HU: "Hungary", CA: "Canada", MX: "Mexico", BR: "Brazil", AR: "Argentina", CL: "Chile", CO: "Colombia", PE: "Peru", UY: "Uruguay",
+};
+
 export function countryCodeOf(...texts: (string | null | undefined)[]): string | null {
   for (const t of texts) {
     if (!t) continue;

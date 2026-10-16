@@ -1,4 +1,5 @@
 import "server-only";
+import { COUNTRY_NAMES, countryCodeOf } from "./normalise";
 import { and, asc, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@/db";
@@ -107,6 +108,18 @@ function fill(keys: string[], points: { key: string; v: number }[]) {
 const counts = (xs: { key: string; n: number }[]): [string, number][] => xs.map((x) => [x.key, x.n] as [string, number]).sort((a, b) => b[1] - a[1]);
 
 type Facet = { kind: string; key: string; n: number; v: number };
+
+// People type their country freely ("hong kong", "dubai- but I work remote only"): group by the
+// country the normaliser recognises, keep the time-zone guesses, and pool the rest as Other.
+function groupCountries(raw: { key: string; n: number }[]) {
+  const out = new Map<string, number>();
+  for (const r of raw) {
+    const code = r.key.startsWith("Unknown") ? null : countryCodeOf(r.key);
+    const name = code ? (COUNTRY_NAMES[code] ?? code) : r.key.startsWith("Unknown (") ? r.key.replace("Unknown (", "").replace(")", "") + " (from time zone)" : r.key === "Unknown" ? "Not set" : "Other";
+    out.set(name, (out.get(name) ?? 0) + r.n);
+  }
+  return [...out].map(([key, n]) => ({ key, n }));
+}
 
 // ---- overview -----------------------------------------------------------------------------
 
@@ -250,7 +263,7 @@ async function loadOverview(days: number): Promise<Overview> {
   return {
     days,
     keys,
-    countries: counts(of("country").map((f) => ({ key: f.key, n: f.n }))),
+    countries: counts(groupCountries(of("country").map((f) => ({ key: f.key, n: f.n })))),
     people: people.map((p) => ({ id: p.id, username: p.username, country: p.country ?? "", searches: p.searches, jobs: p.jobs, kept: p.kept, avgMinutes: p.avg_minutes, cognition: Math.round(p.cognition) })),
     allTime: { users: s.users, emailVerified: s.email_verified, deployed: s.deployed, live: s.live, searchingNow: s.searching_now, jobs: s.jobs, appliedPlus: s.applied_plus, extensionUsers: s.extension_users },
     window: {
