@@ -3,6 +3,7 @@
 import { useActionState, useEffect } from "react";
 import { saveApplicantDetails } from "@/app/extension-actions";
 import type { ApplicantDetails } from "@/db/schema";
+import type { GuessedDetails } from "@/lib/normalise";
 
 const FIELDS: { name: keyof ApplicantDetails; label: string; placeholder: string; required?: boolean; type?: string }[] = [
   { name: "firstName", label: "First name", placeholder: "Alex", required: true },
@@ -20,15 +21,23 @@ const FIELDS: { name: keyof ApplicantDetails; label: string; placeholder: string
 ];
 
 // The person's application details: what the headhunter (and later the extension) puts on forms.
+// Empty fields start with what the resume says (`suggested`), for the person to check.
 // `onDone` closes the form once saved, and gives it a Cancel.
-export function ApplicantForm({ initial, onDone }: { initial: ApplicantDetails | null; onDone?: () => void }) {
+export function ApplicantForm({ initial, suggested, onDone }: { initial: ApplicantDetails | null; suggested?: GuessedDetails; onDone?: () => void }) {
   const [state, action, pending] = useActionState(saveApplicantDetails, undefined);
+  const value = (name: keyof ApplicantDetails) => initial?.[name]?.trim() || (suggested as Partial<ApplicantDetails> | undefined)?.[name] || "";
+  const prefilled = FIELDS.filter((f) => !initial?.[f.name]?.trim() && value(f.name)).length;
   useEffect(() => {
     if (state?.ok) onDone?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
   return (
     <form action={action}>
+      {prefilled > 0 && (
+        <p className="mb-4 rounded-2xl bg-coral/10 px-4 py-3 text-sm text-white/80">
+          {prefilled === 1 ? "One field is" : `${prefilled} fields are`} filled in from your resume. Check {prefilled === 1 ? "it" : "them"}, add what is missing, then save.
+        </p>
+      )}
       <div className="grid gap-4 sm:grid-cols-2">
         {FIELDS.map((f) => (
           <label key={f.name} className="block text-sm">
@@ -39,7 +48,7 @@ export function ApplicantForm({ initial, onDone }: { initial: ApplicantDetails |
             <input
               name={f.name}
               type={f.type ?? "text"}
-              defaultValue={initial?.[f.name] ?? ""}
+              defaultValue={value(f.name)}
               placeholder={f.placeholder}
               required={f.required}
               className="field mt-1.5 h-11"

@@ -56,6 +56,6 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
     },
     newJobs,
     toApply,
-    answers: { forYou: counts.forYou },
+    answers: { forYou: counts.forYou + (user.applicant ? 0 : 1) }, // missing details count as one thing to do
   };
 }

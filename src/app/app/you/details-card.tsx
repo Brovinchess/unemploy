@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Pencil } from "lucide-react";
 import type { ApplicantDetails } from "@/db/schema";
+import type { GuessedDetails } from "@/lib/normalise";
 import { ApplicantForm } from "../settings/applicant-form";
 
 // The details as short lines, with one Edit that opens the full form in place. Gaps the
@@ -20,7 +21,7 @@ const LINES: { key: keyof ApplicantDetails; label: string; ask?: boolean }[] = [
   { key: "website", label: "Website" },
 ];
 
-export function DetailsCard({ initial }: { initial: ApplicantDetails | null }) {
+export function DetailsCard({ initial, suggested }: { initial: ApplicantDetails | null; suggested?: GuessedDetails }) {
   const [editing, setEditing] = useState(!initial);
   // First-time save: the form had no Cancel, so it closes itself once details exist.
   const had = useRef(!!initial);
@@ -48,7 +49,7 @@ export function DetailsCard({ initial }: { initial: ApplicantDetails | null }) {
 
       {editing ? (
         <div className="mt-5">
-          <ApplicantForm initial={initial} onDone={initial ? () => setEditing(false) : undefined} />
+          <ApplicantForm initial={initial} suggested={suggested} onDone={initial ? () => setEditing(false) : undefined} />
         </div>
       ) : (
         <>

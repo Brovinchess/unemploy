@@ -70,7 +70,7 @@ export async function AppShell({
     },
     newJobs: allNew,
     toApply,
-    answers: { forYou },
+    answers: { forYou: forYou + (user.applicant ? 0 : 1) }, // missing details count as one thing to do
   };
 
   return (

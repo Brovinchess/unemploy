@@ -149,3 +149,152 @@ export function guessName(resumeText: string | null | undefined): string | null 
   }
   return null;
 }
+
+// ---- Details from the resume --------------------------------------------------------------
+
+// What a resume usually states about the person, for prefilling "Your details". Heuristics
+// only: the person checks and saves. Anything unsure is left blank rather than guessed.
+export type GuessedDetails = Partial<{
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  location: string;
+  linkedin: string;
+  website: string;
+  currentTitle: string;
+  currentCompany: string;
+}>;
+
+const TITLE_WORD =
+  /\b(manager|engineer|designer|developer|analyst|lead|head|director|officer|specialist|consultant|product|marketing|sales|intern|associate|executive|architect|scientist|founder|co-founder|ceo|cto|coo|cfo|vp|president|coordinator|administrator|accountant|teacher|nurse|researcher|strategist|writer|editor|recruiter|owner|partner|principal|advisor|adviser|assistant|technician|supervisor|planner|buyer|controller)\b/i;
+const SECTION = /^(summary|profile|objective|experience|work experience|employment|education|skills|projects|certifications?|languages|interests|references|about( me)?|contact)$/i;
+
+function cleanLines(text: string) {
+  return text
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((l) => l.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+// The text of a line with the date span removed, e.g. "Senior PM, Acme (2022 – present)" → "Senior PM, Acme".
+const DATE_SPAN = /[\(\[]?(?:\b(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\.?\s+)?\b\d{4}\s*[–—-]\s*(?:present|current|now|today|ongoing)\b[\)\]]?|[\(\[]?\b(?:present|current)\b[\)\]]?/i;
+
+function splitRole(line: string): { title?: string; company?: string } {
+  const rest = line
+    .replace(DATE_SPAN, "")
+    .replace(/.*(?:→|->|⇒)\s*/, "") // "Product Manager → Product Owner": the current one is the last
+    .replace(/\s*[|·•,–—-]+\s*$/, "")
+    .replace(/^\s*[|·•,–—-]+\s*/, "")
+    .trim();
+  const at = rest.match(/^(.*?)\s+(?:at|@)\s+(.*)$/i);
+  const parts = at ? [at[1], at[2]] : rest.split(/\s*(?:\||·|•|,|–|—| - )\s*/).filter(Boolean);
+  if (parts.length < 2) {
+    if (parts.length === 1 && TITLE_WORD.test(parts[0])) return { title: parts[0] };
+    if (parts.length === 1) return { company: parts[0] };
+    return {};
+  }
+  // A place in the line ("Grab, Kuala Lumpur") is neither the title nor the company.
+  const [a, b] = parts.filter((x) => !(countryCodeOf(x) && !TITLE_WORD.test(x)));
+  if (!a) return {};
+  if (!b) return TITLE_WORD.test(a) ? { title: a } : { company: a };
+  const aTitle = TITLE_WORD.test(a);
+  const bTitle = TITLE_WORD.test(b);
+  if (aTitle && !bTitle) return { title: a, company: b };
+  if (bTitle && !aTitle) return { title: b, company: a };
+  if (!aTitle && !bTitle) return { company: a };
+  return { title: a, company: b };
+}
+
+export function guessDetails(resumeText: string | null | undefined): GuessedDetails {
+  const text = (resumeText ?? "").replace(/\r/g, "");
+  if (!text.trim()) return {};
+  const out: GuessedDetails = {};
+  const lines = cleanLines(text);
+  const top = lines.slice(0, 15).join("\n");
+
+  const name = guessName(text);
+  if (name) {
+    // ALL CAPS names come back as Title Case; mixed case is kept as written.
+    const cased = /^[A-Z\s'-]+$/.test(name) ? name.toLowerCase().replace(/(^|[\s'-])([a-z])/g, (m, p, c) => p + c.toUpperCase()) : name;
+    const [first, ...rest] = cased.split(/\s+/);
+    out.firstName = first;
+    if (rest.length) out.lastName = rest.join(" ");
+  }
+
+  const email = text.match(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/);
+  if (email) out.email = email[0];
+
+  // A phone: at least 8 digits, allowing +, spaces, dashes, dots and brackets; never a year range.
+  const phoneLine = lines.find((l) => /\b(phone|mobile|tel|cell|whatsapp)\b/i.test(l)) ?? "";
+  const phoneIn = (s: string) => {
+    for (const m of s.matchAll(/\+?\(?\d[\d\s().-]{6,}\d/g)) {
+      const digits = m[0].replace(/\D/g, "");
+      if (digits.length >= 8 && digits.length <= 15 && !/\d{4}\s*[–—-]\s*\d{4}/.test(m[0])) return m[0].trim();
+    }
+    return null;
+  };
+  const phone = phoneIn(phoneLine) ?? phoneIn(top);
+  if (phone) out.phone = phone;
+
+  const li = text.match(/(?:https?:\/\/)?(?:[a-z]{2,3}\.)?linkedin\.com\/in\/[A-Za-z0-9_%-]+\/?/i);
+  if (li) out.linkedin = (li[0].startsWith("http") ? "" : "https://") + li[0].replace(/\/$/, "");
+  const site = [...text.matchAll(/(?:https?:\/\/|www\.)[^\s|•·,)]+|(?<![@\w.])\b[a-z0-9-]+\.(?:com|io|me|dev|design|co|net|org|my|sg|ai|app|xyz|site|studio|work)(?:\/[^\s|•·,)]*)?/gi)]
+    .map((m) => m[0].replace(/[.;:]+$/, ""))
+    .find((u) => !/linkedin\.com|github\.com\/?$|mailto:|@/.test(u) && !(out.email && out.email.endsWith(u.replace(/^https?:\/\/|^www\./g, ""))));
+  if (site) out.website = site.startsWith("http") ? site : `https://${site}`;
+
+  // Where they live: a labelled line, or the first top segment that names a place.
+  const labelled = top.match(/(?:^|\n)[ \t]*(?:location|address|based in|lives in|city)[ \t]*[:\-][ \t]*([^\n|•·]+)/i);
+  if (labelled) {
+    // Keep the city and country, not the street: drop parts with digits, keep the last three.
+    const bits = labelled[1].trim().replace(/[.,;]+$/, "").split(/\s*,\s*/).filter((b) => b && !/\d/.test(b));
+    const v = bits.slice(-3).join(", ");
+    if (v && v.length <= 80 && countryCodeOf(v)) out.location = v;
+  }
+  if (!out.location) {
+    outer: for (const l of lines.slice(0, 15)) {
+      const segs = l.split(/\s*(?:\||·|•|;|\s{2,}|\s[–—]\s)\s*/).map((x) => x.trim()).filter(Boolean);
+      for (let i = 0; i < segs.length; i++) {
+        const seg = segs[i];
+        if (/@|https?:|www\.|\d{5,}/.test(seg) || seg.length > 60 || !countryCodeOf(seg)) continue;
+        // Keep "City, Country" or "City, State, Country"; drop a title glued in front ("Designer, KL").
+        const bits = seg.split(/\s*,\s*/).filter((b) => !TITLE_WORD.test(b));
+        if (bits.length && bits.join(", ").length <= 60) {
+          out.location = bits.slice(-3).join(", ");
+          break outer;
+        }
+      }
+    }
+  }
+
+  // Current role: the experience line whose dates run to the present.
+  const idx = lines.findIndex((l, i) => i > 0 && /\b(present|current)\b/i.test(l) && /\d{4}|present/i.test(l) && !/^(summary|profile|objective)/i.test(l) && l.length <= 140);
+  if (idx > 0) {
+    let role = splitRole(lines[idx]);
+    // Two-line entries: "Senior PM" above "Acme | 2022 – present", or the other way round.
+    if (!role.title || !role.company) {
+      const prev = lines[idx - 1];
+      if (prev && prev.length <= 80 && !SECTION.test(prev) && !/\d{4}/.test(prev)) {
+        const r2 = splitRole(prev);
+        role = { title: role.title ?? r2.title ?? (TITLE_WORD.test(prev) ? prev : undefined), company: role.company ?? r2.company ?? (!TITLE_WORD.test(prev) ? prev : undefined) };
+      }
+    }
+    if (!role.company) {
+      // "Product Owner 2024 – Present" with the employer on the next line.
+      const next = lines[idx + 1];
+      if (next && next.length <= 80 && !SECTION.test(next) && !/\d{4}|^[-•·*]/.test(next) && !TITLE_WORD.test(next) && !/\b(led|built|owned|managed|shipped|designed|drove|grew)\b/i.test(next)) {
+        role.company = next.replace(/\s*\([^)]*\)/g, "").split(/\s*(?:\||·|•|–|—| - )\s*/)[0];
+      }
+    }
+    if (role.title && role.title.length <= 80 && TITLE_WORD.test(role.title)) out.currentTitle = role.title.replace(/[.,;:]+$/, "");
+    if (role.company && role.company.length <= 80 && !SECTION.test(role.company)) out.currentCompany = role.company.replace(/[.,;:]+$/, "");
+  }
+  if (!out.currentTitle) {
+    // The headline under the name, e.g. "Product Designer · Kuala Lumpur".
+    const head = lines.slice(1, 4).map((l) => l.split(/\s*(?:\||·|•|,|;|\s[–—]\s)\s*/)[0].trim()).find((x) => x.length <= 60 && TITLE_WORD.test(x) && !/\d/.test(x));
+    if (head) out.currentTitle = head;
+  }
+  return out;
+}

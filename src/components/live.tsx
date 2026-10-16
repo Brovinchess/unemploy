@@ -20,7 +20,7 @@ export type Live = {
   };
   newJobs: number; // across every headhunter
   toApply: number;
-  answers: { forYou: number }; // form questions waiting on the person
+  answers: { forYou: number }; // form questions waiting on the person, plus one while details are missing
 };
 
 const ACTIVE_MS = 15_000;

@@ -5,6 +5,7 @@ import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { Ninja } from "@/components/brand";
 import { appContext, balanceFor } from "@/lib/app-context";
+import { guessDetails } from "@/lib/normalise";
 import { SavedAnswers } from "../settings/saved-answers";
 import { QuestionList } from "./answers-ui";
 import { DetailsCard } from "./details-card";
@@ -30,6 +31,8 @@ export default async function YouPage() {
     company: r.company,
   }));
   const resumeDate = current.resumeChangedAt ?? current.createdAt;
+  // Prefill from the resume: whatever it states that the details still lack.
+  const suggested = guessDetails(current.resumeText);
 
   return (
     <AppShell tab="you" user={user} profiles={profiles} unfinished={unfinished} current={current} balance={balance}>
@@ -64,7 +67,7 @@ export default async function YouPage() {
           <div className="grid gap-4 md:grid-cols-2 md:items-start">
             <div className="space-y-4">
               <div className="rise rise-2">
-                <DetailsCard initial={user.applicant ?? null} />
+                <DetailsCard initial={user.applicant ?? null} suggested={suggested} />
               </div>
               <section className="rise rise-3 flex items-center gap-4 rounded-3xl bg-surface px-6 py-5">
                 <span className="flex size-10 shrink-0 items-center justify-center rounded-2xl bg-white/[0.05] text-white/60">
