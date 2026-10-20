@@ -275,7 +275,10 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
   }
 
   const eligibility = eligibilityProblem(job.locationText, prefs.country, prefs.city);
-  if (eligibility) return { url: job.url, code: "not_eligible", hint: eligibility };
+  // An on-site or hybrid job in the person's own country is fine even when its location line
+  // names only an office or a city; the strict line check is for remote jobs.
+  const onSiteAtHome = job.workSetting !== "remote" && sameCountry(job.country, prefs.country) && !!eligibility && eligibility.startsWith("The location line doesn't say");
+  if (eligibility && !onSiteAtHome) return { url: job.url, code: "not_eligible", hint: eligibility };
 
   const unmet = job.mustHaves.filter((m) => !m.met).length;
   if (unmet * 2 > job.mustHaves.length) {

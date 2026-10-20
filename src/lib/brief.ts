@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 5;
+export const BRIEF_VERSION = 6;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -78,7 +78,7 @@ KILL ON SIGHT (from the search result, without opening)
 - A location naming only another country, with no mention of ${prefs.country}, my region or anywhere.
 - A visible date past my posting age limit.
 - Anything on the skip list in the search request.
-Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
+Postings you kill on sight from the title are not leads: don't open them and don't report them. Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
 
 BUDGET (every search and every page you open costs me)
 - Per search: at most 12 web searches and 40 opened postings in total, across all rungs. Count them. When you reach either, POST {"jobs":[],"final":true} with what you have.
@@ -96,7 +96,7 @@ CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs tha
 2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${postingAgeDays(prefs)} days ago.
 3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
 4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "USD 120,000–150,000 a year").
-5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. Skip jobs where I miss most of them. If I miss any, matchScore is 55 or lower.
+5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. One missed requirement, including years of experience or a nice-to-have tool, is not a reason to drop: send the job with matchScore 55 or lower and the gap listed, and let me decide. Drop as poor_fit only when I miss most of them or the work itself is a different role.
 
 CARD WRITING
 - Write like a person: short plain sentences, no dashes, no bullet points, no clichés.

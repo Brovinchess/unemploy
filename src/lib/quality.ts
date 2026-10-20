@@ -1,4 +1,5 @@
 import "server-only";
+import { COUNTRY_NAMES, countryCodeOf } from "./normalise";
 
 // Checks that keep job quality high no matter how well a Mind follows its brief. From
 // auditing the first real deliveries: aggregator copies outlive the real posting, "remote"
@@ -59,7 +60,11 @@ export function eligibilityProblem(locationText: string, userCountry: string, us
   const mentionsUser = [country, userCity ? plain(userCity) : ""].filter(Boolean).some((p) => text.includes(p));
   const inRegion = REGIONS_OF.some(([countries, regions]) => countries.test(country) && regions.test(text));
   if (mentionsUser || inRegion || OPEN_TO_ALL.test(text)) return null;
-  const place = text.match(PLACES)?.[0];
+  // "Jakarta", "New York, NY", "US remote", "Türkiye": a city or alias of the person's own country.
+  const userCode = countryCodeOf(userCountry);
+  const lineCode = countryCodeOf(locationText);
+  if (userCode && lineCode === userCode) return null;
+  const place = text.match(PLACES)?.[0] ?? (lineCode && lineCode !== userCode ? (COUNTRY_NAMES[lineCode] ?? lineCode) : undefined);
   if (place) return `The posting limits hiring to places that don't include ${userCountry} ("${place}").`;
   return `The location line doesn't say who can apply. Open the posting and quote the line that shows ${userCountry} (or anywhere/worldwide/APAC) is allowed. If it doesn't say, skip the job.`;
 }
