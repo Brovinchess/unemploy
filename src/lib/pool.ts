@@ -67,9 +67,13 @@ export async function poolFor(profile: Profile) {
     .orderBy(desc(schema.postings.lastVerifiedOpenAt), desc(schema.postings.lastSeenAt))
     .limit(MAX_ROWS * 3);
 
+  // The title must share a word with the roles wanted: a product marketer is not helped by a
+  // list of fifteen engineering jobs, and reading it costs a rung. No role words, no filter.
+  const words = roleWords(prefs);
   // The location line is the real test, the same one ingest applies to a sent job.
   const fits = candidates.filter((p) => {
     if (skip.has(p.postingKey)) return false;
+    if (words.length && !words.some((w) => p.title.toLowerCase().includes(w))) return false;
     if (code && p.countryCode === code) return true;
     if (!prefs.workSettings.includes("remote") && !prefs.workSettings.includes("hybrid")) return false;
     const line = p.locationText ?? [p.city, p.country].filter(Boolean).join(", ");
@@ -109,11 +113,15 @@ async function stillOpen<T extends { postingKey: string; url: string; lastVerifi
 // Companies near the person that have posted their kind of role lately, from the pool: a head
 // start for rung 1. Their own city first, then the rest of the country; ten at most.
 const STOP = new Set(["senior", "junior", "lead", "head", "staff", "principal", "associate", "manager", "engineer", "specialist", "officer", "executive", "assistant", "director", "intern", "remote", "with", "and"]);
+// The words that mark a posting as the person's kind of role, from the wider title family.
+export function roleWords(prefs: Preferences) {
+  const { titles } = discoveryHints(prefs.targetRoles);
+  return [...new Set(titles.flatMap((t) => t.toLowerCase().split(/[^a-z]+/)).filter((w) => w.length > 3 && !STOP.has(w)))].slice(0, 12);
+}
 export async function localEmployers(prefs: Preferences, limit = 10) {
   const code = countryCodeOf(prefs.country);
   if (!code) return [];
-  const { titles } = discoveryHints(prefs.targetRoles);
-  const words = [...new Set(titles.flatMap((t) => t.toLowerCase().split(/[^a-z]+/)).filter((w) => w.length > 3 && !STOP.has(w)))].slice(0, 12);
+  const words = roleWords(prefs);
   if (!words.length) return [];
   const since = new Date(Date.now() - 90 * 86_400_000);
   const city = prefs.city?.trim().toLowerCase() || null;

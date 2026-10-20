@@ -51,6 +51,11 @@ export async function skipLinks(userId: string, profileId: string, limit = 150) 
 }
 
 // Hosts that blocked the Mind in the last week, so it doesn't burn time on them again.
+// Hosts that are whole job systems. One page there that would not load says nothing about the
+// rest, so they never go on the blocked list (an "ashby skipped" line once killed a whole rung).
+const JOB_SYSTEM_HOSTS = ["greenhouse.io", "lever.co", "ashbyhq.com", "workable.com", "smartrecruiters.com", "myworkdayjobs.com", "workday.com", "bamboohr.com", "jobvite.com", "icims.com", "recruitee.com", "personio.de", "personio.com", "teamtailor.com", "breezy.hr", "applytojob.com", "rippling.com", "linkedin.com", "indeed.com", "glassdoor.com", "wellfound.com"];
+const isJobSystem = (host: string) => JOB_SYSTEM_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));
+
 export async function blockedHosts(profileId: string) {
   const rows = await db
     .selectDistinct({ url: schema.leads.url })
@@ -59,7 +64,8 @@ export async function blockedHosts(profileId: string) {
   const hosts = new Set<string>();
   for (const r of rows) {
     try {
-      hosts.add(new URL(r.url!).hostname.replace(/^www\./, ""));
+      const host = new URL(r.url!).hostname.replace(/^www\./, "");
+      if (!isJobSystem(host)) hosts.add(host);
     } catch {}
   }
   return [...hosts].slice(0, 30);
@@ -92,7 +98,7 @@ export function searchRequestText(args: {
   const base = mindsConfig.ingestUrl;
   const resume = resumeChanged
     ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
-    : "Use the copy of my resume you already saved; don't re-read the file.";
+    : "My resume is attached in case you need it. Use the copy already in your memory; only if you no longer have its text, read the attached file once and keep it. Never stop to ask me for it.";
   return [
     `SEARCH REQUEST #${n} from ${username}. ${resume}`,
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,

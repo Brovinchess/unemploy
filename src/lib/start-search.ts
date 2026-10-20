@@ -111,7 +111,9 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
         resumeChanged: newResume,
         facts: newBrief ? "" : factsText(user), // a new brief below already carries it
       }) + changes,
-      newResume ? [resumeAttachment(profile)] : undefined,
+      // Always along for the ride: a Mind that has lost the text of the resume reads it again
+      // instead of stopping to ask. Reading costs only when it happens.
+      profile.resumeData ? [resumeAttachment(profile)] : undefined,
     );
     // The Mind is now up to date with everything saved before this moment.
     if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date(), ...(newBrief ? { briefVersion: BRIEF_VERSION } : {}) }).where(eq(schema.profiles.id, profile.id));
