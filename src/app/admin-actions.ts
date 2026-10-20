@@ -16,8 +16,9 @@ export async function runSearchFor(profileId: string): Promise<RunResult> {
   if (!profile) return { username: "?", label: "?", ok: false, note: "No such headhunter." };
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user) return { username: "?", label: profile.label, ok: false, note: "No such user." };
-  const r = await startSearch(user, profile, profile.preferences?.jobsPerDay ?? 5, "").catch((e) => ({ error: String(e?.message ?? e) }));
-  return { username: user.username ?? "(no name yet)", label: profile.label, ok: !r?.error, note: r?.error ?? "Search started." };
+  const r = await startSearch(user, profile, profile.preferences?.jobsPerDay ?? 5, "", true).catch((e) => ({ error: String(e?.message ?? e) }));
+  const open = r?.error ? null : await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)), columns: { jobsWanted: true } });
+  return { username: user.username ?? "(no name yet)", label: profile.label, ok: !r?.error, note: r?.error ?? `Search started${open ? ` for ${open.jobsWanted} jobs` : ""}.` };
 }
 
 // Headhunters whose last search came back short (or who never searched), not searching now,

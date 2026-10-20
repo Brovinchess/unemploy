@@ -32,8 +32,12 @@ export function resumeAttachment(p: Pick<Profile, "resumeFileName" | "resumeMime
 // Starts a search for a headhunter: claims the search row, wakes the Mind, sends the request
 // (with the full brief or a new resume when they changed). The person's own "Find new jobs"
 // and the admin's re-run both come through here.
-export async function startSearch(user: User, profile: Profile, jobs: number, focus = ""): Promise<SearchStart> {
-  const wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
+// `fitToBalance` (admin re-runs): when the asked-for size costs more than the Mind has, shrink
+// the search to what the balance covers, two jobs at least, instead of refusing. The person's
+// own default size is left as it was.
+export async function startSearch(user: User, profile: Profile, jobs: number, focus = "", fitToBalance = false): Promise<SearchStart> {
+  let wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
+  let fitted = false;
   const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
   if (profile.status === "paused") return { error: "This headhunter is paused. Resume it first." };
   if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
@@ -49,7 +53,15 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const balance = await api.getBalance(profile.mindId);
     if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
     const { perJob } = await costModel(profile.id);
-    const need = estimateSearchCost(wanted, perJob).cognition;
+    let need = estimateSearchCost(wanted, perJob).cognition;
+    if (need > balance && fitToBalance) {
+      const fits = Math.floor((balance - estimateSearchCost(0, perJob).cognition) / Math.max(1, perJob));
+      if (fits >= 2) {
+        wanted = Math.min(wanted, fits);
+        need = estimateSearchCost(wanted, perJob).cognition;
+        fitted = true;
+      }
+    }
     if (need > balance) {
       return { error: `That search needs roughly ${need} cognition and ${Math.round(balance)} is left. Pick fewer jobs or top up.` };
     }
@@ -64,7 +76,7 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
       .set({
         searchStartedAt: new Date(),
         searchEndedAt: null,
-        ...(profile.preferences ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
+        ...(profile.preferences && !fitted ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
       })
       .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
       .returning({ id: schema.profiles.id });
