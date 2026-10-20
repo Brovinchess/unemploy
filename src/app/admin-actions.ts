@@ -3,6 +3,7 @@
 import { and, desc, eq, gte, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/admin";
+import { endSearch, isSearching } from "@/lib/search";
 import { startSearch } from "@/lib/start-search";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
@@ -23,6 +24,7 @@ export async function runSearchFor(profileId: string): Promise<RunResult> {
 // with cognition left for another go.
 export async function shortCandidates(zeroOnly = true, minBalance = 40) {
   const admin = await requireAdmin();
+  await closeStaleSearches();
   const rows = await db
     .select({ id: schema.profiles.id, username: schema.users.username, label: schema.profiles.label, balance: schema.profiles.balanceCache })
     .from(schema.profiles)
@@ -42,6 +44,21 @@ export async function shortCandidates(zeroOnly = true, minBalance = 40) {
     )
     .orderBy(desc(schema.profiles.balanceCache));
   return rows.map((r) => ({ id: r.id, username: r.username ?? "(no name yet)", label: r.label, balance: Math.round(r.balance ?? 0) }));
+}
+
+// A search past its time limit is closed as a timeout, the way the daily watchdog would; without
+// this, a headhunter whose Mind went quiet stays "searching" until the next morning and cannot
+// be re-run.
+export async function closeStaleSearches(): Promise<number> {
+  await requireAdmin();
+  const open = await db.query.profiles.findMany({ where: and(isNotNull(schema.profiles.searchStartedAt), isNull(schema.profiles.searchEndedAt)) });
+  let n = 0;
+  for (const p of open) {
+    if (isSearching(p)) continue;
+    await endSearch(p, "timeout").catch((e) => console.error("[admin] close stale search failed", p.id, e));
+    n++;
+  }
+  return n;
 }
 
 // Re-runs a search for every short candidate, one after another. Returns what happened to each.
