@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   openGraph: { title: TITLE, description: DESCRIPTION, url: SITE, siteName: "Career Ninja", type: "website", locale: "en_US" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" } },
+  // Proves to Google Search Console that we own the site. Stays in place; removing it drops the verification.
+  verification: { google: "zRcjuHzqCupoclev21r_M6WDb8nWaa4tqsDz-GPtpjk" },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
