@@ -5,6 +5,18 @@ const nextConfig: NextConfig = {
     // Resumes up to 5 MB are uploaded through a Server Action.
     serverActions: { bodySizeLimit: "6mb" },
   },
+  // One address for the site. www answers on its own at Vercel, and search engines would count
+  // it as a second copy of every page; send it to the bare domain for good.
+  async redirects() {
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.careerninja.app" }],
+        destination: "https://careerninja.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
