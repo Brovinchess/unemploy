@@ -1,18 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { count } from "drizzle-orm";
-import {
-  ArrowRight,
-  CheckCircle2,
-  ChevronRight,
-  FileText,
-  Hand,
-  Puzzle,
-  Search,
-  ShieldCheck,
-  UserRound,
-} from "lucide-react";
-import { Ninja, type Mood } from "@/components/brand";
+import { ArrowRight, CheckCircle2, ChevronRight } from "lucide-react";
+import { Ninja } from "@/components/brand";
 import { CardMock, ExtensionMock, FrontMock } from "@/components/landing-art";
 import { LandingHeader } from "@/components/landing-header";
 import { WaitlistForm } from "@/components/waitlist-form";
@@ -20,7 +10,7 @@ import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
 import { mindsConfig } from "@/lib/minds/config";
-import { MAX_POSTING_AGE_DAYS } from "@/lib/preferences";
+import { FAQ, PAINS, STEPS, STORE_URL } from "@/lib/landing-copy";
 import { getCurrentUser } from "@/lib/session";
 
 const LOGIN_ERRORS: Record<string, string> = {
@@ -36,51 +26,36 @@ const LOGIN_ERRORS: Record<string, string> = {
 // Show the live waitlist size once it's big enough to help rather than hurt.
 const SHOW_WAITLIST_FROM = 50;
 
-const STEPS: { icon: typeof Search; mood: Mood; title: string; body: string }[] = [
-  { icon: UserRound, mood: "happy", title: "Sign in, get your headhunter", body: "One click sets up a headhunter that works only for you. It runs only when you ask." },
-  { icon: FileText, mood: "thinking", title: "Tell it what you want", body: "Upload your resume and answer two questions: the roles you want and where you live." },
-  { icon: Search, mood: "searching", title: "Ask, and it searches", body: "Press Find new jobs. Each job lands on your page the moment it passes every check, so you can start while it keeps looking." },
-  { icon: ShieldCheck, mood: "excited", title: "Checked before it reaches you", body: `On the employer's own site, open today, posted in the last ${MAX_POSTING_AGE_DAYS} days, hireable from your country, and a real fit for your resume.` },
-  { icon: Hand, mood: "surprised", title: "Swipe right to apply", body: "Jobs come as cards. Reveal one, swipe right to keep it, left to dismiss. Kept jobs line up from To apply to Offer." },
-  {
-    icon: Puzzle,
-    mood: "love",
-    title: "The form fills itself",
-    body: "The Chrome extension opens each application, fills in your details, cover letter and answers, and waits for you to press Submit.",
-  },
-];
-
-
-
-// What job hunting feels like today, and what changes.
-const PAINS = [
-  { pain: "Hours scrolling boards full of reposts and jobs that closed weeks ago.", gain: "You see only jobs checked open today, on the employer's own site." },
-  { pain: "\"Remote\" that turns out to mean one country, found after you've applied.", gain: "Every posting's own eligibility line is read before it reaches you." },
-  { pain: "Rewriting the same cover letter and the same twenty form answers, again.", gain: "Written once from your resume, answered once about you, filled in every time." },
-];
-
-
-
-const FAQ = [
-  {
-    q: "Does it apply for me?",
-    a: "Almost. It finds the job and writes the application. The Chrome extension fills the form for you, and leaves Submit to you unless you choose to let it send.",
-  },
-  {
-    q: "What about the questions only I can answer?",
-    a: "Forms ask things like notice period, relocation, or years with a tool. Your headhunter answers those from your details and your past answers. Anything it doesn't know comes to you once, and it remembers from then on.",
-  },
-  {
-    q: "Will it make things up about me?",
-    a: "No. Every claim in a cover letter or answer must quote a line from your resume, and the app checks it. Answers it doesn't know come to you instead of being guessed.",
-  },
-  {
-    q: "What happens to my resume?",
-    a: "It's used only to find and write for your jobs, and is shared only with your own headhunter. You can delete your account, resume and every job in one step from Settings.",
-  },
-];
-
 const one = (v: string | string[] | undefined) => (typeof v === "string" ? v : undefined);
+
+// What search engines read about the site, the product and the questions people ask. Kept to
+// facts the page itself states.
+function structuredData() {
+  const base = mindsConfig.appUrl;
+  const org = { "@type": "Organization", "@id": `${base}/#org`, name: "Career Ninja", url: base, logo: `${base}/mochi.svg` };
+  return {
+    "@context": "https://schema.org",
+    "@graph": [
+      org,
+      { "@type": "WebSite", "@id": `${base}/#site`, url: base, name: "Career Ninja", publisher: { "@id": `${base}/#org` } },
+      {
+        "@type": "SoftwareApplication",
+        name: "Career Ninja",
+        url: base,
+        applicationCategory: "BusinessApplication",
+        operatingSystem: "Web, Chrome",
+        description: "An AI headhunter that finds open jobs matching your resume, writes each application, and fills in the form through a Chrome extension. You press Submit.",
+        offers: { "@type": "Offer", price: "0", priceCurrency: "USD", description: "First searches are free." },
+        featureList: ["AI job search", "Job application autofill in Chrome", "Cover letters and form answers written from your resume", "Eligibility and posting-age checks", "Application tracker"],
+        publisher: { "@id": `${base}/#org` },
+      },
+      {
+        "@type": "FAQPage",
+        mainEntity: FAQ.map((f) => ({ "@type": "Question", name: f.q, acceptedAnswer: { "@type": "Answer", text: f.a } })),
+      },
+    ],
+  };
+}
 
 function H2({ children }: { children: React.ReactNode }) {
   return <h2 className="font-display text-[1.75rem] font-medium leading-[1.15] tracking-[-0.01em] sm:text-[2.25rem]">{children}</h2>;
@@ -101,6 +76,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   return (
     <div id="top" className="flex flex-1 flex-col bg-night text-white">
       <LandingHeader action={action} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData()) }} />
 
       {/* First screen */}
       <section className="relative px-[6%] pb-16 pt-24 sm:pb-20 sm:pt-28">
@@ -110,7 +86,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
             <h1 className="font-display mt-6 text-[2.4rem] font-medium leading-[1.08] tracking-[-0.01em] sm:text-[3.5rem]">
               Stop scrolling job boards.
               <br />
-              <span className="text-white/70">Your own headhunter</span> <span className="text-coral">writes every application.</span>
+              <span className="text-white/70">Your own AI headhunter</span> <span className="text-coral">writes every application.</span>
             </h1>
             <p className="mx-auto mt-5 max-w-xl text-[17px] leading-relaxed text-white/55 md:mx-0">
               It finds real, open jobs you&rsquo;d get, writes each application from your resume, and answers what the form
@@ -236,7 +212,7 @@ export default async function Home({ searchParams }: PageProps<"/">) {
                 Anything it doesn&rsquo;t know it highlights for you, and remembers what you type. Works on Greenhouse, Lever and Ashby.
               </p>
               <a
-                href="https://chromewebstore.google.com/detail/career-ninja/pegmolmikinefghoeollhdaaedbddkaa"
+                href={STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="btn btn-accent mt-6"

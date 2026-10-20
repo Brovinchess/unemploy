@@ -4,8 +4,15 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Ninja, Wordmark } from "./brand";
 
+// The public pages, in the order they read. Search engines take site links from these too.
+const NAV = [
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/extension", label: "Chrome extension" },
+  { href: "/#faq", label: "Questions" },
+];
+
 // Muse-style header: wordmark left, a small product mark in the centre once the hero
-// has scrolled away, one pill action on the right.
+// has scrolled away, the page links and one pill action on the right.
 export function LandingHeader({ action }: { action: { label: string; href: string } }) {
   const [scrolled, setScrolled] = useState(false);
 
@@ -29,9 +36,18 @@ export function LandingHeader({ action }: { action: { label: string; href: strin
         >
           <Ninja className="size-8" />
         </a>
-        <a href={action.href} className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose">
-          {action.label}
-        </a>
+        <div className="flex items-center gap-6">
+          <nav aria-label="Pages" className="hidden items-center gap-6 md:flex">
+            {NAV.map((n) => (
+              <Link key={n.href} href={n.href} className="text-sm text-white/60 transition-colors hover:text-white">
+                {n.label}
+              </Link>
+            ))}
+          </nav>
+          <a href={action.href} className="rounded-full bg-coral px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-rose">
+            {action.label}
+          </a>
+        </div>
       </div>
     </header>
   );

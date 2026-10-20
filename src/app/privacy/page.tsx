@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
 import { Logo } from "@/components/logo";
 
-export const metadata: Metadata = { title: "Privacy policy, Career Ninja" };
+export const metadata: Metadata = {
+  title: "Privacy Policy",
+  description: "What Career Ninja collects to find and apply for your jobs, who sees it, how long it stays, and how to delete it all in one step.",
+  alternates: { canonical: "/privacy" },
+};
 
 const UPDATED = "15 October 2026";
 const CONTACT = "rovin@anichess.com";

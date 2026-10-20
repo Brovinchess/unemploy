@@ -9,15 +9,20 @@ const jakarta = Plus_Jakarta_Sans({ variable: "--font-jakarta", subsets: ["latin
 const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 
 const SITE = process.env.APP_URL || "https://careerninja.app";
-const TITLE = "Career Ninja, your own AI headhunter";
-const DESCRIPTION = "It finds real, open jobs you'd get, writes each application from your resume, and fills in the form. You read it and press Submit.";
+// Search snippets. Title: the words people search for first, the brand last, under 60 characters.
+// Description: one benefit per clause, under 155 characters so Google shows all of it.
+const TITLE = "AI Job Search Agent and Application Autofill | Career Ninja";
+const DESCRIPTION = "Your own AI headhunter. It finds open jobs that fit your resume, writes each application and fills the form in Chrome. You press Submit. Free to start.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
-  title: TITLE,
+  title: { default: TITLE, template: "%s | Career Ninja" },
   description: DESCRIPTION,
-  openGraph: { title: TITLE, description: DESCRIPTION, url: SITE, siteName: "Career Ninja", type: "website" },
+  applicationName: "Career Ninja",
+  alternates: { canonical: "/" },
+  openGraph: { title: TITLE, description: DESCRIPTION, url: SITE, siteName: "Career Ninja", type: "website", locale: "en_US" },
   twitter: { card: "summary_large_image", title: TITLE, description: DESCRIPTION },
+  robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-snippet": -1, "max-image-preview": "large" } },
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
