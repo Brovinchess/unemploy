@@ -9,7 +9,7 @@ import { CognitionNote } from "@/components/cognition-note";
 import { UsernameRow } from "@/components/username-row";
 import { FormError } from "@/components/onboarding-shell";
 import { checkRoles, type RoleCheck } from "@/lib/job-titles";
-import { parsePlace } from "@/lib/normalise";
+import { citiesOf, COUNTRY_LIST, POPULAR_COUNTRIES } from "@/lib/places";
 import {
   JOB_TYPES,
   RECOMMENDED_JOBS_PER_SEARCH,
@@ -19,13 +19,6 @@ import {
   WORK_SETTINGS,
   type Preferences, MAX_POSTING_AGE_DAYS, POSTING_AGE_OPTIONS } from "@/lib/preferences";
 
-const COUNTRIES = [
-  "United States", "United Kingdom", "Malaysia", "Singapore", "Indonesia", "Thailand", "Philippines", "Vietnam", "Hong Kong", "Taiwan", "Japan",
-  "South Korea", "China", "India", "Pakistan", "Bangladesh", "Australia", "New Zealand", "United Arab Emirates",
-  "Saudi Arabia", "Qatar", "Bahrain", "Ireland", "Germany", "France", "Netherlands", "Spain",
-  "Italy", "Portugal", "Sweden", "Denmark", "Norway", "Finland", "Poland", "Switzerland",
-  "Canada", "Mexico", "Brazil", "Argentina", "Chile", "Colombia", "South Africa", "Nigeria", "Kenya", "Egypt",
-];
 
 type Draft = Partial<Preferences>;
 
@@ -38,7 +31,7 @@ type Question = {
 
 const QUESTIONS: Question[] = [
   { key: "targetRoles", ask: () => "Which roles should I look for? I've guessed from your resume; change it if you want something else." },
-  { key: "country", ask: () => "Where do you live? City and country, like New York, United States." },
+  { key: "country", ask: () => "Where do you live? Pick your country, then your city if it's on the list." },
   { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.`, defaulted: true },
   { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want.", defaulted: true },
   {
@@ -272,13 +265,16 @@ function AnswerInput({
   const key = question.key;
 
 
-  if (key === "targetRoles" || key === "country" || key === "city" || key === "avoidCompanies") {
-    const required = key === "targetRoles" || key === "country";
+  if (key === "country" || key === "city") {
+    return <PlaceAnswer country={draft.country ?? ""} city={draft.city ?? ""} cityOnly={key === "city"} onSubmit={(country, city) => onAnswer({ country, city })} />;
+  }
+
+  if (key === "targetRoles" || key === "avoidCompanies") {
+    const required = key === "targetRoles";
     return (
       <TextAnswer
-        initial={key === "country" ? [draft.city, draft.country].filter(Boolean).join(", ") : ((draft[key] as string) ?? "")}
+        initial={(draft[key] as string) ?? ""}
         required={required}
-        list={key === "country" ? COUNTRIES : undefined}
         check={key === "targetRoles" ? (v) => checkRoles(v, seedRoles) : undefined}
         placeholder={
           {
@@ -288,20 +284,7 @@ function AnswerInput({
             avoidCompanies: "e.g. Acme, Globex",
           }[key]
         }
-        onSubmit={(v) => {
-          // "City, Country", "London" or "new york": the country is always resolved to its real
-          // name and the city, if any, kept separate.
-          if (key === "country") {
-            if (v.includes(",")) {
-              const parts = v.split(",").map((s) => s.trim()).filter(Boolean);
-              const place = parsePlace(parts.pop() ?? "", parts.join(", "));
-              return onAnswer({ country: place.country, city: place.city });
-            }
-            const place = parsePlace(v);
-            return onAnswer({ country: place.country, city: place.city });
-          }
-          onAnswer({ [key]: v });
-        }}
+        onSubmit={(v) => onAnswer({ [key]: v })}
       />
     );
   }
@@ -368,6 +351,73 @@ function SliderAnswer({ initial, onSubmit }: { initial: number; onSubmit: (n: nu
         Next
       </button>
     </div>
+  );
+}
+
+// Where you live: a country from the full list (popular ones first), then a city from that
+// country's list or typed. Nothing to spell, so the place is always one the app recognises.
+function PlaceAnswer({ country, city, cityOnly, onSubmit }: { country: string; city: string; cityOnly: boolean; onSubmit: (country: string, city: string) => void }) {
+  const [c, setC] = useState(country);
+  const [t, setT] = useState(city);
+  const cities = citiesOf(c);
+  const rest = COUNTRY_LIST.filter((x) => !POPULAR_COUNTRIES.includes(x));
+  return (
+    <form
+      className="w-full"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (c) onSubmit(c, t.trim());
+      }}
+    >
+      <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        {!cityOnly && (
+          <select className="field" value={c} onChange={(e) => (setC(e.target.value), setT(""))} aria-label="Country" autoFocus>
+            <option value="">Country</option>
+            <optgroup label="Most people here">
+              {POPULAR_COUNTRIES.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="All countries">
+              {rest.map((x) => (
+                <option key={x} value={x}>
+                  {x}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+        )}
+        <input
+          className="field"
+          list="unemploy-cities"
+          value={t}
+          onChange={(e) => setT(e.target.value)}
+          placeholder={c ? (cities.length ? `City in ${c}, or leave blank` : `City in ${c}, optional`) : "City, after the country"}
+          disabled={!c}
+          aria-label="City"
+          autoFocus={cityOnly}
+        />
+        <datalist id="unemploy-cities">
+          {cities.map((x) => (
+            <option key={x} value={x} />
+          ))}
+        </datalist>
+        <button className="btn btn-primary shrink-0" disabled={!c}>
+          {cityOnly && !t.trim() ? "Whole country" : "Next"}
+        </button>
+      </div>
+      {cities.length > 0 && !t && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {cities.slice(0, 8).map((x) => (
+            <button key={x} type="button" className="chip min-h-8 px-3 text-xs" onClick={() => setT(x)}>
+              {x}
+            </button>
+          ))}
+        </div>
+      )}
+    </form>
   );
 }
 
