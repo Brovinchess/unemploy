@@ -22,8 +22,8 @@ export const COGNITION_USD = 2.83 / 160;
 // Measured on real searches (Oct 2026): opening each posting and its form, reading them,
 // writing the pack and sending costs far more than first guessed. The per-job figure is
 // replaced by the headhunter's own history once it has some (see lib/cost.ts).
-export const BASE_COGNITION_PER_SEARCH = 30;
-export const DEFAULT_COGNITION_PER_JOB = 22;
+export const BASE_COGNITION_PER_SEARCH = 12; // reading the request and the check-first list
+export const DEFAULT_COGNITION_PER_JOB = 10; // ledger average since the budgeted brief (16 Oct 2026): about 30 a search for 2 to 3 jobs
 
 // People answer "no" or "none" to "any companies to avoid?". Those aren't company names.
 const NOTHING = new Set(["no", "none", "nope", "n/a", "na", "nil", "nothing", "-", "no one", "nobody"]);
