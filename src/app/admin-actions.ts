@@ -21,8 +21,8 @@ export async function runSearchFor(profileId: string): Promise<RunResult> {
 
 // Headhunters whose last search came back short (or who never searched), not searching now,
 // with cognition left for another go.
-export async function shortCandidates(minBalance = 40) {
-  await requireAdmin();
+export async function shortCandidates(zeroOnly = true, minBalance = 40) {
+  const admin = await requireAdmin();
   const rows = await db
     .select({ id: schema.profiles.id, username: schema.users.username, label: schema.profiles.label, balance: schema.profiles.balanceCache })
     .from(schema.profiles)
@@ -34,7 +34,10 @@ export async function shortCandidates(minBalance = 40) {
         isNotNull(schema.profiles.conversationAlias),
         or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt)),
         gte(schema.profiles.balanceCache, minBalance),
-        sql`coalesce((select coalesce(s.jobs_added, 0) < s.jobs_wanted from searches s where s.profile_id = ${schema.profiles.id} order by s.started_at desc limit 1), true)`,
+        zeroOnly
+          ? sql`coalesce((select coalesce(s.jobs_added, 0) = 0 from searches s where s.profile_id = ${schema.profiles.id} order by s.started_at desc limit 1), true)`
+          : sql`coalesce((select coalesce(s.jobs_added, 0) < s.jobs_wanted from searches s where s.profile_id = ${schema.profiles.id} order by s.started_at desc limit 1), true)`,
+        sql`${schema.profiles.userId} <> ${admin.id}`, // the owner runs their own by hand
       ),
     )
     .orderBy(desc(schema.profiles.balanceCache));
@@ -42,10 +45,10 @@ export async function shortCandidates(minBalance = 40) {
 }
 
 // Re-runs a search for every short candidate, one after another. Returns what happened to each.
-export async function rerunShortSearches(): Promise<RunResult[]> {
+export async function rerunShortSearches(zeroOnly = true): Promise<RunResult[]> {
   await requireAdmin();
   const out: RunResult[] = [];
-  for (const c of await shortCandidates()) {
+  for (const c of await shortCandidates(zeroOnly)) {
     out.push(await runSearchFor(c.id));
     await new Promise((r) => setTimeout(r, 1500));
   }

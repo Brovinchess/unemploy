@@ -37,21 +37,22 @@ export function RerunShort() {
   const [open, setOpen] = useState(false);
   const [list, setList] = useState<Awaited<ReturnType<typeof shortCandidates>>>();
   const [results, setResults] = useState<RunResult[]>();
+  const [zeroOnly, setZeroOnly] = useState(true);
   const [pending, start] = useTransition();
   const router = useRouter();
-  const load = () =>
+  const load = (z = zeroOnly) =>
     start(async () => {
-      setList(await shortCandidates());
+      setList(await shortCandidates(z));
       setOpen(true);
     });
   const run = () =>
     start(async () => {
-      setResults(await rerunShortSearches());
+      setResults(await rerunShortSearches(zeroOnly));
       router.refresh();
     });
   return (
     <div className="relative">
-      <button type="button" className="btn btn-ghost btn-sm" onClick={load} disabled={pending}>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => load()} disabled={pending}>
         <Play className="size-3.5" aria-hidden /> Re-run short searches
       </button>
       {open && (
@@ -72,7 +73,10 @@ export function RerunShort() {
             </>
           ) : (
             <>
-              <p className="font-medium text-white">{list?.length ?? 0} headhunters came back short and have cognition left.</p>
+              <p className="font-medium text-white">{list?.length ?? 0} headhunters {zeroOnly ? "found nothing last time" : "came back short"} and have cognition left.</p>
+              <label className="mt-2 flex items-center gap-2 text-xs text-white/70">
+                <input type="checkbox" checked={zeroOnly} onChange={(e) => (setZeroOnly(e.target.checked), load(e.target.checked))} /> Only the ones that found nothing
+              </label>
               <p className="admin-text-3 mt-1 text-xs">Each gets a fresh search with its own settings and the current brief. The person pays from their Mind. Only people with a verified email and updates on get an email at the end; the rest see the jobs on their next visit.</p>
               <ul className="mt-2 max-h-48 space-y-0.5 overflow-auto text-white/70">
                 {list?.map((c) => (

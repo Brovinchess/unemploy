@@ -18,7 +18,6 @@ import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
 import { guessName, parsePlace } from "@/lib/normalise";
 import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
-import { costModel } from "@/lib/cost";
 import { PENDING_LABEL, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
