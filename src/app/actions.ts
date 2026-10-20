@@ -3,14 +3,14 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { and, count, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import type { JobStatus, Profile, User } from "@/db/schema";
 import { BRIEF_VERSION, buildBrief } from "@/lib/brief";
 import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
-import { minds, LoginExpiredError, type Attachment } from "@/lib/minds/client";
+import { minds } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
@@ -18,21 +18,16 @@ import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
 import { guessName, parsePlace } from "@/lib/normalise";
 import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
-import { localEmployers } from "@/lib/pool";
 import { costModel } from "@/lib/cost";
-import { estimateSearchCost, PENDING_LABEL, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences, postingAgeDays } from "@/lib/preferences";
+import { PENDING_LABEL, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { blockedHosts, endSearch, ingestReachable, isSearching, lastSearchLine, requestPacks, searchRequestText, skipLinks, switchOff } from "@/lib/search";
+import { endSearch, isSearching, requestPacks, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
+import { friendly, resumeAttachment, startSearch } from "@/lib/start-search";
 
 export type FormState = { error?: string } | undefined;
 
-function friendly(e: unknown): string {
-  if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Sign out from Settings and sign in again.";
-  console.error(e);
-  return "Hello Minds didn't respond. Please try again in a minute.";
-}
 
 // ---------- Welcome ----------
 
@@ -274,14 +269,6 @@ async function readResume(formData: FormData) {
   } as const;
 }
 
-function resumeAttachment(p: Pick<Profile, "resumeFileName" | "resumeMime" | "resumeData">): Attachment {
-  return {
-    fileName: p.resumeFileName!,
-    mimeType: p.resumeMime!,
-    extension: p.resumeFileName!.split(".").pop()!.toLowerCase(),
-    content: p.resumeData!,
-  };
-}
 
 export async function uploadResume(profileId: string, _: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
@@ -422,94 +409,8 @@ export async function setPaused(profileId: string, paused: boolean): Promise<For
 export async function requestSearch(profileId: string, jobs: number, focus = ""): Promise<FormState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  const wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
-  const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
-  if (profile.status === "paused") return { error: "This headhunter is paused. Resume it first." };
-  if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
-  if (isSearching(profile)) return;
-  if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
-    return { error: "Your headhunter can't reach this computer from the internet, so it wasn't started. (Local setup: INGEST_URL must be a public address.)" };
-  }
-  if (mindsMode === "live" && !(await ingestReachable())) {
-    return { error: "Your headhunter couldn't reach Career Ninja just now, so the search wasn't started. Try again in a minute." };
-  }
-  const api = minds(user);
-  try {
-    const balance = await api.getBalance(profile.mindId);
-    if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
-    const { perJob } = await costModel(profile.id);
-    const need = estimateSearchCost(wanted, perJob).cognition;
-    if (need > balance) {
-      return { error: `That search needs roughly ${need} cognition and ${Math.round(balance)} is left. Pick fewer jobs or top up.` };
-    }
-    const [{ n }] = await db
-      .select({ n: count() })
-      .from(schema.ingestLog)
-      .where(eq(schema.ingestLog.profileId, profile.id));
-    // The chosen number becomes this search's quota (checked at ingest) and the next default.
-    // Conditional on no search being open: two clicks (two tabs, a retry) start one search, not two.
-    const started = await db
-      .update(schema.profiles)
-      .set({
-        searchStartedAt: new Date(),
-        searchEndedAt: null,
-        ...(profile.preferences ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
-      })
-      .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
-      .returning({ id: schema.profiles.id });
-    if (!started.length) return;
-    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
-    track(user.id, "search_requested", { jobs: wanted, search_number: n + 1 });
-    await api.setEnabled(profile.mindId, true);
-    // Anything changed since the Mind last heard from us goes in this same message: a new brief
-    // after the request, a new resume as an attachment. One message, one wake.
-    const synced = profile.briefedAt?.getTime() ?? 0;
-    const newBrief = !!profile.preferences && ((profile.prefsChangedAt?.getTime() ?? 0) > synced || profile.briefVersion < BRIEF_VERSION);
-    const newResume = (profile.resumeChangedAt?.getTime() ?? 0) > synced && !!profile.resumeData;
-    const notes = [
-      newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full` : "",
-      newResume ? `my resume changed; the new file is attached (see the first line above)` : "",
-    ].filter(Boolean);
-    const changes =
-      (notes.length ? `\n\nCHANGES SINCE LAST TIME, read before you start: ${notes.join(". ")}.` : "") +
-      (newBrief
-        ? "\n\n---\n\n" +
-          buildBrief({
-            ownerName: user.username!,
-            profileLabel: profile.label,
-            prefs: { ...profile.preferences!, jobsPerDay: wanted },
-            timezone: user.timezone ?? "UTC",
-            appUrl: mindsConfig.ingestUrl,
-            ingestKey: "(the same key as before)",
-            resumeAttached: newResume,
-            facts: factsText(user),
-          })
-        : "");
-    await api.sendMessage(
-      profile.conversationAlias,
-      searchRequestText({
-        username: user.username!,
-        jobs: wanted,
-        n: n + 1,
-        focus: note || undefined,
-        skip: await skipLinks(user.id, profile.id),
-        blocked: await blockedHosts(profile.id),
-        employers: profile.preferences ? await localEmployers(profile.preferences).catch(() => []) : [],
-        lastTime: await lastSearchLine(profile.id),
-        maxAgeDays: profile.preferences ? postingAgeDays(profile.preferences) : undefined,
-        resumeChanged: newResume,
-        facts: newBrief ? "" : factsText(user), // a new brief below already carries it
-      }) + changes,
-      newResume ? [resumeAttachment(profile)] : undefined,
-    );
-    // The Mind is now up to date with everything saved before this moment.
-    if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date(), ...(newBrief ? { briefVersion: BRIEF_VERSION } : {}) }).where(eq(schema.profiles.id, profile.id));
-  } catch (e) {
-    // The request never reached the Mind: close what was opened so nothing shows "in progress".
-    await db.update(schema.profiles).set({ searchEndedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
-    await db.delete(schema.searches).where(and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)));
-    return { error: friendly(e) };
-  }
+  const r = await startSearch(user, profile, jobs, focus);
+  if (r?.error) return r;
   revalidatePath("/app", "layout");
 }
 

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ratio, sortParams, when } from "@/lib/admin";
 import { headhunters } from "@/lib/admin-data";
 import { Badge, Clamp, ClearLink, FilterForm, Page, PageHead, Select, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
+import { RerunShort, RunOne } from "./run-buttons";
 
 const BASE = "/admin/headhunters";
 const STATUSES = ["draft", "needs_resume", "needs_preferences", "needs_topup", "hunting", "paused"];
@@ -19,11 +20,14 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
         title={`${total} headhunters`}
         description={`${deployed} deployed, ${hunting} hunting, ${paused} paused.`}
         controls={
-          <FilterForm q={q}>
-            <TextInput name="user" value={q.user} placeholder="User" size={14} />
-            <Select name="status" value={q.status} blank="Any status" options={STATUSES.map((s) => [s, s.replace(/_/g, " ")])} />
-            {(q.status || q.user) && <ClearLink href={BASE} />}
-          </FilterForm>
+          <>
+            <RerunShort />
+            <FilterForm q={q}>
+              <TextInput name="user" value={q.user} placeholder="User" size={14} />
+              <Select name="status" value={q.status} blank="Any status" options={STATUSES.map((s) => [s, s.replace(/_/g, " ")])} />
+              {(q.status || q.user) && <ClearLink href={BASE} />}
+            </FilterForm>
+          </>
         }
       />
       <div className="mt-6">
@@ -31,7 +35,7 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
           head={[
             col("user", "User"), col("label", "Label"), col("mind", "Mind name"), col("status", "Status"), col("roles", "Roles"), col("place", "Place"), col("settings", "Work settings"),
             col("perSearch", "Jobs / search"), col("age", "Posting age"), col("searches", "Searches"), col("jobs", "Jobs"), col("jobsPerSearch", "Jobs per search"),
-            col("avgMinutes", "Avg min / search"), col("perJob", "Cognition / job"), col("lastSearch", "Last search"), col("lastDelivery", "Last delivery"),
+            col("avgMinutes", "Avg min / search"), col("perJob", "Cognition / job"), col("lastSearch", "Last search"), col("lastDelivery", "Last delivery"), "",
           ]}
           empty="No headhunters match these filters."
           rows={rows.map((r) => [
@@ -51,6 +55,7 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
             r.perJob != null ? Math.round(r.perJob) : "",
             when(r.lastSearch),
             when(r.lastDeliveryAt),
+            <RunOne key="run" profileId={r.id} disabled={r.status !== "hunting"} />,
           ])}
         />
       </div>
