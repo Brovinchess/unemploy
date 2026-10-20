@@ -538,6 +538,7 @@ export type SearchDetail = {
   refused: { code: string; url: string; hint: string }[];
   usage: { label: string; calls: number; cognition: number }[]; // where the cognition went, per tool
   usageLive: boolean; // read from Hello Minds just now (search still open)
+  chat: { at: Date; fromMind: boolean; text: string }[]; // the conversation since the search started, newest last
 };
 
 export const searchDetail = (id: string) => memo(`search:${id}`, DETAIL_TTL, () => loadSearchDetail(id));
@@ -551,7 +552,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     .select({
       id: schema.searches.id, startedAt: schema.searches.startedAt, endedAt: schema.searches.endedAt, endReason: schema.searches.endReason, jobsWanted: schema.searches.jobsWanted, jobsAdded: schema.searches.jobsAdded,
       focus: schema.searches.focus, nudgedAt: schema.searches.nudgedAt, balanceStart: schema.searches.balanceStart, balanceEnd: schema.searches.balanceEnd, cognitionUsed: schema.searches.cognitionUsed, profileId: schema.searches.profileId,
-      poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary, toolUsage: schema.searches.toolUsage, mindId: schema.profiles.mindId,
+      poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary, toolUsage: schema.searches.toolUsage, mindId: schema.profiles.mindId, alias: schema.profiles.conversationAlias,
       pId: schema.profiles.id, label: schema.profiles.label, mindName: schema.profiles.mindName, status: schema.profiles.status, preferences: schema.profiles.preferences,
       uId: schema.users.id, username: schema.users.username,
     })
@@ -600,14 +601,28 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
   // Where the cognition went. Stored at the end of a search; read live from Hello Minds while it runs.
   let usageMap = row.toolUsage ?? null;
   let usageLive = false;
-  if (!usageMap && !row.endedAt && row.mindId && row.uId) {
+  // What was said in the conversation since the search started: our request, the Mind's replies.
+  // The one place to see a Mind that answered in words instead of searching.
+  let chat: SearchDetail["chat"] = [];
+  if (row.uId && (row.mindId || row.alias)) {
     try {
       const owner = await db.query.users.findFirst({ where: eq(schema.users.id, row.uId) });
       if (owner) {
-        const since = new Date(row.startedAt);
-        since.setUTCMinutes(0, 0, 0);
-        usageMap = usageByTool(await minds(owner).toolUsage(row.mindId, since));
-        usageLive = true;
+        const api = minds(owner);
+        if (!usageMap && !row.endedAt && row.mindId) {
+          const since = new Date(row.startedAt);
+          since.setUTCMinutes(0, 0, 0);
+          usageMap = usageByTool(await api.toolUsage(row.mindId, since));
+          usageLive = true;
+        }
+        if (row.alias) {
+          const from = row.startedAt.getTime() - 60_000;
+          const to = (row.endedAt?.getTime() ?? Date.now()) + 60_000;
+          chat = (await api.history(row.alias, 40))
+            .filter((m) => m.at.getTime() >= from && m.at.getTime() <= to)
+            .sort((a, b) => a.at.getTime() - b.at.getTime())
+            .map((m) => ({ at: m.at, fromMind: m.fromMind, text: m.text }));
+        }
       }
     } catch (e) {
       console.error("[admin] ledger", e);
@@ -632,6 +647,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     pushes: pushes.map((p) => ({ id: p.id, createdAt: p.createdAt, dryRun: p.dryRun, accepted: p.accepted, rejected: p.rejected, codes: codesOf(p.detail) })),
     usage,
     usageLive,
+    chat,
     refused: pushes.flatMap((p) => pushDetails(p.detail).filter((x) => x.code).map((x) => ({ code: x.code!, url: x.url ?? "", hint: x.hint ?? "" }))),
   };
 }

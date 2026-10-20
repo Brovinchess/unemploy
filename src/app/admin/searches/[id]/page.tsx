@@ -10,7 +10,7 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
   const { id } = await params;
   const data = await searchDetail(id);
   if (!data) notFound();
-  const { search, profile, user, open, minutes, cognition, events, jobs, leads, leadsByReason, leadGroups, pushes, refused, usage, usageLive } = data;
+  const { search, profile, user, open, minutes, cognition, events, jobs, leads, leadsByReason, leadGroups, pushes, refused, usage, usageLive, chat } = data;
 
   const mood: Mood = open ? "searching" : search.endReason === "finished" ? "happy" : "sad";
   const who = `${user?.username ?? "(no name yet)"}${profile ? ` · ${profile.label}${profile.mindName ? ` (${profile.mindName})` : ""}` : ""}`;
@@ -90,6 +90,33 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
           empty="Nothing recorded yet."
           emptyMood="sleeping"
         />
+      </div>
+
+      <SectionTitle title="What was said" hint="The conversation with the Mind since this search started, read from Hello Minds. Our request is folded; the Mind's replies are in full." />
+      <div className="mt-3">
+        <Card>
+          {chat.length ? (
+            <ol className="divide-y divide-line">
+              {chat.map((m, i) => (
+                <li key={i} className="py-3">
+                  <p className="text-xs text-muted">
+                    {when(m.at)} · {m.fromMind ? <span className="font-medium text-ink">the Mind</span> : "Career Ninja"}
+                  </p>
+                  {m.fromMind ? (
+                    <p className="mt-1 whitespace-pre-wrap text-sm leading-relaxed">{m.text || "(empty reply)"}</p>
+                  ) : (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer text-sm text-muted">{m.text.slice(0, 120).replace(/\s+/g, " ")}…</summary>
+                      <pre className="mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-surface p-3 text-xs leading-relaxed">{m.text}</pre>
+                    </details>
+                  )}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <Empty mood="sleeping">Nothing in the conversation for this window, or Hello Minds could not be read.</Empty>
+          )}
+        </Card>
       </div>
 
       <SectionTitle title={`Jobs delivered (${jobs.length})`} />
