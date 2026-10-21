@@ -13,6 +13,8 @@ import { NewJobs } from "@/components/new-jobs";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
+import { searchOutcome } from "@/lib/outcome";
+import { SearchOutcome } from "@/components/search-outcome";
 import { costModel } from "@/lib/cost";
 import { detailsComplete, isSupported } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
@@ -56,6 +58,8 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   const other = applyUrls.length - ready;
   const toApply = applyUrls.length;
   const coach = user.coachReminders ? await coachFor(current) : null;
+  // The last search came back short: one card on what to do next, where the job cards would be.
+  const outcome = await searchOutcome(current, { topUpUrl: topUpUrlFor(current.mindId) });
   const applyAll = (
     <ApplyAllButton
       count={ready}
@@ -199,6 +203,11 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             </p>
             <div className="mt-8 w-full max-w-md">{searchButton(true)}</div>
           </section>
+        )}
+
+        {/* The last search came back with less than asked: what to do next, in one card. */}
+        {fresh.length === 0 && !searching && everDelivered && outcome && (
+          <SearchOutcome profileId={current.id} outcome={outcome} after={outcome.kind === "partial" ? undefined : searchButton()} />
         )}
 
         {/* Everything found so far, in one list. */}

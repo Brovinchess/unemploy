@@ -16,6 +16,7 @@ export type Event =
   | "search_requested"
   | "packs_requested"
   | "packs_unaffordable"
+  | "outcome_fix_applied"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";

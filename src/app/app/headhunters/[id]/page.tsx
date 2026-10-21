@@ -16,6 +16,8 @@ import { SearchButton } from "@/components/search-button";
 import { MochiAtWork, SearchingLine } from "@/components/searching-status";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { coachFor } from "@/lib/coach-ui";
+import { searchOutcome } from "@/lib/outcome";
+import { SearchOutcome } from "@/components/search-outcome";
 import { costModel } from "@/lib/cost";
 import { DROP_LABELS, dropAdvice } from "@/lib/dropped";
 import { topUpUrlFor } from "@/lib/minds/config";
@@ -51,6 +53,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   const searching = isSearching(current);
   const paused = current.status === "paused";
   const coach = user.coachReminders ? await coachFor(current) : null;
+  const outcome = await searchOutcome(current, { topUpUrl: topUpUrlFor(current.mindId) });
   const prefs = current.preferences;
   const perSearch = prefs?.jobsPerDay ?? 5;
 
@@ -193,8 +196,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                 })}
               </ul>
             )}
-            {lastLine?.why && <p className="mt-4 text-sm text-white/55">{lastLine.why}</p>}
-            {lastLine?.fix && (
+            {!outcome && lastLine?.why && <p className="mt-4 text-sm text-white/55">{lastLine.why}</p>}
+            {!outcome && lastLine?.fix && (
               <p className="mt-1 text-sm text-coral">
                 <a href="#looks-for" className="underline underline-offset-4">
                   {lastLine.fix}
@@ -202,6 +205,12 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               </p>
             )}
           </section>
+        )}
+
+        {outcome && !searching && (
+          <div className="mt-6">
+            <SearchOutcome profileId={current.id} outcome={outcome} />
+          </div>
         )}
 
         {/* What it works from. */}

@@ -7,7 +7,8 @@ import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { track } from "./analytics/server";
-import { mindsConfig } from "./minds/config";
+import { mindsConfig, topUpUrlFor } from "./minds/config";
+import { searchOutcome } from "./outcome";
 import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
 import { PACK_RULES } from "./brief";
@@ -360,7 +361,8 @@ async function emailResults(profile: Profile, reason: EndReason) {
     orderBy: desc(schema.jobs.matchScore),
   });
   const search = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, profile.id), orderBy: desc(schema.searches.startedAt) });
-  const short = search && (search.jobsAdded ?? 0) < search.jobsWanted ? await shortLine(profile, search) : undefined;
+  const outcome = search && (search.jobsAdded ?? 0) < search.jobsWanted ? await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null) : null;
+  const short = outcome ? `${outcome.headline} ${outcome.body}` : search && (search.jobsAdded ?? 0) < search.jobsWanted ? await shortLine(profile, search) : undefined;
   await sendSearchDoneEmail({
     to: user.email,
     mindName: profile.mindName ?? "Your headhunter",
