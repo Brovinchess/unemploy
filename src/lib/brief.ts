@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 7;
+export const BRIEF_VERSION = 8;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -33,15 +33,18 @@ export function buildBrief(args: {
   profileLabel: string;
   prefs: Preferences;
   resumeAttached?: boolean; // false when re-briefing without a new resume
+  resumeInline?: boolean; // the resume's text rides in the message; no file to read
   timezone: string;
   appUrl: string;
   ingestKey: string;
   facts?: string; // ABOUT ME block from factsText(); empty until the person fills in details
 }) {
-  const { ownerName, profileLabel, prefs, appUrl, ingestKey, resumeAttached = true, facts = "" } = args;
-  const resumeLine = resumeAttached
-    ? "My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume."
-    : "You already have my resume saved in your memory; keep working from that copy.";
+  const { ownerName, profileLabel, prefs, appUrl, ingestKey, resumeAttached = true, resumeInline = false, facts = "" } = args;
+  const resumeLine = resumeInline
+    ? "My resume comes as plain text with every message that needs it (marked MY RESUME). Quote from that text. Never open or analyse a file for it."
+    : resumeAttached
+      ? "My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume."
+      : "You already have my resume saved in your memory; keep working from that copy.";
   const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
   const remote = prefs.workSettings.includes("remote")
     ? `Remote jobs: ${REMOTE_SCOPES.find((r) => r.value === prefs.remoteScope)?.label.toLowerCase()}.`
@@ -58,7 +61,7 @@ HOW WE WORK
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
   5. Every lead you drop goes in the same POST under "dropped": one line each, with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a note under ten words. Only when you opened a posting that is still open and dropped it as poor_fit, not_eligible, work_setting or duplicate, add a short "posting": url, title, company, city, country, workSetting, postedAt, locationText. Nothing more, and never for closed, too old or unreachable ones. Never open a posting just to fill this in.
   6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later job pushes are refused.
-  7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link. Only then open its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. The writing rules come with each PACK REQUEST. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
+  7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link and, when the app could read the form, its questions. Use that list and do not open the form; only when the request says the app could not read it, open the form once and copy its questions into "formQuestions" (skip name, email, phone, resume and cover letter). Then write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. The writing rules come with each PACK REQUEST. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}${rolesNote(prefs.targetRoles)}
@@ -84,6 +87,8 @@ BUDGET (every search and every page you open costs me)
 - Per search: at most 12 web searches and 40 opened postings in total, across all rungs. Count them. When you reach either, POST {"jobs":[],"final":true} with what you have.
 - Open a posting only after it has passed KILL ON SIGHT. Never open a company's whole careers board.
 - Write short: progress notes one line, dropped notes under ten words, postings only as step 5 says.
+- Never run code, for anything. Read pages directly. A code run costs me fifteen times a web search and has never found a job that reading did not.
+- Never open or analyse a file. My resume comes as text; form questions come with each PACK REQUEST.
 
 STOP
 - Quota reached: POST {"jobs":[],"final":true} and stop.
@@ -91,6 +96,7 @@ STOP
 - Two hours in, whatever the count: final, same one line.
 Dropping most leads is normal. Never stop early because leads keep failing; move to the next rung instead.
 - A search or page that is cancelled, times out or errors: try once more with a different query or source, then move on. Never wait on a tool and never stop to ask me a question mid-search. If something you need is missing, do your best with what you have and say so in your final line.
+- Three web searches in a row that fail or come back empty with an error: the search tool is down. Stop, POST {"jobs":[],"final":true} with the one line "search tool failing", and wait for my next request. Do not keep retrying; every try costs me.
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).

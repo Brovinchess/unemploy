@@ -1,7 +1,8 @@
 import "server-only";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { Profile } from "@/db/schema";
+import type { FormQuestion, Profile } from "@/db/schema";
+import { fetchFormQuestions } from "./forms";
 import { sendSearchDoneEmail } from "./email";
 import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
@@ -18,6 +19,8 @@ import type { DropReason } from "@/db/schema";
 // the Mind is switched off so it can't wake (and spend) on its own.
 // The brief tells the Mind to stop at two hours; the app gives it half an hour of slack.
 export const SEARCH_TIMEOUT_MS = 2.5 * 60 * 60 * 1000;
+// Resume text sent in messages is cut here; a page and a half of plain text covers any resume.
+export const RESUME_TEXT_MAX = 9000;
 
 type SearchFields = Pick<Profile, "searchStartedAt" | "searchEndedAt">;
 
@@ -93,12 +96,15 @@ export function searchRequestText(args: {
   maxAgeDays?: number;
   resumeChanged?: boolean;
   facts?: string;
+  resumeText?: string; // the resume as text, sent with every request so no file is ever read
 }) {
-  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "" } = args;
+  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "" } = args;
   const base = mindsConfig.ingestUrl;
-  const resume = resumeChanged
-    ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
-    : "My resume is attached in case you need it. Use the copy already in your memory; only if you no longer have its text, read the attached file once and keep it. Never stop to ask me for it.";
+  const resume = resumeText
+    ? `${resumeChanged ? "My resume changed; the new text is at the end of this message and replaces the old one." : "My resume's full text is at the end of this message."} Quote from it; do not open any file for it.`
+    : resumeChanged
+      ? "My resume changed: the new file is attached. Read it once, replace the copy in your memory with its full text, and quote only this one from now on."
+      : "My resume is attached in case you need it. Use the copy already in your memory; only if you no longer have its text, read the attached file once and keep it. Never stop to ask me for it.";
   return [
     `SEARCH REQUEST #${n} from ${username}. ${resume}`,
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
@@ -112,6 +118,7 @@ export function searchRequestText(args: {
     blocked.length ? `These hosts blocked you recently; skip them this search: ${blocked.join(", ")}.` : "",
     skip.length ? `SKIP LIST, already judged, do not open again:\n${skip.join("\n")}` : "",
     facts ? `${facts}\n${FACTS_RULE} This replaces anything in your brief that says such questions are not yours to answer.` : "",
+    resumeText ? `MY RESUME, full text.\n${resumeText}` : "",
     `When you have stopped for good, POST {"jobs":[],"final":true} with one line on how it went. "final" closes the search, so never put it on a mid-search push. If you can't reach ${base}, reply once to say so, then stop. Then wait for my next request. (${new Date().toISOString()})`,
   ]
     .filter(Boolean)
@@ -137,19 +144,37 @@ export async function jobsNeedingPacks(profileId: string) {
     .limit(30);
 }
 
-export function packRequestText(username: string, jobs: { title: string; company: string; url: string }[], facts: string) {
+export type PackJob = { title: string; company: string; url: string; questions?: FormQuestion[] | null };
+
+// One job's lines in a pack request. When the app could read the form, its questions are listed
+// and the Mind must not open the form at all; otherwise the Mind reads the form as before.
+function packJobText(j: PackJob, i: number) {
+  const head = `${i + 1}. ${j.title} at ${j.company}: ${j.url}`;
+  if (!j.questions) return `${head}\n   Form questions: not read by the app. Open the application form once, copy its questions into "formQuestions", and answer them.`;
+  if (!j.questions.length) return `${head}\n   Form questions: none beyond name, contact details and resume. Do not open the form. Send "formQuestions": [].`;
+  const qs = j.questions.map((q) => `   - ${q.question}${q.options?.length ? ` (choose one: ${q.options.slice(0, 12).join(" / ")}${q.options.length > 12 ? " / …" : ""})` : ""}${q.required ? " (required)" : ""}`).join("\n");
+  return `${head}\n   Form questions, read by the app from the form itself. Do not open the form, do not run code; answer from this list and send it back as "formQuestions":\n${qs}`;
+}
+
+export function packRequestText(username: string, jobs: PackJob[], facts: string, resumeText = "") {
   const base = mindsConfig.ingestUrl;
   return [
     `PACK REQUEST from ${username}. I kept ${jobs.length === 1 ? "this job" : `these ${jobs.length} jobs`}; write the application pack for ${jobs.length === 1 ? "it" : "each"} now.`,
-    jobs.map((j, i) => `${i + 1}. ${j.title} at ${j.company}: ${j.url}`).join("\n"),
-    `For each: open the posting and its application form, copy every question into "formQuestions" (skip name, email, phone, resume and cover letter), and write the pack in English: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Do not search for new jobs now; packs only.`,
+    jobs.map(packJobText).join("\n\n"),
+    `For each: open the posting itself once for the job's wording, then write the pack in English: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. Skip questions about gender, ethnicity, disability or veteran status. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Never run code. Do not search for new jobs now; packs only.`,
     `WRITING RULES\n${PACK_RULES}`,
     `${facts ? `${facts}\n` : ""}${FACTS_RULE}`,
+    resumeText ? `MY RESUME, full text. Quote from this; do not open any file.\n${resumeText}` : "",
     `Reply with one line when all are sent. (${new Date().toISOString()})`,
   ]
     .filter(Boolean)
     .join("\n\n");
 }
+
+// What one pack costs on the ledger once the app hands over the form questions: a page read for
+// the posting and the writing. Asking for packs the Mind can't pay for only drives the balance
+// below zero, which Hello Minds allows.
+export const PACK_COGNITION = 15;
 
 // Asks the headhunter for the packs of kept jobs that have none. Safe to call often: each job
 // is claimed before the message goes out, so two swipes close together send one request.
@@ -168,8 +193,23 @@ export async function requestPacks(profileId: string) {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user) return;
   const api = minds(user);
+  const balance = await api.getBalance(profile.mindId).catch(() => null);
+  if (balance != null && balance < PACK_COGNITION * claimed.length) {
+    // Not enough to write them. Release the claim so the next visit, after a top-up, asks again.
+    await db.update(schema.jobs).set({ packRequestedAt: null }).where(inArray(schema.jobs.id, claimed.map((j) => j.id)));
+    track(profile.userId, "packs_unaffordable", { jobs: claimed.length, balance: Math.round(balance) });
+    return;
+  }
+  // The form's questions, read from the job system here so the Mind doesn't open the form.
+  const jobs: PackJob[] = await Promise.all(
+    claimed.map(async (j) => {
+      const questions = await fetchFormQuestions(j.url);
+      if (questions) await db.update(schema.jobs).set({ formQuestions: questions }).where(eq(schema.jobs.id, j.id));
+      return { ...j, questions };
+    }),
+  );
   await api.setEnabled(profile.mindId, true);
-  await api.sendMessage(profile.conversationAlias, packRequestText(user.username ?? "me", claimed, factsText(user)));
+  await api.sendMessage(profile.conversationAlias, packRequestText(user.username ?? "me", jobs, factsText(user), profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? ""));
   await db.update(schema.profiles).set({ packRequestedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   track(profile.userId, "packs_requested", { jobs: claimed.length });
 }

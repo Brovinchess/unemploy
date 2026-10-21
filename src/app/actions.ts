@@ -21,7 +21,7 @@ import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "
 import { PENDING_LABEL, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
-import { endSearch, isSearching, requestPacks, switchOff } from "@/lib/search";
+import { endSearch, isSearching, requestPacks, RESUME_TEXT_MAX, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 import { friendly, resumeAttachment, startSearch } from "@/lib/start-search";
 
@@ -224,8 +224,10 @@ async function startHunting(user: User, profile: Profile): Promise<{ error?: str
       appUrl: mindsConfig.ingestUrl,
       ingestKey,
       facts: factsText(user),
-    }),
-    [resumeAttachment(profile)],
+      resumeAttached: !profile.resumeText,
+      resumeInline: !!profile.resumeText,
+    }) + (profile.resumeText ? `\n\nMY RESUME, full text.\n${profile.resumeText.slice(0, RESUME_TEXT_MAX)}` : ""),
+    profile.resumeText ? undefined : [resumeAttachment(profile)],
   );
   await db
     .update(schema.profiles)

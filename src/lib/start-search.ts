@@ -10,7 +10,7 @@ import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
 import { localEmployers } from "./pool";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH } from "./preferences";
-import { blockedHosts, ingestReachable, isSearching, lastSearchLine, searchRequestText, skipLinks } from "./search";
+import { blockedHosts, ingestReachable, isSearching, lastSearchLine, RESUME_TEXT_MAX, searchRequestText, skipLinks } from "./search";
 
 export type SearchStart = { error?: string } | undefined;
 
@@ -104,7 +104,8 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
             timezone: user.timezone ?? "UTC",
             appUrl: mindsConfig.ingestUrl,
             ingestKey: "(the same key as before)",
-            resumeAttached: newResume,
+            resumeAttached: newResume && !profile.resumeText,
+            resumeInline: !!profile.resumeText,
             facts: factsText(user),
           })
         : "");
@@ -122,10 +123,11 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
         maxAgeDays: profile.preferences ? postingAgeDays(profile.preferences) : undefined,
         resumeChanged: newResume,
         facts: newBrief ? "" : factsText(user), // a new brief below already carries it
+        resumeText: profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? "",
       }) + changes,
-      // Always along for the ride: a Mind that has lost the text of the resume reads it again
-      // instead of stopping to ask. Reading costs only when it happens.
-      profile.resumeData ? [resumeAttachment(profile)] : undefined,
+      // The resume travels as text inside the message (free to read). The file goes only when
+      // there is no text for it, so a Mind that lost the resume can still read it.
+      profile.resumeData && !profile.resumeText ? [resumeAttachment(profile)] : undefined,
     );
     // The Mind is now up to date with everything saved before this moment.
     if (newBrief || newResume) await db.update(schema.profiles).set({ briefedAt: new Date(), ...(newBrief ? { briefVersion: BRIEF_VERSION } : {}) }).where(eq(schema.profiles.id, profile.id));
