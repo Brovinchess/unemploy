@@ -4,6 +4,9 @@ export const BUILDER_API = "https://api.build.hellominds.ai";
 export const OAUTH_API = "https://api.oauth.hellominds.ai";
 
 export const OAUTH_SCOPES = [
+  // The account email, so search results and reminders can reach people without a second
+  // sign-up step. Dropped automatically if the OAuth client is not allowed to ask for it.
+  "email",
   "minds:list",
   "minds:status",
   "minds:cognition",

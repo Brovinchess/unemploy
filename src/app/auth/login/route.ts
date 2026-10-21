@@ -5,6 +5,7 @@ import { launchMode } from "@/lib/launch";
 import { mindsMode } from "@/lib/minds/config";
 import { hasEncryptionKey } from "@/lib/crypto";
 import { createPkce, loginUrl } from "@/lib/minds/oauth";
+import { OAUTH_SCOPES } from "@/lib/minds/config";
 import { createSession } from "@/lib/session";
 import { attachReferral, REF_COOKIE } from "@/lib/referrals";
 
@@ -38,13 +39,15 @@ export async function GET(request: Request) {
   }
 
   const { verifier, challenge, state } = createPkce();
+  // Second try without the email scope, when the first was refused for asking for it.
+  const noEmail = new URL(request.url).searchParams.get("noemail") === "1";
   // The verifier must survive the round trip to Hello Minds and back.
-  jar.set("unemploy_pkce", JSON.stringify({ verifier, state }), {
+  jar.set("unemploy_pkce", JSON.stringify({ verifier, state, noEmail }), {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/auth",
     maxAge: 600,
   });
-  return NextResponse.redirect(loginUrl(challenge, state));
+  return NextResponse.redirect(loginUrl(challenge, state, noEmail ? OAUTH_SCOPES.filter((x) => x !== "email") : OAUTH_SCOPES));
 }
