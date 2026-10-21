@@ -185,25 +185,26 @@ export async function AppShell({
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Small screens: logo, tabs, headhunter switcher */}
         <header className="sticky top-0 z-20 border-b border-white/[0.06] bg-night/90 backdrop-blur lg:hidden">
-          <div className="flex h-14 items-center gap-4 px-4">
-            <Link href="/app" aria-label="Career Ninja">
+          <div className="flex h-14 items-center gap-3 px-3">
+            <Link href="/app" aria-label="Career Ninja" className="shrink-0">
               <Ninja className="size-8" />
             </Link>
-            <nav className="flex flex-1 gap-1" aria-label="Main">
+            {/* The tabs give way before the icons do: on the narrowest phones they scroll. */}
+            <nav className="flex min-w-0 flex-1 gap-0.5 overflow-x-auto" aria-label="Main">
               {nav.map((n) => (
                 <Link
                   key={n.id}
                   href={n.href}
-                  className={`rounded-full px-3 py-1.5 text-sm ${tab === n.id ? "bg-white/[0.08] text-white" : "text-white/55"}`}
+                  className={`shrink-0 rounded-full px-2.5 py-1.5 text-sm ${tab === n.id ? "bg-white/[0.08] text-white" : "text-white/55"}`}
                 >
                   {n.label}
                 </Link>
               ))}
             </nav>
-            <span className={`text-xs ${low ? "text-rose" : "text-white/50"}`}>
+            <span className={`shrink-0 text-xs ${low ? "text-rose" : "text-white/50"}`}>
               <LiveCognitionShort perJob={perJob} />
             </span>
-            <Link href="/app/settings" className={`flex size-8 items-center justify-center rounded-full ${tab === "settings" ? "text-white" : "text-white/50"}`} title="Settings">
+            <Link href="/app/settings" className={`flex size-8 shrink-0 items-center justify-center rounded-full ${tab === "settings" ? "text-white" : "text-white/50"}`} title="Settings">
               <Settings className="size-4" aria-hidden />
               <span className="sr-only">Settings</span>
             </Link>

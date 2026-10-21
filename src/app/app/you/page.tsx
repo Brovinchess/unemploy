@@ -45,8 +45,8 @@ export default async function YouPage() {
 
         {/* Details on the left and first in the page, since they answer most forms; the questions
             that still need the person on the right. One column on phones, details first. */}
-        <div className="mt-8 grid gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start">
-          <div className="space-y-4 md:sticky md:top-6">
+        <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start">
+          <div className="min-w-0 space-y-4 md:sticky md:top-6">
             <div className="rise rise-1">
               <DetailsCard initial={user.applicant ?? null} suggested={suggested} />
             </div>
@@ -66,7 +66,7 @@ export default async function YouPage() {
             </section>
           </div>
 
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             {items.length ? (
               <section id="needs-you" className="rise rise-2 scroll-mt-8 rounded-3xl bg-surface p-6 md:p-8">
                 <div className="flex items-start gap-4">
