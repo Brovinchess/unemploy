@@ -4,6 +4,8 @@ import { and, desc, eq, gte, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { requireAdmin } from "@/lib/admin";
 import { endSearch, isSearching } from "@/lib/search";
+import { decrypt } from "@/lib/crypto";
+import { tokenClaimKeys, tokenEmail } from "@/lib/minds/oauth";
 import { startSearch } from "@/lib/start-search";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
@@ -71,4 +73,47 @@ export async function rerunShortSearches(zeroOnly = true): Promise<RunResult[]> 
     await new Promise((r) => setTimeout(r, 1500));
   }
   return out;
+}
+
+
+// ---- Sign-in tokens: what they carry --------------------------------------------------------
+// People who signed in before the email scope was asked for have tokens granted without it. If
+// those tokens carry the address anyway, it can be filled in from here without a new sign-in.
+
+export type TokenCheck = { checked: number; withEmail: number; fields: string[]; scopesSeen: string[] };
+
+export async function tokenFieldCheck(): Promise<TokenCheck> {
+  await requireAdmin();
+  const people = await db.query.users.findMany({ where: isNotNull(schema.users.accessToken), columns: { id: true, accessToken: true, scope: true }, limit: 200 });
+  const fields = new Set<string>();
+  const scopes = new Set<string>();
+  let withEmail = 0;
+  for (const u of people) {
+    let token = "";
+    try {
+      token = decrypt(u.accessToken!);
+    } catch {
+      continue;
+    }
+    for (const k of tokenClaimKeys(token)) fields.add(k);
+    if (tokenEmail({ accessToken: token, refreshToken: "", expiresIn: 0 })) withEmail++;
+    if (u.scope) scopes.add(u.scope);
+  }
+  return { checked: people.length, withEmail, fields: [...fields].sort(), scopesSeen: [...scopes] };
+}
+
+// Fills the email, as verified, for everyone whose token carries one and who has none yet.
+export async function backfillEmailsFromTokens(): Promise<{ filled: number; checked: number }> {
+  await requireAdmin();
+  const people = await db.query.users.findMany({ where: and(isNotNull(schema.users.accessToken), isNull(schema.users.email)), columns: { id: true, accessToken: true }, limit: 500 });
+  let filled = 0;
+  for (const u of people) {
+    try {
+      const email = tokenEmail({ accessToken: decrypt(u.accessToken!), refreshToken: "", expiresIn: 0 });
+      if (!email) continue;
+      await db.update(schema.users).set({ email, emailVerifiedAt: new Date() }).where(eq(schema.users.id, u.id));
+      filled++;
+    } catch {}
+  }
+  return { filled, checked: people.length };
 }

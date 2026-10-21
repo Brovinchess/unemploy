@@ -1,6 +1,7 @@
 import { when } from "@/lib/admin";
 import { system, type Freshness } from "@/lib/admin-data";
 import { launchMode } from "@/lib/launch";
+import { TokenCheckPanel } from "./token-check";
 import { mindsMode } from "@/lib/minds/config";
 import { Badge, Card, Counts, Empty, Facts, Page, PageHead, Stat, Tiles, type Tone } from "../ui";
 
@@ -67,6 +68,15 @@ export default async function System() {
           />
         </Card>
       </div>
-    </Page>
+          <div className="mt-8">
+        <Card>
+          <p className="font-display text-base font-medium text-white">Sign-in tokens</p>
+          <p className="mt-1 text-sm text-white/50">People who signed in before the email permission was asked for. If their tokens carry the address anyway, fill it in here.</p>
+          <div className="mt-4">
+            <TokenCheckPanel />
+          </div>
+        </Card>
+      </div>
+</Page>
   );
 }

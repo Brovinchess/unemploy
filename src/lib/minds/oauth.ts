@@ -86,6 +86,15 @@ function tokenClaims(accessToken: string): Record<string, unknown> {
   return JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
 }
 
+// The names of the fields a token carries, for the admin's check; never the values.
+export function tokenClaimKeys(accessToken: string): string[] {
+  try {
+    return Object.keys(tokenClaims(accessToken));
+  } catch {
+    return [];
+  }
+}
+
 export function tokenSubject(accessToken: string): string {
   const claims = tokenClaims(accessToken);
   if (!claims.sub) throw new Error("Access token has no sub");
