@@ -17,6 +17,9 @@ export type Event =
   | "packs_requested"
   | "packs_unaffordable"
   | "outcome_fix_applied"
+  | "setup_reminder_sent"
+  | "weekly_digest_sent"
+  | "share_link_copied"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";

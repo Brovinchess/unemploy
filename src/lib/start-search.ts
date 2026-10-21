@@ -1,7 +1,8 @@
 import "server-only";
-import { and, count, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, count, eq, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { Profile, User } from "@/db/schema";
+import type { Profile, SearchOverrides, User } from "@/db/schema";
+import { regionFor } from "./discovery";
 import { track } from "./analytics/server";
 import { BRIEF_VERSION, buildBrief } from "./brief";
 import { costModel } from "./cost";
@@ -9,10 +10,33 @@ import { factsText } from "./facts";
 import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
 import { localEmployers } from "./pool";
-import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH } from "./preferences";
+import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "./preferences";
 import { blockedHosts, ingestReachable, isSearching, lastSearchLine, RESUME_TEXT_MAX, searchRequestText, skipLinks } from "./search";
 
 export type SearchStart = { error?: string } | undefined;
+
+export const FIRST_SEARCH_EXTRA_COGNITION = 10;
+const FIRST_BUDGET = { searches: 20, opened: 50 };
+
+// Until a headhunter has delivered at least one job, every search runs wide.
+export async function firstSearchOverrides(profileId: string, prefs: Preferences): Promise<SearchOverrides | null> {
+  const found = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profileId), gt(schema.searches.jobsAdded, 0)), columns: { id: true } });
+  if (found) return null;
+  const remoteOn = prefs.workSettings.includes("remote") || prefs.workSettings.includes("hybrid");
+  return {
+    first: true,
+    maxPostingAgeDays: Math.max(90, postingAgeDays(prefs)),
+    ...(remoteOn && prefs.remoteScope === "country" ? { remoteScope: "region" as const } : {}),
+    budget: FIRST_BUDGET,
+  };
+}
+
+export function firstSearchLine(prefs: Preferences, o: SearchOverrides) {
+  const bits = [`postings up to ${o.maxPostingAgeDays} days old`];
+  if (o.remoteScope === "region") bits.push(`remote jobs open to people in ${regionFor(prefs.country)} as well as ${prefs.country} (treat this as an extra rung after the others)`);
+  bits.push(`up to ${o.budget?.searches ?? 20} web searches`);
+  return `This is my first search with you, so cast a wider net this once: ${bits.join("; ")}. My usual settings apply from the next search.`;
+}
 
 export function friendly(e: unknown): string {
   if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Sign out from Settings and sign in again.";
@@ -54,7 +78,10 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
     const { perJob } = await costModel(profile.id);
     const extra = profile.preferences?.extraPlaces?.length ?? 0;
-    let need = estimateSearchCost(wanted, perJob, extra).cognition;
+    // A headhunter that has never found a job casts a wider net the first time: older postings,
+    // remote from the region, a bigger budget. The person's own settings return after a success.
+    const overrides = profile.preferences ? await firstSearchOverrides(profile.id, profile.preferences) : null;
+    let need = estimateSearchCost(wanted, perJob, extra).cognition + (overrides ? FIRST_SEARCH_EXTRA_COGNITION : 0);
     if (need > balance && fitToBalance) {
       const fits = Math.floor((balance - estimateSearchCost(0, perJob, extra).cognition) / Math.max(1, perJob));
       if (fits >= 2) {
@@ -82,7 +109,7 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
       .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
       .returning({ id: schema.profiles.id });
     if (!started.length) return;
-    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance });
+    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance, overrides });
     track(user.id, "search_requested", { jobs: wanted, search_number: n + 1 });
     await api.setEnabled(profile.mindId, true);
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
@@ -121,7 +148,9 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
         blocked: await blockedHosts(profile.id),
         employers: profile.preferences ? await localEmployers(profile.preferences).catch(() => []) : [],
         lastTime: await lastSearchLine(profile.id),
-        maxAgeDays: profile.preferences ? postingAgeDays(profile.preferences) : undefined,
+        maxAgeDays: overrides?.maxPostingAgeDays ?? (profile.preferences ? postingAgeDays(profile.preferences) : undefined),
+        budget: overrides?.budget,
+        firstSearch: overrides ? firstSearchLine(profile.preferences!, overrides) : "",
         resumeChanged: newResume,
         facts: newBrief ? "" : factsText(user), // a new brief below already carries it
         resumeText: profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? "",

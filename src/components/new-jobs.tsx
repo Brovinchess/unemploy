@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { X } from "lucide-react";
 import { Ninja } from "./brand";
 import { SwipeDeck, type CardJob } from "./swipe-deck";
+import { ShareLine } from "./share-line";
 
 // New cards. The first time (nothing kept yet) the deck is the whole page. Once there's a
 // list underneath, new cards sit in a short strip and the deck opens over the page, so
@@ -14,10 +15,12 @@ export function NewJobs({
   jobs,
   after,
   inline,
+  shareUrl,
 }: {
   jobs: CardJob[];
   after?: React.ReactNode;
   inline: boolean;
+  shareUrl?: string; // the person's referral link, shown under the deck
 }) {
   const [open, setOpen] = useState(false);
   // Each swipe re-renders the page with one card fewer, so the deck keeps the set it started
@@ -76,6 +79,7 @@ export function NewJobs({
     return (
       <div className="mb-12">
         <SwipeDeck jobs={deck} />
+        {shareUrl && <ShareLine url={shareUrl} className="mt-6" />}
       </div>
     );
 
@@ -121,6 +125,7 @@ export function NewJobs({
             </button>
             <div className="deck-enter mx-auto w-full max-w-[920px] px-5 pb-16 pt-14">
               <SwipeDeck jobs={deck} after={after} />
+              {shareUrl && <ShareLine url={shareUrl} className="mt-6" />}
               <p className="mt-8 text-center">
                 <button
                   className="text-sm text-white/45 underline underline-offset-4 hover:text-white"

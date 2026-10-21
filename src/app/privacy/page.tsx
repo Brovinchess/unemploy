@@ -27,7 +27,7 @@ const SECTIONS: { title: string; intro?: string; items?: string[] }[] = [
       "Jobs and applications. The jobs your headhunter finds, the application material it writes for each one, the application form questions it reads, the stage you assign to each job, and the record of each search, including the cognition it used.",
       "Email. If you add an email address for search updates, we store it, along with a verification code while it is being confirmed.",
       "Referrals. If you joined through a friend's link, we record which account referred you. Your friend sees your username and the cognition your headhunter has used, nothing else.",
-      "Usage. We use PostHog to understand how the product is used: pages viewed, sign-ups, searches started and finished, cards decided. This is tied to your account, not sold, and used only to improve Career Ninja.",
+      "Usage. We use PostHog to understand how the product is used: pages viewed, sign-ups, searches started and finished, cards decided, errors the app hits, and session recordings in which every word on screen and everything you type is masked before it leaves your browser, so a recording shows layout and clicks only. This is tied to your account, not sold, and used only to improve Career Ninja.",
       "Waitlist. If you joined the waitlist before launch: your email, name, date of birth (to confirm you are 18 or over), and the job area and country you told us.",
     ],
   },

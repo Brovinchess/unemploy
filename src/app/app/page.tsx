@@ -14,6 +14,8 @@ import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
 import { searchOutcome } from "@/lib/outcome";
+import { referralCodeFor } from "@/lib/referrals";
+import { mindsConfig } from "@/lib/minds/config";
 import { SearchOutcome } from "@/components/search-outcome";
 import { costModel } from "@/lib/cost";
 import { detailsComplete, isSupported } from "@/lib/extension";
@@ -174,6 +176,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           jobs={fresh.map(toCard)}
           after={applyAll}
           inline={kept.length === 0}
+          shareUrl={`${mindsConfig.appUrl}/r/${await referralCodeFor(user.id)}`}
         />
 
         {/* The very first search is running: show it clearly busy and say what happens next. */}

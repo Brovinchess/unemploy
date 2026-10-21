@@ -10,5 +10,9 @@ if (key) {
     capture_pageview: "history_change",
     capture_pageleave: true,
     person_profiles: "identified_only",
+    // Session recordings show layout and clicks only: every word on screen and everything typed
+    // is masked before it leaves the browser. Errors are captured with the session they hit.
+    session_recording: { maskAllInputs: true, maskTextSelector: "*" },
+    capture_exceptions: true,
   });
 }

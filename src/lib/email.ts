@@ -49,8 +49,10 @@ export async function sendSearchDoneEmail(args: {
   timedOut?: boolean;
   noCognition?: boolean; // the headhunter's cognition ran out mid-search
   short?: string; // one sentence on why it came back short, when it did
+  share?: string; // the person's referral link, offered once the first jobs are in
+  unsubscribe?: string;
 }) {
-  const { to, label, jobs, link, timedOut, noCognition, short } = args;
+  const { to, label, jobs, link, timedOut, noCognition, short, share, unsubscribe } = args;
   const n = jobs.length;
   const subject =
     n === 0
@@ -67,7 +69,7 @@ export async function sendSearchDoneEmail(args: {
     top.map((j) => `- ${j.title} at ${j.company} (${Math.round(j.matchScore)}% match)`).join("\n") +
     (n > top.length ? `\n…and ${n - top.length} more` : "") +
     `\n\nSee your jobs: ${link}`;
-  await send(to, subject, text, searchDoneHtml({ intro, jobs: top, more: n - top.length, link, empty: n === 0 }));
+  await send(to, subject, text, searchDoneHtml({ intro, jobs: top, more: n - top.length, link, empty: n === 0 , share, unsubscribe }));
 }
 
 // Matches the site: night background, raised panel, coral accent. Tables and inline
@@ -101,7 +103,7 @@ function codeEmailHtml(code: string, heading: string) {
 const FONT = "'Plus Jakarta Sans','Inter',-apple-system,'Segoe UI',Helvetica,Arial,sans-serif";
 const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function searchDoneHtml({ intro, jobs, more, link, empty }: { intro: string; jobs: DigestJob[]; more: number; link: string; empty: boolean }) {
+export function searchDoneHtml({ intro, jobs, more, link, empty, share, unsubscribe, title, cta }: { intro: string; jobs: DigestJob[]; more: number; link: string; empty: boolean; share?: string; unsubscribe?: string; title?: string; cta?: string }) {
   const rows = jobs
     .map(
       (j) => `<tr><td style="padding:14px 0;border-top:1px solid #2a3744">
@@ -118,17 +120,59 @@ export function searchDoneHtml({ intro, jobs, more, link, empty }: { intro: stri
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px">
       <tr><td style="padding:0 8px 28px;font-family:${FONT};font-size:20px;font-weight:600;color:#ffffff">careerninja<span style="color:#c96567">.</span></td></tr>
       <tr><td bgcolor="#1b2530" style="background:#1b2530;border-radius:24px;padding:36px 32px">
-        <p style="margin:0 0 8px;font-family:${FONT};font-size:14px;font-weight:500;color:#e08a8c">${empty ? "Search finished" : "Your search is done"}</p>
+        <p style="margin:0 0 8px;font-family:${FONT};font-size:14px;font-weight:500;color:#e08a8c">${esc(title ?? (empty ? "Search finished" : "Your search is done"))}</p>
         <p style="margin:0 0 24px;font-family:${FONT};font-size:15px;line-height:1.6;color:#c4ccd4">${esc(intro)}</p>
         ${rows ? `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${rows}</table>` : ""}
         ${more > 0 ? `<p style="margin:12px 0 0;font-family:${FONT};font-size:13px;color:#8b98a5">…and ${more} more</p>` : ""}
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top:28px"><tr><td bgcolor="#c96567" style="background:#c96567;border-radius:999px">
-          <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">See your jobs</a>
+          <a href="${esc(link)}" style="display:inline-block;padding:14px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none">${esc(cta ?? "See your jobs")}</a>
         </td></tr></table>
+        ${share && !empty ? `<p style="margin:28px 0 0;font-family:${FONT};font-size:13px;line-height:1.6;color:#8b98a5">Know someone job hunting? Their first searches are free with your link:<br><a href="${esc(share)}" style="color:#e08a8c;text-decoration:none">${esc(share)}</a></p>` : ""}
       </td></tr>
-      <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#5f6d7a">You get this because you asked for a search. Turn these emails off in Settings. © ${new Date().getFullYear()} Career Ninja · in partnership with Hello Minds</td></tr>
+      <tr><td style="padding:24px 8px 0;font-family:${FONT};font-size:12px;line-height:1.6;color:#5f6d7a">${unsubscribe ? `<a href="${esc(unsubscribe)}" style="color:#5f6d7a">Turn these emails off</a>, or change them in Settings.` : "Turn these emails off in Settings."} © ${new Date().getFullYear()} Career Ninja · in partnership with Hello Minds</td></tr>
     </table>
   </td></tr>
 </table>
 </body></html>`;
+}
+
+
+// ---- Emails the app sends on its own ------------------------------------------------------
+
+import { createHmac, timingSafeEqual } from "node:crypto";
+
+const secret = () => process.env.TOKEN_ENCRYPTION_KEY || process.env.CRON_SECRET || "dev-only";
+const sign = (userId: string) => createHmac("sha256", secret()).update(`unsub:${userId}`).digest("base64url").slice(0, 24);
+// One-click off switch at the foot of every email; the link carries a signature, not a session.
+export function unsubscribeLink(userId: string) {
+  const base = (process.env.APP_URL ?? "https://careerninja.app").replace(/\/$/, "");
+  return `${base}/email/unsubscribe?u=${encodeURIComponent(userId)}&t=${sign(userId)}`;
+}
+export function verifyUnsubscribe(userId: string, token: string) {
+  const a = Buffer.from(sign(userId)), b = Buffer.from(token);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
+
+// The day after a sign-in that stopped before the headhunter was set up.
+export async function sendSetupReminderEmail(args: { to: string; link: string; unsubscribe: string }) {
+  const intro = "You signed in to Career Ninja but didn't finish setting up your headhunter. It takes about two minutes: tell it the role you want and where you live, and it goes looking. Your first searches are free.";
+  await send(
+    args.to,
+    "Your headhunter is ready when you are",
+    `${intro}\n\nFinish setting up: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Two minutes to finish", intro, jobs: [], more: 0, link: args.link, empty: true, cta: "Finish setting up", unsubscribe: args.unsubscribe }),
+  );
+}
+
+// Monday: postings seen open this week that fit the person's role and place, before any search.
+export async function sendWeeklyDigestEmail(args: { to: string; role: string; place: string; postings: DigestJob[]; link: string; unsubscribe: string }) {
+  const { role, place, postings } = args;
+  const intro = `Postings seen open this week that fit what you asked for: ${role} in ${place}. Your headhunter hasn't checked these yet. Start a search and it checks each one, then writes your applications.`;
+  const lines = postings.map((p) => `- ${p.title} at ${p.company}${p.place ? `, ${p.place}` : ""}`).join("\n");
+  await send(
+    args.to,
+    `New ${role} postings in ${place}`,
+    `${intro}\n\n${lines}\n\nFind new jobs: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "This week", intro, jobs: postings, more: 0, link: args.link, empty: false, cta: "Find new jobs", unsubscribe: args.unsubscribe }),
+  );
 }

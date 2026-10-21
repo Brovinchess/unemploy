@@ -3,7 +3,8 @@ import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or } from "d
 import { db, schema } from "@/db";
 import type { FormQuestion, Profile } from "@/db/schema";
 import { fetchFormQuestions } from "./forms";
-import { sendSearchDoneEmail } from "./email";
+import { sendSearchDoneEmail, unsubscribeLink } from "./email";
+import { referralCodeFor } from "./referrals";
 import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { track } from "./analytics/server";
@@ -98,8 +99,10 @@ export function searchRequestText(args: {
   resumeChanged?: boolean;
   facts?: string;
   resumeText?: string; // the resume as text, sent with every request so no file is ever read
+  budget?: { searches: number; opened: number }; // this search's cap, when it differs from the brief
+  firstSearch?: string; // one line on the wider net a first search casts
 }) {
-  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "" } = args;
+  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "", budget, firstSearch = "" } = args;
   const base = mindsConfig.ingestUrl;
   const resume = resumeText
     ? `${resumeChanged ? "My resume changed; the new text is at the end of this message and replaces the old one." : "My resume's full text is at the end of this message."} Quote from it; do not open any file for it.`
@@ -111,7 +114,8 @@ export function searchRequestText(args: {
     `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
     `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
     `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Cards only: no cover letter, answers or form questions during the search. I ask for packs separately, for the jobs I keep.`,
-    `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, one short line each; a "posting" only as step 5 of your brief says. Keep to the BUDGET in your brief: at most 12 web searches and 40 opened postings.`,
+    `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, one short line each; a "posting" only as step 5 of your brief says. Keep to the BUDGET in your brief: at most ${budget?.searches ?? 12} web searches and ${budget?.opened ?? 40} opened postings${budget ? " (these numbers replace the ones in your brief, for this search only)" : ""}.`,
+    firstSearch,
     employers.length ? `Employers near me that post my kind of role: ${employers.join(", ")}. In rung 1, open each one's careers page before searching the web; a careers page lists every open role at once.` : "",
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
     focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies.` : "",
@@ -374,6 +378,8 @@ async function emailResults(profile: Profile, reason: EndReason) {
     timedOut: reason === "timeout",
     noCognition: reason === "no_cognition",
     short,
+    share: `${mindsConfig.appUrl}/r/${await referralCodeFor(user.id)}`,
+    unsubscribe: unsubscribeLink(user.id),
     link: `${mindsConfig.appUrl}/app?profile=${profile.id}`,
     jobs: jobs.map((j) => ({
       title: j.title,

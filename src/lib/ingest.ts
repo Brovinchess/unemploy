@@ -2,9 +2,9 @@ import "server-only";
 import { and, count, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import type { Profile } from "@/db/schema";
+import type { Profile, SearchOverrides } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
-import { avoidList, postingAgeDays , allPlaces } from "./preferences";
+import { avoidList, postingAgeDays , allPlaces , type Preferences } from "./preferences";
 import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
@@ -272,8 +272,12 @@ export async function upsertPosting(p: PostingPush, source: schema.PostingSource
   return key;
 }
 
-function checkJob(job: JobPush, profile: Profile): Rejection | null {
-  const prefs = profile.preferences!;
+// The person's settings, with what this one search is allowed to differ on.
+const withOverrides = (prefs: Preferences, o?: SearchOverrides | null): Preferences =>
+  o ? { ...prefs, maxPostingAgeDays: o.maxPostingAgeDays ?? prefs.maxPostingAgeDays, remoteScope: o.remoteScope ?? prefs.remoteScope } : prefs;
+
+function checkJob(job: JobPush, profile: Profile, overrides?: SearchOverrides | null): Rejection | null {
+  const prefs = withOverrides(profile.preferences!, overrides);
 
   if (isAggregator(job.url)) {
     return {
@@ -483,7 +487,7 @@ async function checkAndSave(
     ? null
     : await db.query.searches.findFirst({
         where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
-        columns: { id: true, startedAt: true },
+        columns: { id: true, startedAt: true, overrides: true },
       });
   const [{ n }] = await db
     .select({ n: count() })
@@ -522,7 +526,7 @@ async function checkAndSave(
       continue;
     }
 
-    const problem = checkJob(job, profile);
+    const problem = checkJob(job, profile, openSearch?.overrides);
     if (problem) {
       rejected.push(problem);
       continue;

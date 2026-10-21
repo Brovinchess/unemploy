@@ -328,6 +328,8 @@ export type Question = typeof questions.$inferSelect;
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
 // One row per search the user asked for, for the headhunter's history.
+export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean };
+
 export const searches = pgTable(
   "searches",
   {
@@ -354,6 +356,9 @@ export const searches = pgTable(
     summary: text("summary"),
     // Cognition per tool from the Hello Minds ledger, filled when the search ends.
     toolUsage: jsonb("tool_usage").$type<Record<string, { calls: number; cognition: number }>>(),
+    // Settings this one search ran with when they differ from the person's own: the first search
+    // casts a wider net (older postings, remote from the region, a bigger budget).
+    overrides: jsonb("overrides").$type<SearchOverrides>(),
   },
   (t) => [index("searches_profile_started").on(t.profileId, t.startedAt)],
 ).enableRLS();
@@ -432,6 +437,22 @@ export type Referral = typeof referrals.$inferSelect;
 // Pre-launch waitlist. referral_code is shared as ?ref=…; referred_by is the code a signup came in with.
 // What people send from the feedback button: a bug, an idea, or anything else, with the page.
 export type FeedbackKind = "bug" | "idea" | "other";
+// One row per email the app sent on its own: the day-after setup reminder, the Monday digest.
+// Keeps each from going twice and shows what reached whom.
+export const notices = pgTable(
+  "notices",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
+    meta: jsonb("meta").$type<Record<string, unknown>>(),
+  },
+  (t) => [index("notices_user_kind").on(t.userId, t.kind, t.sentAt)],
+).enableRLS();
+
 export const feedback = pgTable(
   "feedback",
   {
