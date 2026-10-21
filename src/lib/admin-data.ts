@@ -365,7 +365,7 @@ async function loadBriefs(): Promise<BriefRow[]> {
 
 export type HeadhuntersParams = { status?: string; user?: string; sort: string; dir: Dir };
 export type HeadhunterRow = {
-  id: string; userId: string; user: string; label: string; mindName: string | null; status: ProfileStatus;
+  id: string; userId: string; user: string; email: string | null; emailVerified: boolean; label: string; mindName: string | null; status: ProfileStatus;
   roles: string; place: string; settings: string; perSearch: number | null; age: number | null;
   searches: number; jobs: number; jobsPerSearch: number | null; avgMinutes: number | null; perJob: number | null;
   lastSearch: Date | null; lastDeliveryAt: Date | null;
@@ -396,13 +396,13 @@ async function loadHeadhunters(params: HeadhuntersParams): Promise<Headhunters> 
 
   // Query 2: one row per headhunter with its search and job totals folded in, sorted in SQL.
   type Row = {
-    id: string; user_id: string; user: string; label: string; mind_name: string | null; status: ProfileStatus; roles: string; place: string; work_settings: string[] | null;
+    id: string; user_id: string; user: string; email: string | null; email_verified: boolean; label: string; mind_name: string | null; status: ProfileStatus; roles: string; place: string; work_settings: string[] | null;
     per_search: number | null; age: number | null; searches: number; jobs: number; jobs_per_search: number | null; avg_minutes: number | null; per_job: number | null;
     last_search: number | null; last_delivery: number | null;
   };
   const list = await rows<Row>(sql`
     select * from (
-      select p.id, p.user_id, ${NAME} as "user", p.label, p.mind_name, p.status,
+      select p.id, p.user_id, ${NAME} as "user", u.email, (u.email_verified_at is not null) as email_verified, p.label, p.mind_name, p.status,
         coalesce(p.preferences->>'targetRoles', '') as roles,
         case when p.preferences is null then '' else concat_ws(', ', nullif(p.preferences->>'city', ''), nullif(p.preferences->>'country', '')) end as place,
         case when p.preferences is null then '' else coalesce(p.preferences->>'workSettings', '') end as settings,
@@ -432,7 +432,7 @@ async function loadHeadhunters(params: HeadhuntersParams): Promise<Headhunters> 
     hunting: c.hunting,
     paused: c.paused,
     rows: list.map((r) => ({
-      id: r.id, userId: r.user_id, user: r.user, label: r.label, mindName: r.mind_name, status: r.status,
+      id: r.id, userId: r.user_id, user: r.user, email: r.email, emailVerified: r.email_verified, label: r.label, mindName: r.mind_name, status: r.status,
       roles: r.roles, place: r.place, settings: (r.work_settings ?? []).map(workSettingLabel).join(", "), perSearch: r.per_search, age: r.age,
       searches: r.searches, jobs: r.jobs, jobsPerSearch: r.jobs_per_search, avgMinutes: r.avg_minutes, perJob: r.per_job,
       lastSearch: at(r.last_search), lastDeliveryAt: at(r.last_delivery),

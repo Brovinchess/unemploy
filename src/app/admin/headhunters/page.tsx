@@ -33,13 +33,20 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
       <div className="mt-6">
         <Table
           head={[
-            col("user", "User"), col("label", "Label"), col("mind", "Mind name"), col("status", "Status"), col("roles", "Roles"), col("place", "Place"), col("settings", "Work settings"),
+            col("user", "User"), "Email", col("label", "Label"), col("mind", "Mind name"), col("status", "Status"), col("roles", "Roles"), col("place", "Place"), col("settings", "Work settings"),
             col("perSearch", "Jobs / search"), col("age", "Posting age"), col("searches", "Searches"), col("jobs", "Jobs"), col("jobsPerSearch", "Jobs per search"),
             col("avgMinutes", "Avg min / search"), col("perJob", "Cognition / job"), col("lastSearch", "Last search"), col("lastDelivery", "Last delivery"), "",
           ]}
           empty="No headhunters match these filters."
           rows={rows.map((r) => [
             <UserLink key={r.id} id={r.userId} name={r.user} />,
+            r.email ? (
+              <span key="e" className="text-xs" title={r.email}>
+                {r.email.length > 26 ? `${r.email.slice(0, 24)}…` : r.email} <span className={r.emailVerified ? "text-emerald-300" : "text-white/35"}>{r.emailVerified ? "✓" : ""}</span>
+              </span>
+            ) : (
+              <span key="e" className="text-xs text-white/30">none</span>
+            ),
             r.label,
             r.mindName ?? "",
             <Badge key="st" tone={hhTone(r.status)}>{r.status.replace(/_/g, " ")}</Badge>,
