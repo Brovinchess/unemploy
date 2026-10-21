@@ -103,6 +103,11 @@ const SECTIONS: { title: string; intro?: string; items?: string[] }[] = [
     ],
   },
   {
+    title: "Open data we use",
+    intro:
+      "Job-title suggestions come from the O*NET 29.3 Database by the U.S. Department of Labor, Employment and Training Administration, used under the Creative Commons Attribution 4.0 licence, with titles merged, de-duplicated and added to. O*NET is a trademark of USDOL/ETA; Career Ninja is not endorsed by them.",
+  },
+  {
     title: "Contact",
     intro: `Questions about this policy or your data: ${CONTACT}.`,
   },

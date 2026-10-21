@@ -1,5 +1,7 @@
 "use client";
 
+import { TitleInput } from "@/components/title-input";
+
 import { useActionState, useMemo, useState } from "react";
 import { ChevronDown, Plus, X } from "lucide-react";
 import { saveQuickProfile } from "@/app/actions";
@@ -70,7 +72,7 @@ export function QuickProfileStep({ profileId }: { profileId: string }) {
       <Block n={1} title="Your job now" hint="Or your last one.">
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Job title" htmlFor="qp-title">
-            <input id="qp-title" name="title" className="field h-12" placeholder="Marketing Manager" value={title} onChange={(e) => setTitle(e.target.value)} autoComplete="organization-title" />
+            <TitleInput id="qp-title" name="title" className="field h-12" placeholder="Marketing Manager" value={title} onChange={setTitle} />
           </Field>
           <Field label="Company" htmlFor="qp-company">
             <input id="qp-company" name="company" className="field h-12" placeholder="Target" autoComplete="organization" />

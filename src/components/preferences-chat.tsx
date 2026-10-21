@@ -1,5 +1,7 @@
 "use client";
 
+import { TitleInput } from "@/components/title-input";
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Lightbulb } from "lucide-react";
 import { savePreferences } from "@/app/actions";
@@ -461,15 +463,19 @@ function TextAnswer({
       }}
     >
       <div className="flex gap-2">
-        <input
-          className="field"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          placeholder={placeholder}
-          list={list ? "unemploy-countries" : undefined}
-          autoFocus
-          aria-label="Your answer"
-        />
+        {check ? (
+          <TitleInput value={value} onChange={setValue} multi placeholder={placeholder} autoFocus ariaLabel="Your answer" />
+        ) : (
+          <input
+            className="field"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={placeholder}
+            list={list ? "unemploy-countries" : undefined}
+            autoFocus
+            aria-label="Your answer"
+          />
+        )}
         {list && (
           <datalist id="unemploy-countries">
             {list.map((c) => (
