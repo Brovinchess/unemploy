@@ -67,8 +67,10 @@ const formQuestionsSchema = z
 const packSchema = z.object({
   coverLetter: trimmed(6000).pipe(z.string().min(40)),
   aboutMe: trimmed(1500).pipe(z.string().min(10)),
+  // A multi-select answer sometimes arrives as a list. Joining it beats refusing the whole pack,
+  // which made one Mind rewrite two 20-question packs from scratch.
   answers: z
-    .array(z.object({ question: trimmed(500), answer: trimmed(3000) }))
+    .array(z.object({ question: trimmed(500), answer: z.union([z.string(), z.array(z.string()).transform((a) => a.join(", ")), z.number().transform(String), z.boolean().transform((b) => (b ? "Yes" : "No"))]).pipe(trimmed(3000)) }))
     .default([])
     .transform((a) => a.slice(0, 40)),
   claims: z.array(claimSchema).max(40).default([]),
