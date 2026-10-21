@@ -91,6 +91,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
       }
       big={big}
       perJob={cost.perJob}
+      extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
       coach={coach}
       topUpUrl={topUpUrlFor(current.mindId)}
     />

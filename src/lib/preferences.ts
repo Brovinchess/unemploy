@@ -48,10 +48,14 @@ export const JOBS_PER_DAY_OPTIONS = [3, 5, 10, 20] as const;
 // The range users can pick for one search (slider).
 export const MIN_JOBS_PER_SEARCH = 1;
 export const MAX_JOBS_PER_SEARCH = 10;
+export const MAX_EXTRA_PLACES = 2;
 export const RECOMMENDED_JOBS_PER_SEARCH = 5;
 
-export function estimateSearchCost(jobsPerDay: number, perJob = DEFAULT_COGNITION_PER_JOB) {
-  const cognition = Math.round(BASE_COGNITION_PER_SEARCH + perJob * jobsPerDay);
+// Each extra place the person would also work in is one more rung: a few more searches.
+export const COGNITION_PER_EXTRA_PLACE = 4;
+
+export function estimateSearchCost(jobsPerDay: number, perJob = DEFAULT_COGNITION_PER_JOB, extraPlaces = 0) {
+  const cognition = Math.round(BASE_COGNITION_PER_SEARCH + perJob * jobsPerDay + COGNITION_PER_EXTRA_PLACE * extraPlaces);
   return { cognition, usd: cognition * COGNITION_USD };
 }
 
@@ -67,9 +71,24 @@ export const preferencesSchema = z.object({
   needsVisa: z.boolean().default(false),
   jobsPerDay: z.number().int().min(1).max(MAX_JOBS_PER_SEARCH),
   maxPostingAgeDays: z.number().int().min(14).max(120).optional(),
+  // Places the person would also work in, besides where they live. Added from settings, never
+  // asked at setup. A place in another country carries its own visa answer.
+  extraPlaces: z.array(z.object({ country: z.string().trim().min(2).max(80), city: z.string().trim().max(80).optional().default(""), needsVisa: z.boolean().default(false) })).max(MAX_EXTRA_PLACES).optional(),
 });
 
 export type Preferences = z.infer<typeof preferencesSchema>;
+export type Place = { country: string; city: string; needsVisa: boolean; home: boolean };
+
+// Where the person lives first, then the places they would also work in.
+export function allPlaces(p: Pick<Preferences, "country" | "city" | "needsVisa" | "extraPlaces">): Place[] {
+  return [{ country: p.country, city: p.city ?? "", needsVisa: p.needsVisa, home: true }, ...(p.extraPlaces ?? []).map((x) => ({ country: x.country, city: x.city ?? "", needsVisa: x.needsVisa, home: false }))];
+}
+export const placeName = (x: { country: string; city?: string }) => [x.city, x.country].filter(Boolean).join(", ");
+// "Singapore and Penang, Malaysia", for the summary row and the brief.
+export function extraPlacesText(p: Pick<Preferences, "extraPlaces">, withVisa = false) {
+  const xs = (p.extraPlaces ?? []).map((x) => `${placeName(x)}${withVisa && x.needsVisa ? " (visa sponsorship needed)" : ""}`);
+  return xs.length <= 1 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`;
+}
 
 // Empty levels means "whatever my resume says": the level I'm at and one above.
 export const levelText = (p: { levels: string[] }) => (p.levels.length ? p.levels.join(", ") : "Match my resume");
@@ -84,6 +103,7 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
   return [
     { label: "Looking for", value: p.targetRoles },
     { label: "Where", value: place },
+    { label: "Also work in", value: extraPlacesText(p, true) || "Nowhere else" },
     { label: "Work setting", value: p.workSettings.map(workSettingLabel).join(", ") },
     ...(remote ? [{ label: "Remote jobs from", value: REMOTE_SCOPES.find((r) => r.value === p.remoteScope)?.label ?? "Anywhere" }] : []),
     { label: "Job type", value: p.jobTypes.join(", ") },

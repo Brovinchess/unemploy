@@ -54,6 +54,18 @@ const REGIONS_OF: [RegExp, RegExp][] = [
 // "The Netherlands" and "Netherlands" are the same place.
 const plain = (s: string) => s.toLowerCase().replace(/^the\s+/, "").trim();
 
+// The same check against every place the person would work in: a line that fits any of them passes.
+// The message names the home country, since that is what the person reads.
+export function eligibilityProblemFor(locationText: string, places: { country: string; city?: string }[]): string | null {
+  let first: string | null = null;
+  for (const p of places) {
+    const problem = eligibilityProblem(locationText, p.country, p.city || undefined);
+    if (!problem) return null;
+    first ??= problem;
+  }
+  return first;
+}
+
 export function eligibilityProblem(locationText: string, userCountry: string, userCity?: string): string | null {
   const text = locationText.toLowerCase();
   const country = plain(userCountry);

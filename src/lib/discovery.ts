@@ -42,7 +42,7 @@ const SYSTEMS = ["jobs.lever.co", "boards.greenhouse.io", "jobs.ashbyhq.com", "a
 // settings allow (region needs remote or hybrid on; global needs remote scope "anywhere").
 export type Rung = { n: number; name: string; minutes: number; lines: string[] };
 
-export function ladder(prefs: { targetRoles: string; country: string; city: string; workSettings: string[]; remoteScope: string }): Rung[] {
+export function ladder(prefs: { targetRoles: string; country: string; city: string; workSettings: string[]; remoteScope: string; extraPlaces?: { country: string; city?: string; needsVisa?: boolean }[] }): Rung[] {
   const { titles } = discoveryHints(prefs.targetRoles);
   const main = titles.slice(0, 3);
   const wider = titles.slice(3, 10);
@@ -70,6 +70,17 @@ export function ladder(prefs: { targetRoles: string; country: string; city: stri
       `One web search: ${q(main)} ${prefs.country} careers${remoteOk ? `, plus one for ${q(main)} remote ${prefs.country}` : ""}.`,
     ],
   });
+  for (const x of prefs.extraPlaces ?? []) {
+    const where = x.city?.trim() || x.country;
+    rungs.push({
+      n: 2, name: `${where}, where I'd also work`, minutes: 15,
+      lines: [
+        `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "${where}" ${q(main)}.`,
+        `One web search: ${q(main)} ${where} careers.`,
+        ...(x.needsVisa ? [`I need visa sponsorship for ${x.country}: send a job there only when the posting says it sponsors, and quote that line.`] : []),
+      ],
+    });
+  }
   rungs.push({
     n: 3, name: "Wider titles, same places", minutes: 15,
     lines: [
@@ -96,12 +107,13 @@ export function ladder(prefs: { targetRoles: string; country: string; city: stri
       ],
     });
   }
-  return rungs;
+  // Rungs are numbered in the order they are climbed, however many places there are.
+  return rungs.map((r, i) => ({ ...r, n: i }));
 }
 
 export function ladderText(prefs: Parameters<typeof ladder>[0]) {
   const rungs = ladder(prefs);
-  const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
+  const place = [[prefs.city, prefs.country].filter(Boolean).join(", "), ...(prefs.extraPlaces ?? []).map((x) => [x.city, x.country].filter(Boolean).join(", "))].join(" or ");
   return [
     `Go rung by rung, nearest first. Stay on a rung until its time box is up or you have opened 8 postings in a row from it without sending a job, then move to the next. Never skip ahead because the first results look thin. Send each job as soon as it passes; nearer jobs reach me first that way. The BUDGET below caps the whole search.`,
     ...rungs.map((r) => `Rung ${r.n}: ${r.name} (${r.minutes} min)\n${r.lines.map((l) => `   ${l}`).join("\n")}`),

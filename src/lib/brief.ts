@@ -2,7 +2,7 @@ import type { Preferences } from "./preferences";
 import { ladderText } from "./discovery";
 import { FACTS_RULE } from "./facts";
 import { checkRoles } from "./job-titles";
-import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel } from "./preferences";
+import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSettingLabel , extraPlacesText } from "./preferences";
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
@@ -46,6 +46,8 @@ export function buildBrief(args: {
       ? "My resume is attached: read it once now and save its full text in your memory, then work from that saved copy. Don't open the file again unless I send you a new resume."
       : "You already have my resume saved in your memory; keep working from that copy.";
   const place = [prefs.city, prefs.country].filter(Boolean).join(", ");
+  const countries = [...new Set([prefs.country, ...(prefs.extraPlaces ?? []).map((x) => x.country)])].join(" or ");
+  const visaPlaces = (prefs.extraPlaces ?? []).filter((x) => x.needsVisa && x.country !== prefs.country).map((x) => x.country);
   const remote = prefs.workSettings.includes("remote")
     ? `Remote jobs: ${REMOTE_SCOPES.find((r) => r.value === prefs.remoteScope)?.label.toLowerCase()}.`
     : "No remote jobs.";
@@ -65,7 +67,7 @@ HOW WE WORK
 
 WHAT I WANT
 - Roles: ${prefs.targetRoles}${rolesNote(prefs.targetRoles)}
-- I live in: ${place}. Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
+- I live in: ${place}.${prefs.extraPlaces?.length ? ` I'd also work in: ${extraPlacesText(prefs, true)}.` : ""} Work setting: ${prefs.workSettings.map(workSettingLabel).join(", ")}. ${remote}
 - Job type: ${prefs.jobTypes.join(", ")}. Level: ${prefs.levels.length ? prefs.levels.join(", ") : "match my resume: the level I'm at now and one above"}.
 - Pay: not a filter. Never drop a job over pay; just copy what the posting shows onto the card. Visa sponsorship: ${prefs.needsVisa ? "needed" : "not needed"}.
 - Avoid: ${avoidList(prefs.avoidCompanies).join(", ") || "none"}.
@@ -78,7 +80,7 @@ ${ladderText(prefs)}
 KILL ON SIGHT (from the search result, without opening)
 - Another function in the title (sales, support, engineering, design, finance, interns), unless my roles include it.
 - Recruiter, staffing agency or job-board mirror as the source.
-- A location naming only another country, with no mention of ${prefs.country}, my region or anywhere.
+- A location naming only another country, with no mention of ${countries}, my region or anywhere.
 - A visible date past my posting age limit.
 - Anything on the skip list in the search request.
 Postings you kill on sight from the title are not leads: don't open them and don't report them. Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
@@ -101,7 +103,7 @@ Dropping most leads is normal. Never stop early because leads keep failing; move
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).
 2. Open today: you saw it accepting applications today. Send "verifiedOpenAt" = today. Skip anything that says closed or filled, or was posted over ${postingAgeDays(prefs)} days ago.
-3. I can apply from ${prefs.country}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${prefs.country}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.
+3. I can apply from ${countries}: copy the posting's own location or eligibility line into "locationText", word for word. "Remote" alone is not enough; it must name ${countries}, my region, or anywhere/worldwide. If it names only other countries (e.g. "U.S. Remote"), skip it.${visaPlaces.length ? ` For ${visaPlaces.join(" and ")} I need visa sponsorship: only postings that say they sponsor, with that line quoted.` : ""}
 4. Exact facts: title, company and job type exactly as the posting says. A contract is not full-time. If the posting shows pay, copy it into "salary" with currency and period (e.g. "USD 120,000–150,000 a year").
 5. Must-haves: list the posting's hard requirements (years, domain, skills, hours overlap) in "mustHaves", each marked met or not met from my resume. One missed requirement, including years of experience or a nice-to-have tool, is not a reason to drop: send the job with matchScore 55 or lower and the gap listed, and let me decide. Drop as poor_fit only when I miss most of them or the work itself is a different role.
 

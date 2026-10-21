@@ -4,11 +4,11 @@ import { z } from "zod";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
-import { avoidList, postingAgeDays } from "./preferences";
+import { avoidList, postingAgeDays , allPlaces } from "./preferences";
 import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
-import { checkPosting, eligibilityProblem, hostOf, isAggregator } from "./quality";
+import { checkPosting, eligibilityProblemFor, hostOf, isAggregator } from "./quality";
 import { endSearch, isSearching, jobsNeedingPacks, switchOff } from "./search";
 
 // Jobs that arrive this soon after a "final" still count: the Mind finished its last reads.
@@ -283,11 +283,17 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
     };
   }
 
-  const eligibility = eligibilityProblem(job.locationText, prefs.country, prefs.city);
-  // An on-site or hybrid job in the person's own country is fine even when its location line
-  // names only an office or a city; the strict line check is for remote jobs.
-  const onSiteAtHome = job.workSetting !== "remote" && sameCountry(job.country, prefs.country) && !!eligibility && eligibility.startsWith("The location line doesn't say");
+  const places = allPlaces(prefs);
+  const eligibility = eligibilityProblemFor(job.locationText, places);
+  // An on-site or hybrid job in one of the person's own countries is fine even when its location
+  // line names only an office or a city; the strict line check is for remote jobs.
+  const inPlace = places.find((p) => sameCountry(job.country, p.country));
+  const onSiteAtHome = job.workSetting !== "remote" && !!inPlace && !!eligibility && eligibility.startsWith("The location line doesn't say");
   if (eligibility && !onSiteAtHome) return { url: job.url, code: "not_eligible", hint: eligibility };
+  // A place in another country the person needs a visa for: the posting has to say it sponsors.
+  if (inPlace && !inPlace.home && inPlace.needsVisa && !/sponsor|visa|relocat/i.test([job.locationText, job.summary, job.whyFit, ...(job.highlights ?? [])].join(" "))) {
+    return { url: job.url, code: "not_eligible", hint: `The user needs visa sponsorship to work in ${inPlace.country}. Send a job there only when the posting says it sponsors, and quote that line in "locationText" or "summary".` };
+  }
 
   const unmet = job.mustHaves.filter((m) => !m.met).length;
   if (unmet * 2 > job.mustHaves.length) {
@@ -307,11 +313,11 @@ function checkJob(job: JobPush, profile: Profile): Rejection | null {
   }
 
   const needsHomeCountry = job.workSetting !== "remote" || prefs.remoteScope === "country";
-  if (needsHomeCountry && !sameCountry(job.country, prefs.country)) {
+  if (needsHomeCountry && !inPlace) {
     return {
       url: job.url,
       code: "wrong_country",
-      hint: `Job must be in ${prefs.country} (got "${job.country ?? "missing"}"). Always send "country" as the full country name.`,
+      hint: `Job must be in ${places.map((p) => p.country).join(" or ")} (got "${job.country ?? "missing"}"). Always send "country" as the full country name.`,
     };
   }
 

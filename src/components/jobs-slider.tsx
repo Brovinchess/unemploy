@@ -10,20 +10,22 @@ export function JobsSlider({
   onChange,
   balance,
   perJob,
+  extraPlaces = 0,
   topUpUrl,
 }: {
   value: number;
   onChange: (n: number) => void;
   balance?: number | null;
   perJob?: number; // cognition per job, learnt from past searches
+  extraPlaces?: number; // places besides home, each a little more per search
   topUpUrl?: string;
 }) {
-  const cost = estimateSearchCost(value, perJob);
+  const cost = estimateSearchCost(value, perJob, extraPlaces);
   const pct = ((value - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
   const short = balance != null && cost.cognition > balance;
   // The most jobs the balance still covers, so the hint can offer a way to search right now.
   let affordable = 0;
-  if (balance != null) for (let n = MIN_JOBS_PER_SEARCH; n < value; n++) if (estimateSearchCost(n, perJob).cognition <= balance) affordable = n;
+  if (balance != null) for (let n = MIN_JOBS_PER_SEARCH; n < value; n++) if (estimateSearchCost(n, perJob, extraPlaces).cognition <= balance) affordable = n;
   return (
     <div>
       <div className="flex items-baseline justify-between">

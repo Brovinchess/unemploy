@@ -53,12 +53,13 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const balance = await api.getBalance(profile.mindId);
     if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
     const { perJob } = await costModel(profile.id);
-    let need = estimateSearchCost(wanted, perJob).cognition;
+    const extra = profile.preferences?.extraPlaces?.length ?? 0;
+    let need = estimateSearchCost(wanted, perJob, extra).cognition;
     if (need > balance && fitToBalance) {
-      const fits = Math.floor((balance - estimateSearchCost(0, perJob).cognition) / Math.max(1, perJob));
+      const fits = Math.floor((balance - estimateSearchCost(0, perJob, extra).cognition) / Math.max(1, perJob));
       if (fits >= 2) {
         wanted = Math.min(wanted, fits);
-        need = estimateSearchCost(wanted, perJob).cognition;
+        need = estimateSearchCost(wanted, perJob, extra).cognition;
         fitted = true;
       }
     }

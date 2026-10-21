@@ -21,7 +21,7 @@ import { SearchOutcome } from "@/components/search-outcome";
 import { costModel } from "@/lib/cost";
 import { DROP_LABELS, dropAdvice } from "@/lib/dropped";
 import { topUpUrlFor } from "@/lib/minds/config";
-import { postingAgeDays, workSettingLabel } from "@/lib/preferences";
+import { extraPlacesText, postingAgeDays, workSettingLabel } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
 const took = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
@@ -96,7 +96,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   }
 
   const lookingFor = prefs
-    ? [prefs.targetRoles, prefs.city || prefs.country, prefs.workSettings.map(workSettingLabel).join(", ").toLowerCase(), prefs.jobTypes.join(", ").toLowerCase()].filter(Boolean).join(" · ")
+    ? [prefs.targetRoles, `${prefs.city || prefs.country}${prefs.extraPlaces?.length ? `, also ${extraPlacesText(prefs)}` : ""}`, prefs.workSettings.map(workSettingLabel).join(", ").toLowerCase(), prefs.jobTypes.join(", ").toLowerCase()].filter(Boolean).join(" · ")
     : null;
 
   return (
@@ -134,6 +134,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
               disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
               perJob={cost.perJob}
+      extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
               coach={coach}
               topUpUrl={topUpUrlFor(current.mindId)}
             />

@@ -24,6 +24,7 @@ export function SearchButton({
   notifyEmail,
   big = false,
   perJob,
+  extraPlaces = 0,
   coach = null,
   topUpUrl,
 }: {
@@ -36,6 +37,7 @@ export function SearchButton({
   notifyEmail: string | null; // where the "search finished" email goes, if on
   big?: boolean;
   perJob?: number;
+  extraPlaces?: number; // places besides home: each adds a little to the estimate
   // Shown once before the next search when the last one was slow: what to change, with a way to keep going.
   coach?: { summary: string; empty: boolean; suggestions: { kind: string; text: string; evidence: string; href: string }[] } | null;
   topUpUrl?: string; // where to buy cognition, for the "not enough" hints
@@ -139,7 +141,7 @@ export function SearchButton({
     );
   }
 
-  const tooExpensive = balance != null && estimateSearchCost(jobs, perJob).cognition > balance;
+  const tooExpensive = balance != null && estimateSearchCost(jobs, perJob, extraPlaces).cognition > balance;
 
   // A real pop-up over the page: whichever button starts a search opens it when the last one was slow.
   const coachModal =
@@ -219,7 +221,7 @@ export function SearchButton({
 
   const form = (
     <div className={big ? "w-full max-w-md text-left" : ""}>
-      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} topUpUrl={topUpUrl} />
+      <JobsSlider value={jobs} onChange={setJobs} balance={balance} perJob={perJob} extraPlaces={extraPlaces} topUpUrl={topUpUrl} />
       <button
         className="mt-5 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-coral text-base font-medium text-white transition-colors hover:bg-rose disabled:opacity-50"
         disabled={pending || tooExpensive}

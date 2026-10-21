@@ -17,7 +17,7 @@ import {
   REMOTE_SCOPES,
   summarizePreferences,
   WORK_SETTINGS,
-  type Preferences, MAX_POSTING_AGE_DAYS, POSTING_AGE_OPTIONS } from "@/lib/preferences";
+  type Preferences, MAX_POSTING_AGE_DAYS, POSTING_AGE_OPTIONS, extraPlacesText, MAX_EXTRA_PLACES } from "@/lib/preferences";
 
 
 type Draft = Partial<Preferences>;
@@ -33,6 +33,7 @@ const QUESTIONS: Question[] = [
   { key: "targetRoles", ask: () => "Which roles should I look for? I've guessed from your resume; change it if you want something else." },
   { key: "country", ask: () => "Where do you live? Pick your country, then your city if it's on the list." },
   { key: "city", ask: (d) => `Any particular city in ${d.country}? Leave it blank to search the whole country.`, defaulted: true },
+  { key: "extraPlaces", ask: () => "Would you also work somewhere else? Add up to two places. I search where you live first, then these.", defaulted: true },
   { key: "workSettings", ask: () => "How do you want to work? All three are on, so I search near you first and then widen. Switch off any you don't want.", defaulted: true },
   {
     key: "remoteScope",
@@ -52,6 +53,7 @@ const QUESTIONS: Question[] = [
 // a broad net and comes back faster; each default has a pencil in the summary.
 const DEFAULTS: Draft = {
   city: "",
+  extraPlaces: [],
   avoidCompanies: "",
   workSettings: ["onsite", "hybrid", "remote"],
   remoteScope: "region",
@@ -75,6 +77,8 @@ function answerText(key: keyof Preferences, d: Draft): string {
       return (v as string[]).length ? (v as string[]).join(", ") : "Match my resume";
     case "country":
       return [d.city, d.country].filter(Boolean).join(", ");
+    case "extraPlaces":
+      return extraPlacesText(d as Preferences, true) || "Nowhere else";
     case "needsVisa":
       return v ? "Yes, I need sponsorship" : "No";
     case "jobsPerDay":
@@ -188,7 +192,7 @@ export function PreferencesChat({
             {mode === "setup" && username && <UsernameRow username={username} />}
             {summarizePreferences(draft as Preferences).map((row, i) => {
               const keys: (keyof Preferences)[] = [
-                "targetRoles", "country", "workSettings",
+                "targetRoles", "country", "extraPlaces", "workSettings",
                 ...(draft.workSettings?.includes("remote") ? (["remoteScope"] as (keyof Preferences)[]) : []),
                 "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
               ];
@@ -267,6 +271,9 @@ function AnswerInput({
 
   if (key === "country" || key === "city") {
     return <PlaceAnswer country={draft.country ?? ""} city={draft.city ?? ""} cityOnly={key === "city"} onSubmit={(country, city) => onAnswer({ country, city })} />;
+  }
+  if (key === "extraPlaces") {
+    return <ExtraPlacesAnswer home={draft.country ?? ""} initial={draft.extraPlaces ?? []} onSubmit={(extraPlaces) => onAnswer({ extraPlaces })} />;
   }
 
   if (key === "targetRoles" || key === "avoidCompanies") {
@@ -356,7 +363,7 @@ function SliderAnswer({ initial, onSubmit }: { initial: number; onSubmit: (n: nu
 
 // Where you live: a country from the full list (popular ones first), then a city from that
 // country's list or typed. Nothing to spell, so the place is always one the app recognises.
-function PlaceAnswer({ country, city, cityOnly, onSubmit }: { country: string; city: string; cityOnly: boolean; onSubmit: (country: string, city: string) => void }) {
+function PlaceAnswer({ country, city, cityOnly, onSubmit, submitLabel }: { country: string; city: string; cityOnly: boolean; onSubmit: (country: string, city: string) => void; submitLabel?: string }) {
   const [c, setC] = useState(country);
   const [t, setT] = useState(city);
   const cities = citiesOf(c);
@@ -405,7 +412,7 @@ function PlaceAnswer({ country, city, cityOnly, onSubmit }: { country: string; c
           ))}
         </datalist>
         <button className="btn btn-primary shrink-0" disabled={!c}>
-          {cityOnly && !t.trim() ? "Whole country" : "Next"}
+          {submitLabel ?? (cityOnly && !t.trim() ? "Whole country" : "Next")}
         </button>
       </div>
       {cities.length > 0 && !t && (
@@ -515,6 +522,51 @@ function MultiChoice({
       </div>
       <button className="btn btn-primary mt-4" disabled={!picked.length} onClick={() => onSubmit(picked)}>
         Next
+      </button>
+    </div>
+  );
+}
+
+
+// Places the person would also work in, besides home: up to two, each picked the same way as
+// home. A place in another country asks about visa sponsorship there. Never part of setup.
+type ExtraPlace = NonNullable<Preferences["extraPlaces"]>[number];
+function ExtraPlacesAnswer({ home, initial, onSubmit }: { home: string; initial: ExtraPlace[]; onSubmit: (places: ExtraPlace[]) => void }) {
+  const [places, setPlaces] = useState<ExtraPlace[]>(initial);
+  const name = (x: ExtraPlace) => [x.city, x.country].filter(Boolean).join(", ");
+  return (
+    <div className="w-full space-y-3">
+      {places.length > 0 && (
+        <ul className="space-y-2">
+          {places.map((x, i) => (
+            <li key={`${x.country}-${x.city}`} className="rounded-2xl bg-surface-2 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-medium text-ink">{name(x)}</span>
+                <button type="button" className="text-sm text-muted hover:text-navy" onClick={() => setPlaces(places.filter((_, j) => j !== i))}>
+                  Remove
+                </button>
+              </div>
+              {x.country !== home && (
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted">Need visa sponsorship there?</span>
+                  <button type="button" className={`chip min-h-8 px-3 text-xs ${!x.needsVisa ? "chip-on" : ""}`} aria-pressed={!x.needsVisa} onClick={() => setPlaces(places.map((y, j) => (j === i ? { ...y, needsVisa: false } : y)))}>
+                    No
+                  </button>
+                  <button type="button" className={`chip min-h-8 px-3 text-xs ${x.needsVisa ? "chip-on" : ""}`} aria-pressed={!!x.needsVisa} onClick={() => setPlaces(places.map((y, j) => (j === i ? { ...y, needsVisa: true } : y)))}>
+                    Yes
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {places.length < MAX_EXTRA_PLACES && (
+        <PlaceAnswer key={places.length} country="" city="" cityOnly={false} submitLabel="Add place" onSubmit={(country, city) => setPlaces([...places, { country, city, needsVisa: false }])} />
+      )}
+      <p className="text-xs text-muted">Each extra place adds a little to each search.</p>
+      <button type="button" className="btn btn-primary" onClick={() => onSubmit(places)}>
+        {places.length ? "Done" : "Nowhere else"}
       </button>
     </div>
   );

@@ -1,10 +1,10 @@
 import "server-only";
-import { and, desc, eq, gte, isNull, notInArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, notInArray, or, sql, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { countryCodeOf } from "./normalise";
-import { postingAgeDays } from "./preferences";
-import { checkPosting, eligibilityProblem } from "./quality";
+import { allPlaces, postingAgeDays } from "./preferences";
+import { checkPosting, eligibilityProblemFor } from "./quality";
 import { isPublicHttpUrl } from "./ingest";
 import { discoveryHints } from "./discovery";
 import type { Preferences } from "./preferences";
@@ -21,7 +21,7 @@ export async function poolFor(profile: Profile) {
   if (!prefs) return [];
   const since = new Date(Date.now() - POOL_DAYS * 86_400_000);
   const minPosted = new Date(Date.now() - postingAgeDays(prefs) * 86_400_000).toISOString().slice(0, 10);
-  const code = countryCodeOf(prefs.country);
+  const codes = [...new Set(allPlaces(prefs).map((p) => countryCodeOf(p.country)).filter((c): c is string => !!c))];
 
   // Everything this person has already been shown or had ruled out, so nothing comes back twice.
   const sentKeys = await db
@@ -58,9 +58,9 @@ export async function poolFor(profile: Profile) {
         eq(schema.postings.demo, false),
         gte(schema.postings.lastSeenAt, since),
         or(isNull(schema.postings.postedOn), gte(schema.postings.postedOn, minPosted)),
-        prefs.remoteScope === "country" && code
-          ? eq(schema.postings.countryCode, code)
-          : or(code ? eq(schema.postings.countryCode, code) : sql`false`, eq(schema.postings.workSetting, "remote"), isNull(schema.postings.countryCode)),
+        prefs.remoteScope === "country" && codes.length
+          ? inArray(schema.postings.countryCode, codes)
+          : or(codes.length ? inArray(schema.postings.countryCode, codes) : sql`false`, eq(schema.postings.workSetting, "remote"), isNull(schema.postings.countryCode)),
         skip.size ? notInArray(schema.postings.postingKey, [...skip].slice(0, 2000)) : undefined,
       ),
     )
@@ -74,10 +74,10 @@ export async function poolFor(profile: Profile) {
   const fits = candidates.filter((p) => {
     if (skip.has(p.postingKey)) return false;
     if (words.length && !words.some((w) => p.title.toLowerCase().includes(w))) return false;
-    if (code && p.countryCode === code) return true;
+    if (p.countryCode && codes.includes(p.countryCode)) return true;
     if (!prefs.workSettings.includes("remote") && !prefs.workSettings.includes("hybrid")) return false;
     const line = p.locationText ?? [p.city, p.country].filter(Boolean).join(", ");
-    return !!line && eligibilityProblem(line, prefs.country, prefs.city) === null;
+    return !!line && eligibilityProblemFor(line, allPlaces(prefs)) === null;
   });
   return stillOpen(fits.slice(0, MAX_ROWS));
 }
