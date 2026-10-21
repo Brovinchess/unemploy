@@ -17,6 +17,22 @@ export type Fix =
   | { type: "postingAge"; days: 60 | 90 }
   | { type: "wholeCountry" };
 
+// A fix applied to the preferences. Pure, so it can be checked without a signed-in user.
+export function applyFix(prefs: Preferences, fix: Fix): Preferences {
+  switch (fix.type) {
+    case "roles":
+      return { ...prefs, targetRoles: String(fix.roles).slice(0, 300) };
+    case "workSettings":
+      return { ...prefs, workSettings: [...new Set([...prefs.workSettings, ...fix.add])] };
+    case "remoteScope":
+      return { ...prefs, remoteScope: fix.scope, workSettings: prefs.workSettings.includes("remote") ? prefs.workSettings : [...prefs.workSettings, "remote"] };
+    case "postingAge":
+      return { ...prefs, maxPostingAgeDays: fix.days };
+    case "wholeCountry":
+      return { ...prefs, city: "" };
+  }
+}
+
 export type OutcomeKind = "title" | "resume" | "widen" | "later" | "keep_going" | "top_up" | "partial";
 
 export type Outcome = {

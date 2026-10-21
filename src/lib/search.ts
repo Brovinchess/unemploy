@@ -120,7 +120,7 @@ export function searchRequestText(args: {
     skip.length ? `SKIP LIST, already judged, do not open again:\n${skip.join("\n")}` : "",
     facts ? `${facts}\n${FACTS_RULE} This replaces anything in your brief that says such questions are not yours to answer.` : "",
     resumeText ? `MY RESUME, full text.\n${resumeText}` : "",
-    `When you have stopped for good, POST {"jobs":[],"final":true} with one line on how it went. "final" closes the search, so never put it on a mid-search push. If you can't reach ${base}, reply once to say so, then stop. Then wait for my next request. (${new Date().toISOString()})`,
+    `When you have stopped for good, POST {"jobs":[],"final":true,"note":"<one line on how it went>"}. "final" closes the search, so never put it on a mid-search push. If you can't reach ${base}, reply once to say so, then stop. Then wait for my next request. (${new Date().toISOString()})`,
   ]
     .filter(Boolean)
     .join("\n\n");
@@ -270,15 +270,18 @@ export async function ingestReachable() {
 // themselves, emails them what it found. Only the first call for a search does anything.
 export type EndReason = "finished" | "stopped" | "timeout" | "no_cognition";
 
-export async function endSearch(profile: Profile, reason: EndReason = "finished") {
+export async function endSearch(profile: Profile, reason: EndReason = "finished", note?: string) {
   const ended = await db
     .update(schema.profiles)
     .set({ searchEndedAt: new Date() })
     .where(and(eq(schema.profiles.id, profile.id), isNull(schema.profiles.searchEndedAt)))
     .returning({ id: schema.profiles.id });
   if (!ended.length) return;
+  // The row is closed; the copy in hand must say so too, or the email's "what to do next" card
+  // thinks the search is still running and falls back to the old one-liner.
+  profile = { ...profile, searchEndedAt: new Date() };
   await switchOff(profile);
-  await recordEnd(profile, reason).catch((e) => console.error("[search] record failed", profile.id, e));
+  await recordEnd(profile, reason, note).catch((e) => console.error("[search] record failed", profile.id, e));
   if (reason !== "stopped") await emailResults(profile, reason).catch((e) => console.error("[search] email failed", profile.id, e));
   // Jobs kept during the search still need their packs; that wakes the Mind again briefly.
   await requestPacks(profile.id).catch((e) => console.error("[search] pack request failed", profile.id, e));
@@ -298,7 +301,7 @@ export function usageByTool(ledger: { tool: string; calls: number; cognition: nu
 
 // Closes the search's history row: when, why, jobs added, what it opened, the balance after,
 // and one line about how it went that the next request carries back to the Mind.
-async function recordEnd(profile: Profile, reason: EndReason) {
+async function recordEnd(profile: Profile, reason: EndReason, note?: string) {
   const row = await db.query.searches.findFirst({
     where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
     orderBy: desc(schema.searches.startedAt),
@@ -321,7 +324,8 @@ async function recordEnd(profile: Profile, reason: EndReason) {
     `opened ${opened}, sent ${n} of ${row.jobsWanted}` +
     (top && droppedTotal ? `, most drops were ${DROP_LABELS[top.reason as DropReason] ?? top.reason} (${top.n})` : "") +
     (row.poolHits ? `, ${row.poolHits} from the check-first list` : "") +
-    `, ended: ${reason}`;
+    `, ended: ${reason}` +
+    (note ? `, note: ${note.replace(/\s+/g, " ").slice(0, 200)}` : "");
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   const api = user ? minds(user) : null;
   const balanceEnd = api && profile.mindId ? await api.getBalance(profile.mindId).catch(() => null) : null;

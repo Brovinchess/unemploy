@@ -120,7 +120,14 @@ type Dropped = z.infer<typeof droppedSchema>;
 
 // Dropped items are validated one by one later, so one bad lead never costs the whole push.
 export const pushSchema = z
-  .object({ jobs: z.array(z.unknown()).max(50).default([]), final: z.boolean().optional(), dropped: z.array(z.unknown()).max(100).optional(), packs: z.array(z.unknown()).max(50).optional() })
+  .object({
+    jobs: z.array(z.unknown()).max(50).default([]),
+    final: z.boolean().optional(),
+    // One line on how it went, on the final push: kept with the search, shown to the person.
+    note: z.string().trim().max(300).optional(),
+    dropped: z.array(z.unknown()).max(100).optional(),
+    packs: z.array(z.unknown()).max(50).optional(),
+  })
   .refine((b) => b.jobs.length > 0 || b.final || (b.dropped?.length ?? 0) > 0 || (b.packs?.length ?? 0) > 0, { message: "Send at least one job, a packs list, a dropped list, or an empty list with final: true." });
 
 export type JobPush = z.infer<typeof jobSchema>;
@@ -765,7 +772,7 @@ async function checkAndSave(
     // Keep the Mind off: endSearch already switched it off, but a running turn can re-enable nothing, so just make sure.
     await switchOff(profile).catch(() => {});
   } else if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
-    await endSearch(profile);
+    await endSearch(profile, "finished", parsed.data.note);
     searchEnded = true;
   }
 

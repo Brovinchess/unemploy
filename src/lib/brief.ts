@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 8;
+export const BRIEF_VERSION = 9;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -88,15 +88,15 @@ BUDGET (every search and every page you open costs me)
 - Open a posting only after it has passed KILL ON SIGHT. Never open a company's whole careers board.
 - Write short: progress notes one line, dropped notes under ten words, postings only as step 5 says.
 - Never run code, for anything. Read pages directly. A code run costs me fifteen times a web search and has never found a job that reading did not.
-- Never open or analyse a file. My resume comes as text; form questions come with each PACK REQUEST.
+${resumeInline ? "- Never open or analyse a file. My resume comes as text; form questions come with each PACK REQUEST." : "- Form questions come with each PACK REQUEST; open a form only when the request says the app could not read it."}
 
 STOP
 - Quota reached: POST {"jobs":[],"final":true} and stop.
-- Every rung you are allowed is dry: POST {"jobs":[],"final":true} with one honest line in chat: "Opened X, sent Y, rungs 0 to N exhausted, most drops were ...". Do not widen past the last rung to make up the number.
+- Every rung you are allowed is dry: POST {"jobs":[],"final":true,"note":"Opened X, sent Y, rungs 0 to N exhausted, most drops were ..."}. The note is one honest line; it reaches me. Do not widen past the last rung to make up the number.
 - Two hours in, whatever the count: final, same one line.
 Dropping most leads is normal. Never stop early because leads keep failing; move to the next rung instead.
 - A search or page that is cancelled, times out or errors: try once more with a different query or source, then move on. Never wait on a tool and never stop to ask me a question mid-search. If something you need is missing, do your best with what you have and say so in your final line.
-- Three web searches in a row that fail or come back empty with an error: the search tool is down. Stop, POST {"jobs":[],"final":true} with the one line "search tool failing", and wait for my next request. Do not keep retrying; every try costs me.
+- Three web searches in a row that fail or come back empty with an error: the search tool is down. Stop, POST {"jobs":[],"final":true,"note":"search tool failing"}, and wait for my next request. Do not keep retrying; every try costs me.
 
 CHECK EVERY JOB BEFORE SENDING (the endpoint enforces these and refuses jobs that fail)
 1. Source: open the posting on the employer's own careers page or job system (Greenhouse, Lever, Ashby, Workable, Workday, SmartRecruiters, Teamtailor…). Never send a job board copy (RemoteOK, LinkedIn reposts, beBee, startup.jobs, Jobgether…).

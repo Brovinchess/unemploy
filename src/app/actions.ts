@@ -24,7 +24,7 @@ import { SAMPLE_RESUME } from "@/lib/sample-resume";
 import { endSearch, isSearching, requestPacks, RESUME_TEXT_MAX, switchOff } from "@/lib/search";
 import { destroySession, requireUser } from "@/lib/session";
 import { friendly, resumeAttachment, startSearch } from "@/lib/start-search";
-import type { Fix } from "@/lib/outcome";
+import { applyFix, type Fix } from "@/lib/outcome";
 
 export type FormState = { error?: string } | undefined;
 
@@ -497,24 +497,7 @@ export async function applyOutcomeFix(profileId: string, fix: Fix): Promise<{ er
   const profile = await ownedProfile(user, profileId);
   const prefs = profile.preferences;
   if (!prefs) return { error: "Finish setting up this headhunter first." };
-  let next: Preferences = prefs;
-  switch (fix.type) {
-    case "roles":
-      next = { ...prefs, targetRoles: String(fix.roles).slice(0, 300) };
-      break;
-    case "workSettings":
-      next = { ...prefs, workSettings: [...new Set([...prefs.workSettings, ...fix.add])] };
-      break;
-    case "remoteScope":
-      next = { ...prefs, remoteScope: fix.scope, workSettings: prefs.workSettings.includes("remote") ? prefs.workSettings : [...prefs.workSettings, "remote"] };
-      break;
-    case "postingAge":
-      next = { ...prefs, maxPostingAgeDays: fix.days };
-      break;
-    case "wholeCountry":
-      next = { ...prefs, city: "" };
-      break;
-  }
+  const next = applyFix(prefs, fix);
   const parsed = preferencesSchema.safeParse(next);
   if (!parsed.success) return { error: "That change couldn't be saved." };
   await db.update(schema.profiles).set({ preferences: parsed.data, prefsChangedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
