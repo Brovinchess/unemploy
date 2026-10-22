@@ -62,7 +62,7 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
             r.perJob != null ? Math.round(r.perJob) : "",
             when(r.lastSearch),
             when(r.lastDeliveryAt),
-            <RunOne key="run" profileId={r.id} disabled={r.status !== "hunting"} />,
+            <RunOne key="run" profileId={r.id} disabled={r.status !== "hunting"} defaultJobs={r.perSearch ?? 5} />,
           ])}
         />
       </div>

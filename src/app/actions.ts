@@ -176,7 +176,7 @@ export async function checkActivation(profileId: string, quiet = false): Promise
     if (r?.claimedElsewhere) return { balance, started: true, searching: true };
     // First search starts by itself, so the next screen is the headhunter already working.
     // If it can't start, the app's ready screen shows the search button and the reason.
-    const s = await requestSearch(profile.id, profile.preferences?.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH).catch((e) => {
+    const s = await requestSearch(profile.id, profile.preferences?.jobsPerDay ?? RECOMMENDED_JOBS_PER_SEARCH, "", "setup").catch((e) => {
       console.error("[activate] first search", e);
       return { error: String(e) };
     });
@@ -408,10 +408,10 @@ export async function setPaused(profileId: string, paused: boolean): Promise<For
 
 // ---------- Searches (only when the user asks) ----------
 
-export async function requestSearch(profileId: string, jobs: number, focus = ""): Promise<FormState> {
+export async function requestSearch(profileId: string, jobs: number, focus = "", via: "find" | "setup" = "find"): Promise<FormState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
-  const r = await startSearch(user, profile, jobs, focus);
+  const r = await startSearch(user, profile, jobs, focus, { via });
   if (r?.error) return r;
   revalidatePath("/app", "layout");
 }

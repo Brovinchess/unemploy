@@ -6,12 +6,23 @@ import { Play } from "lucide-react";
 import { rerunShortSearches, runSearchFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
-export function RunOne({ profileId, disabled }: { profileId: string; disabled?: boolean }) {
+export function RunOne({ profileId, disabled, defaultJobs = 5 }: { profileId: string; disabled?: boolean; defaultJobs?: number }) {
   const [pending, start] = useTransition();
   const [note, setNote] = useState<string>();
+  const [jobs, setJobs] = useState(defaultJobs);
   const router = useRouter();
   return (
     <span className="inline-flex items-center gap-2">
+      <input
+        type="number"
+        min={1}
+        max={10}
+        value={jobs}
+        onChange={(e) => setJobs(Math.max(1, Math.min(10, Number(e.target.value) || 1)))}
+        aria-label="Jobs to ask for"
+        title="How many jobs this search asks for"
+        className="h-7 w-12 rounded-full bg-white/[0.06] px-2 text-center text-xs text-white/80 ring-1 ring-white/10"
+      />
       <button
         type="button"
         disabled={pending || disabled}
@@ -19,7 +30,7 @@ export function RunOne({ profileId, disabled }: { profileId: string; disabled?: 
         className="inline-flex h-7 items-center gap-1 rounded-full bg-white/[0.06] px-2.5 text-xs text-white/70 ring-1 ring-white/10 hover:text-white disabled:opacity-40"
         onClick={() =>
           start(async () => {
-            const r = await runSearchFor(profileId);
+            const r = await runSearchFor(profileId, jobs);
             setNote(r.note);
             router.refresh();
           })

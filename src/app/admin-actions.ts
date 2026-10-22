@@ -12,13 +12,13 @@ export type RunResult = { username: string; label: string; ok: boolean; note: st
 
 // Owner-side: start a search for one headhunter with its own settings, as if the person had
 // pressed Find new jobs. The person pays for it from their Mind's cognition.
-export async function runSearchFor(profileId: string): Promise<RunResult> {
+export async function runSearchFor(profileId: string, jobs?: number, via: "admin" | "rerun" = "admin"): Promise<RunResult> {
   await requireAdmin();
   const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
   if (!profile) return { username: "?", label: "?", ok: false, note: "No such headhunter." };
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user) return { username: "?", label: profile.label, ok: false, note: "No such user." };
-  const r = await startSearch(user, profile, profile.preferences?.jobsPerDay ?? 5, "", true).catch((e) => ({ error: String(e?.message ?? e) }));
+  const r = await startSearch(user, profile, jobs ?? profile.preferences?.jobsPerDay ?? 5, "", { fitToBalance: true, via }).catch((e) => ({ error: String(e?.message ?? e) }));
   const open = r?.error ? null : await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)), columns: { jobsWanted: true } });
   return { username: user.username ?? "(no name yet)", label: profile.label, ok: !r?.error, note: r?.error ?? `Search started${open ? ` for ${open.jobsWanted} jobs` : ""}.` };
 }
@@ -69,7 +69,7 @@ export async function rerunShortSearches(zeroOnly = true): Promise<RunResult[]> 
   await requireAdmin();
   const out: RunResult[] = [];
   for (const c of await shortCandidates(zeroOnly)) {
-    out.push(await runSearchFor(c.id));
+    out.push(await runSearchFor(c.id, undefined, "rerun"));
     await new Promise((r) => setTimeout(r, 1500));
   }
   return out;

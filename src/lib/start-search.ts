@@ -60,7 +60,9 @@ export function resumeAttachment(p: Pick<Profile, "resumeFileName" | "resumeMime
 // `fitToBalance` (admin re-runs): when the asked-for size costs more than the Mind has, shrink
 // the search to what the balance covers, two jobs at least, instead of refusing. The person's
 // own default size is left as it was.
-export async function startSearch(user: User, profile: Profile, jobs: number, focus = "", fitToBalance = false): Promise<SearchStart> {
+export type StartOptions = { fitToBalance?: boolean; via?: "find" | "setup" | "admin" | "rerun" };
+export async function startSearch(user: User, profile: Profile, jobs: number, focus = "", opts: StartOptions = {}): Promise<SearchStart> {
+  const { fitToBalance = false, via = "find" } = opts;
   let wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
   let fitted = false;
   const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
@@ -111,7 +113,7 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
       .returning({ id: schema.profiles.id });
     if (!started.length) return;
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance, overrides });
-    track(user.id, "search_requested", { jobs: wanted, search_number: n + 1 });
+    track(user.id, "search_requested", { jobs: wanted, search_number: n + 1, via, fitted });
     await api.setEnabled(profile.mindId, true);
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
     // after the request, a new resume as an attachment. One message, one wake.
