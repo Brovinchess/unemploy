@@ -5,7 +5,8 @@ import { db, schema } from "@/db";
 import type { Profile, SearchOverrides } from "@/db/schema";
 import { companyKey, jobKey, SAME_ROLE_DAYS, SeenJobs, titleKey } from "./dedupe";
 import { avoidList, postingAgeDays , allPlaces , type Preferences } from "./preferences";
-import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
+import { COUNTRY_NAMES, countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise";
+import { citiesOf } from "./places";
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblemFor, hostOf, isAggregator } from "./quality";
@@ -186,6 +187,21 @@ const sameCountry = (a?: string, b?: string) => {
 };
 
 const MAX_SCORE_WITH_GAPS = 55;
+
+// A Mind sometimes leaves "country" out of an otherwise good job. Rather than refuse it, read the
+// country off the city (one of the person's own places) or the location line, so a real job in
+// Kuala Lumpur is not lost to a missing field. The Mind's own country, when given, always wins.
+export function fillCountry(job: { country?: string; city?: string; locationText: string }, prefs: Preferences) {
+  if (job.country) return;
+  const city = norm(job.city ?? "");
+  const byCity = city && allPlaces(prefs).find((p) => citiesOf(p.country).some((c) => norm(c) === city));
+  if (byCity) {
+    job.country = byCity.country;
+    return;
+  }
+  const code = countryCodeOf(job.locationText, job.city);
+  if (code && COUNTRY_NAMES[code]) job.country = COUNTRY_NAMES[code];
+}
 
 // One row per posting in the shared pool. Facts only, newest wins, the row never says who
 // found it. Sources only upgrade: a lead someone dropped becomes "accepted" once anyone's
@@ -520,6 +536,7 @@ async function checkAndSave(
       continue;
     }
     const job = r.data;
+    fillCountry(job, profile.preferences!);
 
     if (!isPublicHttpUrl(job.url)) {
       rejected.push({ url: job.url, code: "bad_url", hint: "Job links must be public http(s) addresses." });
