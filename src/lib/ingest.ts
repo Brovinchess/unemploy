@@ -9,7 +9,7 @@ import { countryCodeOf, jobTypeKeyOf, levelKeyOf, postedOnOf } from "./normalise
 import { isAboutTheJob, queueQuestions, similarity } from "./personal";
 import { humanise } from "./text";
 import { checkPosting, eligibilityProblemFor, hostOf, isAggregator } from "./quality";
-import { endSearch, isSearching, jobsNeedingPacks, switchOff } from "./search";
+import { continueIfEarly, endSearch, isSearching, jobsNeedingPacks, switchOff } from "./search";
 
 // Jobs that arrive this soon after a "final" still count: the Mind finished its last reads.
 const LATE_GRACE_MS = 30 * 60 * 1000;
@@ -782,8 +782,13 @@ async function checkAndSave(
     // Keep the Mind off: endSearch already switched it off, but a running turn can re-enable nothing, so just make sure.
     await switchOff(profile).catch(() => {});
   } else if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
-    await endSearch(profile, "finished", parsed.data.note);
-    searchEnded = true;
+    const carryOn = parsed.data.final && remaining > 0 && openSearch ? await continueIfEarly(profile, openSearch, remaining, prefs.jobsPerDay).catch((e) => (console.error("[ingest] continue", e), null)) : null;
+    if (carryOn) {
+      adjusted.push({ url: "", note: carryOn });
+    } else {
+      await endSearch(profile, "finished", parsed.data.note);
+      searchEnded = true;
+    }
   }
 
   return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, dryRun, adjusted, skippedRecently, logged: true, packsAccepted, packsRejected };

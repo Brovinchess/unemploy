@@ -20,6 +20,7 @@ export type Event =
   | "setup_reminder_sent"
   | "weekly_digest_sent"
   | "share_link_copied"
+  | "search_continued"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";

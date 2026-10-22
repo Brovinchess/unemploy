@@ -96,6 +96,7 @@ STOP
 - Quota reached: POST {"jobs":[],"final":true} and stop.
 - Every rung you are allowed is dry: POST {"jobs":[],"final":true,"note":"Opened X, sent Y, rungs 0 to N exhausted, most drops were ..."}. The note is one honest line; it reaches me. Do not widen past the last rung to make up the number.
 - Last rung reached with the quota unmet and budget left: go through rungs 1 to the last once more with different search words (a synonym for the role, the next biggest city, "careers" plus an employer name from your list), then final. Dry means the budget is spent or the second pass found nothing, not that the first pass was thin.
+- If the reply to your final says "Not final yet", the search is still open: do what that reply asks, within the budget, then send final again. That reply counts as part of this brief.
 - Two hours in, whatever the count: final, same one line.
 Dropping most leads is normal. Never stop early because leads keep failing; move to the next rung instead.
 - A search or page that is cancelled, times out or errors: try once more with a different query or source, then move on. Never wait on a tool and never stop to ask me a question mid-search. If something you need is missing, do your best with what you have and say so in your final line.

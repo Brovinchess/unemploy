@@ -332,7 +332,7 @@ export type Question = typeof questions.$inferSelect;
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
 // One row per search the user asked for, for the headhunter's history.
-export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean };
+export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean; continued?: boolean };
 
 export const searches = pgTable(
   "searches",

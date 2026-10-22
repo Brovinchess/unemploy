@@ -1,7 +1,8 @@
 import "server-only";
 import { and, count, desc, eq, gte, inArray, isNotNull, isNull, lt, or } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { FormQuestion, Profile } from "@/db/schema";
+import type { FormQuestion, Profile, SearchOverrides } from "@/db/schema";
+import { discoveryHints } from "./discovery";
 import { fetchFormQuestions } from "./forms";
 import { sendSearchDoneEmail, unsubscribeLink } from "./email";
 import { referralCodeFor } from "./referrals";
@@ -461,4 +462,36 @@ export async function reconcileFromChat(profile: Profile): Promise<"none" | "res
   if (Date.now() - open.nudgedAt.getTime() < RESEND_WAIT_MS) return "none";
   await endSearch(profile, "finished", "the headhunter reported finishing but nothing it sent reached the app");
   return "closed";
+}
+
+
+// ---- An early "final" ----------------------------------------------------------------------
+// The person asked for N and paid for a budget. A Mind that posts final with the quota unmet and
+// most of the budget unspent is told to carry on, once, within that same budget: wider titles,
+// job-board results as leads to the employer's page, and near-misses as low-scored cards.
+
+const CONTINUE_BELOW = 0.6; // share of the search budget used; under this, an early final is refused
+
+export async function continueIfEarly(profile: Profile, search: { id: string; startedAt: Date; overrides: SearchOverrides | null }, remaining: number, wanted: number): Promise<string | null> {
+  if (remaining <= 0 || !profile.mindId || !profile.conversationAlias || search.overrides?.continued) return null;
+  const budget = search.overrides?.budget?.searches ?? 12;
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user) return null;
+  const since = new Date(search.startedAt);
+  since.setUTCMinutes(0, 0, 0);
+  const used = (await minds(user).toolUsage(profile.mindId, since).catch(() => []))
+    .filter((u) => u.tool === "SEARCH_Web")
+    .reduce((a, u) => a + u.calls, 0);
+  if (used >= budget * CONTINUE_BELOW) return null;
+  const left = Math.max(2, budget - used);
+  const { titles } = discoveryHints(profile.preferences?.targetRoles ?? "");
+  const wider = titles.slice(1, 7).join(", ");
+  const note =
+    `Not final yet. I asked for ${wanted} and have ${wanted - remaining}, and you have about ${left} web searches left in this search's budget. Keep going before you send final: ` +
+    `search the wider title family (${wider || "the same role one level up or down"}); use job-board results as leads and open the employer's own page for each; ` +
+    `and send near-misses that meet most requirements as cards with matchScore 55 or lower and every gap listed in mustHaves, so I can decide. Send final when the budget is spent or nothing new turns up.`;
+  await db.update(schema.searches).set({ overrides: { ...(search.overrides ?? {}), continued: true } }).where(eq(schema.searches.id, search.id));
+  await minds(user).sendMessage(profile.conversationAlias, `${user.username ?? "me"} here. ${note} (${new Date().toISOString()})`).catch((e) => console.error("[search] continue message failed", profile.id, e));
+  track(profile.userId, "search_continued", { had: wanted - remaining, wanted, used, budget });
+  return note;
 }
