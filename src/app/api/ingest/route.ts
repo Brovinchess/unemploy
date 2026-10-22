@@ -24,10 +24,11 @@ export async function POST(request: Request) {
     );
   }
   const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.ingestKeyHash, hashKey(key)) });
+  if (!profile) console.warn(`[ingest] unknown key ${key.slice(0, 4)}… (${key.length} chars)`);
   if (!profile) {
     console.warn("[ingest] unknown key");
     return NextResponse.json(
-      { code: "unknown_key", hint: "That key is not recognised. Use the exact key from your latest brief." },
+      { code: "unknown_key", hint: "That key is not recognised. Use the exact key from your latest brief or the latest message that gave you one. If you have neither, reply in chat with the words KEY LOST and stop; a new one will be sent." },
       { status: 401 },
     );
   }

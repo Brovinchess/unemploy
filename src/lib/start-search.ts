@@ -7,6 +7,7 @@ import { track } from "./analytics/server";
 import { BRIEF_VERSION, buildBrief } from "./brief";
 import { costModel } from "./cost";
 import { factsText } from "./facts";
+import { hashKey, newIngestKey } from "./keys";
 import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
 import { localEmployers } from "./pool";
@@ -118,9 +119,16 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const newBrief = !!profile.preferences && ((profile.prefsChangedAt?.getTime() ?? 0) > synced || profile.briefVersion < BRIEF_VERSION);
     const newResume = (profile.resumeChangedAt?.getTime() ?? 0) > synced && !!profile.resumeData;
     const notes = [
-      newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full` : "",
+      newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full, including a new key for the app` : "",
       newResume ? `my resume changed; the new file is attached (see the first line above)` : "",
     ].filter(Boolean);
+    // A re-brief carries a fresh key. Only a hash of the old one is kept, so it cannot be repeated,
+    // and a Mind that has lost its key would otherwise be shut out for good (every push a 401).
+    let ingestKey = "";
+    if (newBrief) {
+      ingestKey = newIngestKey();
+      await db.update(schema.profiles).set({ ingestKeyHash: hashKey(ingestKey) }).where(eq(schema.profiles.id, profile.id));
+    }
     const changes =
       (notes.length ? `\n\nCHANGES SINCE LAST TIME, read before you start: ${notes.join(". ")}.` : "") +
       (newBrief
@@ -131,7 +139,7 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
             prefs: { ...profile.preferences!, jobsPerDay: wanted },
             timezone: user.timezone ?? "UTC",
             appUrl: mindsConfig.ingestUrl,
-            ingestKey: "(the same key as before)",
+            ingestKey,
             resumeAttached: newResume && !profile.resumeText,
             resumeInline: !!profile.resumeText,
             facts: factsText(user),

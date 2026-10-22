@@ -13,6 +13,7 @@ import { searchOutcome } from "./outcome";
 import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
 import { PACK_RULES } from "./brief";
+import { hashKey, newIngestKey } from "./keys";
 import { postingAgeDays } from "./preferences";
 import type { DropReason } from "@/db/schema";
 
@@ -249,12 +250,17 @@ export async function nudgeIfQuiet(profile: Profile) {
   if (!claimed.length) return;
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user) return;
+  // Nothing arrived in 25 minutes. One common reason is a key the Mind no longer has right, which
+  // turns every push into a 401 it may not mention. A fresh key rides along with the nudge.
+  const key = newIngestKey();
+  await db.update(schema.profiles).set({ ingestKeyHash: hashKey(key) }).where(eq(schema.profiles.id, profile.id));
   await minds(user)
     .sendMessage(
       profile.conversationAlias,
       `${user.username} here, about the search you're running: please POST the jobs that have already passed every check to ` +
         `${mindsConfig.ingestUrl}/api/ingest now, without "final", so I can start on them. Then keep searching and send each ` +
-        `new job as soon as it's checked. Mark the end with {"jobs":[],"final":true}. (${new Date().toISOString()})`,
+        `new job as soon as it's checked. Mark the end with {"jobs":[],"final":true}. ` +
+        `From now on use this key in the x-unemploy-key header, for every request, in place of the one in your brief: ${key} (${new Date().toISOString()})`,
     )
     .catch((e) => console.error("[search] nudge failed", profile.id, e));
 }
