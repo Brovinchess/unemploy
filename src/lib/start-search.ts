@@ -7,7 +7,7 @@ import { track } from "./analytics/server";
 import { BRIEF_VERSION, buildBrief } from "./brief";
 import { costModel } from "./cost";
 import { factsText } from "./facts";
-import { hashKey, newIngestKey } from "./keys";
+import { rotateKey } from "./keys";
 import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
 import { localEmployers } from "./pool";
@@ -116,19 +116,20 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
     // after the request, a new resume as an attachment. One message, one wake.
     const synced = profile.briefedAt?.getTime() ?? 0;
-    const newBrief = !!profile.preferences && ((profile.prefsChangedAt?.getTime() ?? 0) > synced || profile.briefVersion < BRIEF_VERSION);
+    // The full brief rides with every request. A message costs the same at any length, and a
+    // brief the Mind has to remember between searches is one it can half-forget. The note about
+    // changes is kept for when settings actually changed.
+    const changed = !!profile.preferences && ((profile.prefsChangedAt?.getTime() ?? 0) > synced || profile.briefVersion < BRIEF_VERSION);
+    const newBrief = !!profile.preferences;
     const newResume = (profile.resumeChangedAt?.getTime() ?? 0) > synced && !!profile.resumeData;
     const notes = [
-      newBrief ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full, including a new key for the app` : "",
+      changed ? `my brief changed; the full new brief is below and replaces the one from ${profile.briefedAt?.toISOString().slice(0, 10) ?? "before"} in full` : "",
+      newBrief ? `the brief below is the complete one for this search, with a new key for the app; work from it, not from memory` : "",
       newResume ? `my resume changed; the new file is attached (see the first line above)` : "",
     ].filter(Boolean);
     // A re-brief carries a fresh key. Only a hash of the old one is kept, so it cannot be repeated,
     // and a Mind that has lost its key would otherwise be shut out for good (every push a 401).
-    let ingestKey = "";
-    if (newBrief) {
-      ingestKey = newIngestKey();
-      await db.update(schema.profiles).set({ ingestKeyHash: hashKey(ingestKey) }).where(eq(schema.profiles.id, profile.id));
-    }
+    const ingestKey = newBrief ? await rotateKey(profile.id) : "";
     const changes =
       (notes.length ? `\n\nCHANGES SINCE LAST TIME, read before you start: ${notes.join(". ")}.` : "") +
       (newBrief

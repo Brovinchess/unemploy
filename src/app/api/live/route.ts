@@ -5,7 +5,7 @@ import type { Live } from "@/components/live";
 import { balanceFor, freshBalance } from "@/lib/app-context";
 import { ownedProfile } from "@/lib/owned";
 import { questionCounts } from "@/lib/personal";
-import { endSearch, isSearching, nudgeIfQuiet, sleepIfPacksDone } from "@/lib/search";
+import { endSearch, isSearching, nudgeIfQuiet, reconcileFromChat, sleepIfPacksDone } from "@/lib/search";
 import { getCurrentUser } from "@/lib/session";
 
 // One small snapshot of everything the app shows live: the current search, cognition,
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     else if (live.profile.searching && live.profile.balance != null && live.profile.balance <= 0) await endSearch(profile, "no_cognition").catch(() => {});
     else {
       await nudgeIfQuiet(profile).catch(() => {});
+      await reconcileFromChat(profile).catch(() => {});
       await sleepIfPacksDone(profile).catch(() => {});
     }
   });

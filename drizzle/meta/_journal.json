@@ -197,6 +197,13 @@
       "when": 1792566624354,
       "tag": "0027_first_search_and_notices",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1792638111929,
+      "tag": "0028_key_rotation",
+      "breakpoints": true
     }
   ]
 }

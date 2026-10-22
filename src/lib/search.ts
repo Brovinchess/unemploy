@@ -13,7 +13,7 @@ import { searchOutcome } from "./outcome";
 import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
 import { PACK_RULES } from "./brief";
-import { hashKey, newIngestKey } from "./keys";
+import { rotateKey } from "./keys";
 import { postingAgeDays } from "./preferences";
 import type { DropReason } from "@/db/schema";
 
@@ -162,12 +162,13 @@ function packJobText(j: PackJob, i: number) {
   return `${head}\n   Form questions, read by the app from the form itself. Do not open the form, do not run code; answer from this list and send it back as "formQuestions":\n${qs}`;
 }
 
-export function packRequestText(username: string, jobs: PackJob[], facts: string, resumeText = "") {
+export function packRequestText(username: string, jobs: PackJob[], facts: string, resumeText = "", key = "") {
   const base = mindsConfig.ingestUrl;
   return [
     `PACK REQUEST from ${username}. I kept ${jobs.length === 1 ? "this job" : `these ${jobs.length} jobs`}; write the application pack for ${jobs.length === 1 ? "it" : "each"} now.`,
     jobs.map(packJobText).join("\n\n"),
     `For each: open the posting itself once for the job's wording, then write the pack in English: cover letter, a short "about me", an answer for every form question about the job, the company or why I fit it, and "claims" quoting my resume. Skip questions about gender, ethnicity, disability or veteran status. POST {"packs":[{"url","formQuestions","pack"}]} to ${base}/api/ingest with your key, one pack per push is fine, as soon as each is written. Never run code. Do not search for new jobs now; packs only.`,
+    key ? `Your key for the x-unemploy-key header, for this and every later request: ${key}` : "",
     `WRITING RULES\n${PACK_RULES}`,
     `${facts ? `${facts}\n` : ""}${FACTS_RULE}`,
     resumeText ? `MY RESUME, full text. Quote from this; do not open any file.\n${resumeText}` : "",
@@ -215,7 +216,7 @@ export async function requestPacks(profileId: string) {
     }),
   );
   await api.setEnabled(profile.mindId, true);
-  await api.sendMessage(profile.conversationAlias, packRequestText(user.username ?? "me", jobs, factsText(user), profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? ""));
+  await api.sendMessage(profile.conversationAlias, packRequestText(user.username ?? "me", jobs, factsText(user), profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? "", await rotateKey(profile.id)));
   await db.update(schema.profiles).set({ packRequestedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   track(profile.userId, "packs_requested", { jobs: claimed.length });
 }
@@ -252,8 +253,7 @@ export async function nudgeIfQuiet(profile: Profile) {
   if (!user) return;
   // Nothing arrived in 25 minutes. One common reason is a key the Mind no longer has right, which
   // turns every push into a 401 it may not mention. A fresh key rides along with the nudge.
-  const key = newIngestKey();
-  await db.update(schema.profiles).set({ ingestKeyHash: hashKey(key) }).where(eq(schema.profiles.id, profile.id));
+  const key = await rotateKey(profile.id);
   await minds(user)
     .sendMessage(
       profile.conversationAlias,
@@ -417,4 +417,48 @@ export async function switchOff(profile: Profile) {
   await minds(user)
     .setEnabled(profile.mindId, false)
     .catch((e) => console.error("[search] couldn't switch the Mind off", profile.id, e));
+}
+
+
+// ---- When the Mind's pushes never arrive -------------------------------------------------
+// The Mind can finish a search and tell us so in chat while every push it made was refused (a
+// key it no longer has right). The app reads the chat: a report of "final" with nothing received
+// gets a fresh key and one request to resend; a second quiet spell closes the search with the
+// reason on record, so the person sees a card instead of a search that never ends.
+
+const DONE_WORDS = /\b(final push|posting (the )?final|posted (the )?final|final is posted|closed and posted|is finished|have finished|search (is )?(closed|complete|done)|all rungs? (swept|exhausted))\b/i;
+const RESEND_WAIT_MS = 15 * 60 * 1000;
+
+export async function sendFreshKey(profile: Profile, why: string) {
+  if (!profile.conversationAlias || !profile.mindId) return;
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user) return;
+  const key = await rotateKey(profile.id);
+  await minds(user).sendMessage(
+    profile.conversationAlias,
+    `${user.username ?? "me"} here. ${why} Use this key in the x-unemploy-key header for every request from now on: ${key}. ` +
+      `If you have jobs or dropped leads from the current search that never got through, POST them to ${mindsConfig.ingestUrl}/api/ingest again now, then your final. (${new Date().toISOString()})`,
+  );
+}
+
+export async function reconcileFromChat(profile: Profile): Promise<"none" | "resend_asked" | "closed"> {
+  if (!profile.searchStartedAt || profile.searchEndedAt || !profile.conversationAlias) return "none";
+  const since = profile.searchStartedAt.getTime();
+  const pushed = await db.query.ingestLog.findFirst({ where: and(eq(schema.ingestLog.profileId, profile.id), eq(schema.ingestLog.dryRun, false), gte(schema.ingestLog.createdAt, profile.searchStartedAt)), columns: { id: true } });
+  if (pushed) return "none";
+  const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!user) return "none";
+  const replies = (await minds(user).history(profile.conversationAlias, 20).catch(() => [])).filter((m) => m.fromMind && m.at.getTime() >= since);
+  const done = replies.find((m) => DONE_WORDS.test(m.text));
+  if (!done) return "none";
+  const open = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)), columns: { id: true, nudgedAt: true } });
+  if (!open) return "none";
+  if (!open.nudgedAt) {
+    await db.update(schema.searches).set({ nudgedAt: new Date() }).where(eq(schema.searches.id, open.id));
+    await sendFreshKey(profile, "You said this search is finished, but nothing you sent reached the app, which usually means the key was refused.");
+    return "resend_asked";
+  }
+  if (Date.now() - open.nudgedAt.getTime() < RESEND_WAIT_MS) return "none";
+  await endSearch(profile, "finished", "the headhunter reported finishing but nothing it sent reached the app");
+  return "closed";
 }

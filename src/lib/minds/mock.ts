@@ -67,6 +67,11 @@ export const mockMinds: MindsApi = {
   },
 };
 
+// Test hook: a line from the Mind, as if it had replied in the conversation.
+export function mockMindSays(alias: string, text: string) {
+  say(alias, true, text);
+}
+
 export function mockTopUp(mindId: string, amount = 160) {
   state.balances.set(mindId, (state.balances.get(mindId) ?? 0) + amount);
 }

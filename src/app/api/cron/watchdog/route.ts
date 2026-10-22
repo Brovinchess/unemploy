@@ -3,7 +3,7 @@ import { and, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
 import { checkPosting } from "@/lib/quality";
-import { endSearch, isSearching, nudgeIfQuiet } from "@/lib/search";
+import { endSearch, isSearching, nudgeIfQuiet, reconcileFromChat } from "@/lib/search";
 import { sendSetupReminders, sendWeeklyDigests } from "@/lib/notices";
 
 // Runs daily (vercel.json): clears expired sessions, closes searches that never finished,
@@ -31,6 +31,7 @@ export async function GET(request: Request) {
   for (const p of open) {
     if (isSearching(p)) {
       await nudgeIfQuiet(p).catch((e) => console.error("[watchdog] nudge failed", p.id, e));
+      await reconcileFromChat(p).catch((e) => console.error("[watchdog] reconcile failed", p.id, e));
       continue;
     }
     await endSearch(p, "timeout").catch((e) => console.error("[watchdog] end search failed", p.id, e));

@@ -1,8 +1,7 @@
-import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-import { db, schema } from "@/db";
+import { NextResponse, after } from "next/server";
 import { buildContract } from "@/lib/brief";
-import { hashKey } from "@/lib/keys";
+import { noteRejectedKey, profileForKey } from "@/lib/keys";
+import { sendFreshKey } from "@/lib/search";
 import { processPush } from "@/lib/ingest";
 import { mindsConfig } from "@/lib/minds/config";
 
@@ -23,10 +22,11 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
-  const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.ingestKeyHash, hashKey(key)) });
-  if (!profile) console.warn(`[ingest] unknown key ${key.slice(0, 4)}… (${key.length} chars)`);
+  const found = await profileForKey(key);
+  const profile = found.profile;
   if (!profile) {
-    console.warn("[ingest] unknown key");
+    console.warn(`[ingest] unknown key ${key.slice(0, 4)}… (${key.length} chars)${found.owner ? `, looks like ${found.owner.id}` : ""}`);
+    if (found.owner && (await noteRejectedKey(found.owner))) after(() => sendFreshKey(found.owner!, "The key you just used was refused.").catch((e) => console.error("[ingest] fresh key", e)));
     return NextResponse.json(
       { code: "unknown_key", hint: "That key is not recognised. Use the exact key from your latest brief or the latest message that gave you one. If you have neither, reply in chat with the words KEY LOST and stop; a new one will be sent." },
       { status: 401 },

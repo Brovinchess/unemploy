@@ -123,6 +123,10 @@ export const profiles = pgTable(
     conversationAlias: text("conversation_alias"),
     // SHA-256 of the secret the Mind sends with every push.
     ingestKeyHash: text("ingest_key_hash").unique(),
+    // The key before the last rotation stays valid, so a push already in flight is not refused,
+    // and the first characters of the current key let a rejected push be traced to its owner.
+    prevIngestKeyHash: text("prev_ingest_key_hash"),
+    ingestKeyHint: text("ingest_key_hint"),
     resumeFileName: text("resume_file_name"),
     resumeMime: text("resume_mime"),
     resumeData: text("resume_data"), // base64
