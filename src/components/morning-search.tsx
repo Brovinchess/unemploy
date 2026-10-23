@@ -159,7 +159,7 @@ export function MorningSearch({
                 )}
                 {!dirty && saved && <span className="text-sm text-white/45">Saved.</span>}
                 {on ? (
-                  <button type="button" className="text-sm text-white/55 hover:text-rose" disabled={pending} onClick={() => save(null)}>
+                  <button type="button" className="ml-auto text-sm text-white/55 hover:text-rose" disabled={pending} onClick={() => save(null)}>
                     Turn off
                   </button>
                 ) : (
