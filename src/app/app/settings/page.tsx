@@ -57,6 +57,7 @@ export default async function Settings() {
               profileId={current.id}
               jobs={current.autoSearchJobs}
               days={current.autoSearchDays}
+              paused={!!current.autoSearchPausedAt}
               defaultJobs={current.preferences?.jobsPerDay ?? 5}
               perJob={cost.perJob}
               extraPlaces={current.preferences?.extraPlaces?.length ?? 0}

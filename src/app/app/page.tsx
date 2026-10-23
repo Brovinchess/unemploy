@@ -10,6 +10,8 @@ import { SearchButton } from "@/components/search-button";
 import { SearchingChip } from "@/components/sidebar-search";
 import { CognitionIntro } from "@/components/cognition-intro";
 import { NewJobs } from "@/components/new-jobs";
+import { DailySearchNotice } from "@/components/daily-search-notice";
+import { estimateSearchCost } from "@/lib/preferences";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
@@ -168,6 +170,16 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             </p>
             <PauseToggle profileId={current.id} paused />
           </div>
+        )}
+
+        {/* Daily search turned itself on with the first search: say so once, with the way out. */}
+        {current.autoSearchJobs != null && !current.autoSearchNoticedAt && !current.autoSearchPausedAt && !searching && (
+          <DailySearchNotice
+            profileId={current.id}
+            jobs={current.autoSearchJobs}
+            perDay={estimateSearchCost(current.autoSearchJobs, cost.perJob, current.preferences?.extraPlaces?.length ?? 0).cognition}
+            href={`/app/headhunters/${current.id}#morning`}
+          />
         )}
 
         {/* New jobs: the whole page the first time, a strip with an overlay once there's a list.

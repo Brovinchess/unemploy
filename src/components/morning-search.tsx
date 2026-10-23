@@ -13,6 +13,7 @@ export function MorningSearch({
   profileId,
   jobs: savedJobs,
   days: savedDays,
+  paused = false,
   defaultJobs,
   perJob,
   extraPlaces = 0,
@@ -24,6 +25,7 @@ export function MorningSearch({
   profileId: string;
   jobs: number | null; // null when off
   days: AutoSearchDaysValue;
+  paused?: boolean; // paused by the app after a day with nothing new; the settings stay
   defaultJobs: number;
   perJob?: number;
   extraPlaces?: number;
@@ -48,7 +50,7 @@ export function MorningSearch({
       setDays(savedDays);
     }
   }
-  const dirty = !on || jobs !== savedJobs || days !== savedDays;
+  const dirty = !on || paused || jobs !== savedJobs || days !== savedDays;
   const save = (next: { jobs: number; days: AutoSearchDaysValue } | null) =>
     start(async () => {
       const r = await setMorningSearch(profileId, next);
@@ -88,9 +90,11 @@ export function MorningSearch({
             <div>
               <h2 className="font-display text-lg font-medium text-white">Daily search</h2>
               <p className="mt-0.5 text-sm text-white/50">
-                {on
-                  ? `On. ${savedJobs} ${savedJobs === 1 ? "job" : "jobs"} ${when(savedDays)}.`
-                  : disabled ?? "Your headhunter finds new jobs on its own, on the days you choose."}
+                {on && paused
+                  ? `Paused after a day with nothing new. Change a setting below, then turn it back on.`
+                  : on
+                    ? `On. ${savedJobs} ${savedJobs === 1 ? "job" : "jobs"} ${when(savedDays)}.`
+                    : disabled ?? "Your headhunter finds new jobs on its own, on the days you choose."}
               </p>
             </div>
             {!showControls && (
@@ -155,7 +159,7 @@ export function MorningSearch({
                 <div className="flex flex-wrap items-center gap-4">
                   {dirty && (
                     <button type="button" className="btn btn-primary h-10" disabled={pending} onClick={() => save({ jobs, days })}>
-                      {pending ? "Saving…" : on ? "Save changes" : "Start daily search"}
+                      {pending ? "Saving…" : paused ? "Turn back on" : on ? "Save changes" : "Start daily search"}
                     </button>
                   )}
                   {!dirty && saved && <span className="text-sm text-white/45">Saved.</span>}

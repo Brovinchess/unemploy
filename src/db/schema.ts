@@ -144,6 +144,12 @@ export const profiles = pgTable(
     autoSearchJobs: integer("auto_search_jobs"),
     // Which mornings: every day, weekdays, every other day, or Mondays only.
     autoSearchDays: text("auto_search_days").$type<AutoSearchDays>().notNull().default("daily"),
+    // Daily search is on by default from the first search. These three say what happened since:
+    // paused by the app after a day with nothing new (resume keeps the settings), turned off by
+    // the person (never turned back on by itself), and whether the Jobs page notice was seen.
+    autoSearchPausedAt: timestamp("auto_search_paused_at", { withTimezone: true }),
+    autoSearchOffAt: timestamp("auto_search_off_at", { withTimezone: true }),
+    autoSearchNoticedAt: timestamp("auto_search_noticed_at", { withTimezone: true }),
     // The Mind is on, outside a search, because packs were asked for; cleared when they land.
     packRequestedAt: timestamp("pack_requested_at", { withTimezone: true }),
     // Searches run only when the user asks. A search is active while started and not ended;

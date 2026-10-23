@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { and, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { runFollowUps, runMorningSearches, sendCardsWaiting, sendZeroDayEmails } from "@/lib/morning";
+import { pauseAfterDryDay, runFollowUps, runMorningSearches, sendCardsWaiting } from "@/lib/morning";
 import { endSearch, isSearching, nudgeIfQuiet, reconcileFromChat } from "@/lib/search";
 
 // Runs every hour (vercel.json). Morning searches start for whoever's clock says 9, follow-ups
@@ -31,9 +31,9 @@ export async function GET(request: Request) {
 
   const morning = await runMorningSearches(now).catch((e) => (console.error("[hourly] morning", e), 0));
   const followUps = await runFollowUps(now).catch((e) => (console.error("[hourly] follow-ups", e), 0));
-  const zero = await sendZeroDayEmails(now).catch((e) => (console.error("[hourly] zero-day", e), 0));
+  const paused = await pauseAfterDryDay(now).catch((e) => (console.error("[hourly] dry day", e), 0));
   const cards = await sendCardsWaiting(now).catch((e) => (console.error("[hourly] cards", e), 0));
 
-  console.log(`[hourly] morning ${morning}, follow-ups ${followUps}, zero-day emails ${zero}, cards emails ${cards}, stale searches ${stale}`);
-  return NextResponse.json({ morning, followUps, zero, cards, staleSearches: stale });
+  console.log(`[hourly] daily ${morning}, follow-ups ${followUps}, paused after a dry day ${paused}, cards emails ${cards}, stale searches ${stale}`);
+  return NextResponse.json({ daily: morning, followUps, paused, cards, staleSearches: stale });
 }

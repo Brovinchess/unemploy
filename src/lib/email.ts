@@ -179,14 +179,15 @@ export async function sendWeeklyDigestEmail(args: { to: string; role: string; pl
 
 // ---- Morning searches ------------------------------------------------------------------------
 
-// The day's searches ran and found nothing: one email with the one change most likely to help.
+// The day's searches ran and found nothing, so daily search paused: one email with the one
+// change most likely to help, and where to turn it back on.
 export async function sendMorningZeroEmail(args: { to: string; label: string; role: string; place: string; headline: string; body: string; cta: string; link: string; unsubscribe: string }) {
-  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} twice today. Nothing passed every check. ${args.headline} ${args.body}`;
+  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} twice today and nothing passed every check, so daily search is paused rather than spend more on the same results. ${args.headline} ${args.body} Make the change, then turn daily search back on from your headhunter's page.`;
   await send(
     args.to,
-    "No new jobs today, and the one change that helps",
+    "Daily search paused, and the one change that helps",
     `${intro}\n\n${args.cta}: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
-    searchDoneHtml({ title: "Today's search", intro, jobs: [], more: 0, link: args.link, empty: true, cta: args.cta, unsubscribe: args.unsubscribe }),
+    searchDoneHtml({ title: "Daily search paused", intro, jobs: [], more: 0, link: args.link, empty: true, cta: args.cta, unsubscribe: args.unsubscribe }),
   );
 }
 

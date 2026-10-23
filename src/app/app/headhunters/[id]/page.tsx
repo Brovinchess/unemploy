@@ -121,7 +121,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               {current.autoSearchJobs != null && !searching && (
                 <p className="mt-1 text-sm text-white/55">
                   <a href="#morning" className="hover:text-white">
-                    Daily search on · {current.autoSearchJobs} {current.autoSearchJobs === 1 ? "job" : "jobs"} {AUTO_SEARCH_DAYS.find((d) => d.value === current.autoSearchDays)?.short ?? "every day"}
+                    {current.autoSearchPausedAt ? "Daily search paused" : `Daily search on · ${current.autoSearchJobs} ${current.autoSearchJobs === 1 ? "job" : "jobs"} ${AUTO_SEARCH_DAYS.find((d) => d.value === current.autoSearchDays)?.short ?? "every day"}`}
                   </a>
                 </p>
               )}
@@ -226,6 +226,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
           profileId={current.id}
           jobs={current.autoSearchJobs}
           days={current.autoSearchDays}
+          paused={!!current.autoSearchPausedAt}
           defaultJobs={perSearch}
           perJob={cost.perJob}
           extraPlaces={current.preferences?.extraPlaces?.length ?? 0}

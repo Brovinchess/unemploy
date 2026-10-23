@@ -56,6 +56,12 @@ export function followUpLine(prefs: Preferences, o: SearchOverrides, found: numb
   return `This is the second search today. This morning's search found ${found} of the ${wanted} I asked for and covered rungs 0 to 2, so skip rung 0 and the plain rung 1 and 2 searches; start at the wider-title rung with new search words (a synonym for the role, the next biggest city, "careers" plus an employer name), then the rungs after it.${region} My usual settings apply from tomorrow.`;
 }
 
+// Whether this search turns daily search on: the headhunter's first search, started by the
+// person, with daily search neither on nor turned off before.
+export function dailyByDefault(profile: Pick<Profile, "autoSearchJobs" | "autoSearchOffAt">, priorSearches: number, via: SearchVia) {
+  return priorSearches === 0 && profile.autoSearchJobs == null && !profile.autoSearchOffAt && (via === "find" || via === "setup");
+}
+
 export function friendly(e: unknown): string {
   if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Sign out from Settings and sign in again.";
   console.error(e);
@@ -140,7 +146,14 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
       .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
       .returning({ id: schema.profiles.id });
     if (!started.length) return;
+    // Daily search is on from the first search, sized like it, unless the person turned it off.
+    const prior = await db.select({ n: count() }).from(schema.searches).where(eq(schema.searches.profileId, profile.id));
+    const defaultOn = dailyByDefault(profile, prior[0]?.n ?? 0, via);
     await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance, overrides: stored, via });
+    if (defaultOn) {
+      await db.update(schema.profiles).set({ autoSearchJobs: wanted, autoSearchDays: "daily", autoSearchPausedAt: null }).where(eq(schema.profiles.id, profile.id));
+      track(user.id, "morning_search_set", { jobs: wanted, days: "daily", on: true, via: "default" });
+    }
     track(user.id, "search_requested", { jobs: wanted, search_number: n + 1, via, fitted });
     await api.setEnabled(profile.mindId, true);
     // Anything changed since the Mind last heard from us goes in this same message: a new brief

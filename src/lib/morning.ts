@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { track } from "./analytics/server";
@@ -55,7 +55,7 @@ type Auto = { profile: Profile; user: User; tz: string; hour: number; day: strin
 
 // Everyone with morning searches on, with their local time.
 async function people(now: Date): Promise<Auto[]> {
-  const profiles = await db.query.profiles.findMany({ where: and(isNotNull(schema.profiles.autoSearchJobs), eq(schema.profiles.status, "hunting"), isNotNull(schema.profiles.preferences)) });
+  const profiles = await db.query.profiles.findMany({ where: and(isNotNull(schema.profiles.autoSearchJobs), isNull(schema.profiles.autoSearchPausedAt), eq(schema.profiles.status, "hunting"), isNotNull(schema.profiles.preferences)) });
   const out: Auto[] = [];
   for (const profile of profiles) {
     const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
@@ -143,23 +143,27 @@ export async function runFollowUps(now = new Date()): Promise<number> {
   return n;
 }
 
-// A day whose searches are over and found nothing: one email with the fix, once a day, after the
-// follow-up has ended (a first search that finds nothing always gets a follow-up, unless the
-// balance is out, and that case has its own email).
-export async function sendZeroDayEmails(now = new Date()): Promise<number> {
+// A day whose searches are over and found nothing: daily search pauses (the settings stay, one
+// tap resumes) and one email says so with the change most likely to help. Judged after the
+// follow-up has ended, since a first search that finds nothing always gets one unless the
+// balance is out, and that case has its own email.
+export async function pauseAfterDryDay(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
     const { user, profile } = a;
-    if (!user.email || !user.emailVerifiedAt || !user.emailOnSearchDone) continue;
     if (isSearching(profile)) continue;
     const ran = await todays(a, now);
     if (!ran.length || ran.some((r) => !r.endedAt)) continue;
     if (ran.reduce((s, r) => s + (r.jobsAdded ?? 0), 0) > 0) continue;
     if (!ran.some((r) => r.via === "followup")) continue;
+    await db.update(schema.profiles).set({ autoSearchPausedAt: now }).where(eq(schema.profiles.id, profile.id));
+    track(user.id, "morning_search_off", { reason: "dry_day" });
+    n++;
+    if (!user.email || !user.emailVerifiedAt || !user.emailOnSearchDone) continue;
     if (await sentToday(user.id, "morning_zero", a.day)) continue;
     const prefs = profile.preferences!;
     const outcome = await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null);
-    const page = `${mindsConfig.appUrl}/app/headhunters/${profile.id}`;
+    const page = `${mindsConfig.appUrl}/app/headhunters/${profile.id}#morning`;
     const link = outcome?.button?.href ? (outcome.button.href.startsWith("http") ? outcome.button.href : `${mindsConfig.appUrl}${outcome.button.href}`) : page;
     try {
       await sendMorningZeroEmail({
@@ -175,7 +179,6 @@ export async function sendZeroDayEmails(now = new Date()): Promise<number> {
       });
       await db.insert(schema.notices).values({ userId: user.id, kind: "morning_zero", meta: { profileId: profile.id, day: a.day, kind: outcome?.kind ?? null } });
       track(user.id, "morning_zero_sent", { kind: outcome?.kind ?? null });
-      n++;
     } catch (e) {
       console.error("[morning] zero-day email failed", profile.id, e);
     }
@@ -190,7 +193,7 @@ async function sentToday(userId: string, kind: string, day: string) {
 
 // Morning searches switch off when the balance cannot cover one. One email says so.
 export async function switchOffMorning(a: Pick<Auto, "profile" | "user">, reason: "balance") {
-  await db.update(schema.profiles).set({ autoSearchJobs: null }).where(eq(schema.profiles.id, a.profile.id));
+  await db.update(schema.profiles).set({ autoSearchJobs: null, autoSearchOffAt: new Date() }).where(eq(schema.profiles.id, a.profile.id));
   track(a.user.id, "morning_search_off", { reason });
   const { user, profile } = a;
   if (!user.email || !user.emailVerifiedAt || !user.emailOnSearchDone) return;

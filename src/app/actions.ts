@@ -414,8 +414,19 @@ export async function setMorningSearch(profileId: string, settings: { jobs: numb
   if (settings && profile.status !== "hunting") return { error: "Finish setting up this headhunter first." };
   const jobs = settings ? Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(1, Number(settings.jobs) || 1))) : null;
   const days = settings && AUTO_SEARCH_DAYS.some((d) => d.value === settings.days) ? settings.days : "daily";
-  await db.update(schema.profiles).set({ autoSearchJobs: jobs, ...(settings ? { autoSearchDays: days } : {}) }).where(eq(schema.profiles.id, profile.id));
+  await db
+    .update(schema.profiles)
+    .set(settings ? { autoSearchJobs: jobs, autoSearchDays: days, autoSearchPausedAt: null, autoSearchOffAt: null, autoSearchNoticedAt: profile.autoSearchNoticedAt ?? new Date() } : { autoSearchJobs: null, autoSearchPausedAt: null, autoSearchOffAt: new Date(), autoSearchNoticedAt: profile.autoSearchNoticedAt ?? new Date() })
+    .where(eq(schema.profiles.id, profile.id));
   track(user.id, "morning_search_set", { jobs, days, on: jobs != null });
+  revalidatePath("/app", "layout");
+}
+
+// The Jobs page notice that daily search is on: seen once, then gone.
+export async function noticeDailySearch(profileId: string): Promise<void> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  await db.update(schema.profiles).set({ autoSearchNoticedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
   revalidatePath("/app", "layout");
 }
 
