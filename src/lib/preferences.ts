@@ -122,3 +122,12 @@ export function summarizePreferences(p: Preferences): { label: string; value: st
     { label: "Posted within", value: `${postingAgeDays(p)} days` },
   ];
 }
+
+// Morning searches: how often. Shown as a row of choices; the cron checks the person's local day.
+export const AUTO_SEARCH_DAYS = [
+  { value: "daily", label: "Every day", short: "every day" },
+  { value: "weekdays", label: "Weekdays", short: "weekdays" },
+  { value: "alternate", label: "Every other day", short: "every other day" },
+  { value: "weekly", label: "Mondays", short: "Mondays" },
+] as const;
+export type AutoSearchDaysValue = (typeof AUTO_SEARCH_DAYS)[number]["value"];

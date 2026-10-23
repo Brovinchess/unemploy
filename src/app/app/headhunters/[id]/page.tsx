@@ -22,7 +22,7 @@ import { SearchOutcome } from "@/components/search-outcome";
 import { costModel } from "@/lib/cost";
 import { DROP_LABELS, dropAdvice } from "@/lib/dropped";
 import { topUpUrlFor } from "@/lib/minds/config";
-import { extraPlacesText, postingAgeDays, workSettingLabel } from "@/lib/preferences";
+import { AUTO_SEARCH_DAYS, extraPlacesText, postingAgeDays, workSettingLabel } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
 
 const took = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
@@ -118,6 +118,13 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                 <span className={searching ? "text-coral" : paused ? "text-white/40" : "text-white/70"}>{searching ? "Searching now" : paused ? "Paused" : "Ready"}</span>
               </p>
               {searching && <SearchingLine profileId={current.id} />}
+              {current.autoSearchJobs != null && !searching && (
+                <p className="mt-1 text-sm text-white/55">
+                  <a href="#morning" className="hover:text-white">
+                    Morning searches on · {current.autoSearchJobs} {current.autoSearchJobs === 1 ? "job" : "jobs"} {AUTO_SEARCH_DAYS.find((d) => d.value === current.autoSearchDays)?.short ?? "every day"} at 9am
+                  </a>
+                </p>
+              )}
               {lookingFor && (
                 <p className="mt-2 max-w-xl truncate text-sm text-white/55" title={lookingFor}>
                   Looking for <span className="text-white/80">{lookingFor}</span>
@@ -218,9 +225,11 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
         <MorningSearch
           profileId={current.id}
           jobs={current.autoSearchJobs}
+          days={current.autoSearchDays}
           defaultJobs={perSearch}
           perJob={cost.perJob}
           extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
+          balance={balance}
           email={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
           disabled={paused ? "Resume this headhunter to turn this on." : balance != null && balance <= 0 ? "Top up to turn this on." : undefined}
         />

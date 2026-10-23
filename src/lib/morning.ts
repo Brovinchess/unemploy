@@ -46,6 +46,8 @@ export function timeZoneFor(user: Pick<User, "timezone">, prefs: { country: stri
   return (prefs && COUNTRY_TZ[prefs.country]) || "UTC";
 }
 export const localHour = (tz: string, at: Date) => Number(new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hourCycle: "h23" }).format(at));
+// 0 Sunday to 6 Saturday, in the person's time zone.
+export const localWeekday = (tz: string, at: Date) => ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].indexOf(new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short" }).format(at));
 export const localDay = (tz: string, at: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" }).format(at);
 
 type Auto = { profile: Profile; user: User; tz: string; hour: number; day: string };
@@ -76,12 +78,31 @@ async function todays(a: Auto, now: Date) {
 
 const outOfCognition = (error?: string) => !!error && /cognition/i.test(error);
 
+// Whether this is one of the person's mornings: every day, weekdays, every other day (no
+// automatic search the day before), or Mondays.
+async function dueToday(a: Auto, now: Date) {
+  const days = a.profile.autoSearchDays ?? "daily";
+  const wd = localWeekday(a.tz, now);
+  if (days === "weekdays") return wd >= 1 && wd <= 5;
+  if (days === "weekly") return wd === 1;
+  if (days === "alternate") {
+    const yesterday = localDay(a.tz, new Date(now.getTime() - 24 * HOUR));
+    const ran = await db.query.searches.findMany({
+      where: and(eq(schema.searches.profileId, a.profile.id), eq(schema.searches.via, "morning"), gte(schema.searches.startedAt, new Date(now.getTime() - 60 * HOUR))),
+      columns: { startedAt: true },
+    });
+    return !ran.some((r) => localDay(a.tz, r.startedAt) === yesterday);
+  }
+  return true;
+}
+
 // Starts the day's first search for everyone whose clock says 9 (or a little after, when a tick was missed).
 export async function runMorningSearches(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
     if (a.hour < MORNING_HOUR || a.hour >= MORNING_WINDOW_END) continue;
     if (isSearching(a.profile)) continue;
+    if (!(await dueToday(a, now))) continue;
     if ((await todays(a, now)).length) continue;
     const r = await startSearch(a.user, a.profile, a.profile.autoSearchJobs!, "", { via: "morning" }).catch((e) => ({ error: String(e) }));
     if (r?.error) {
@@ -101,7 +122,8 @@ export async function runFollowUps(now = new Date()): Promise<number> {
   for (const a of await people(now)) {
     if (a.hour >= FOLLOW_UP_LAST_HOUR || isSearching(a.profile)) continue;
     const ran = await todays(a, now);
-    const morning = ran.find((r) => r.via !== "followup" && localHour(a.tz, r.startedAt) < MORNING_WINDOW_END);
+    // The morning run itself, or a search the person started before noon.
+    const morning = ran.find((r) => r.via === "morning" || (r.via !== "followup" && localHour(a.tz, r.startedAt) < MORNING_WINDOW_END));
     if (!morning?.endedAt || ran.some((r) => r.via === "followup")) continue;
     if (morning.endReason === "stopped" || morning.endReason === "no_cognition") continue;
     const found = morning.jobsAdded ?? 0;

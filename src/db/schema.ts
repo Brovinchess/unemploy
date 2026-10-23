@@ -142,6 +142,8 @@ export const profiles = pgTable(
     // Morning searches: how many jobs to find each day, or null when off. The hourly cron starts a
     // search at 9 in the person's time zone and one follow-up three hours after it falls short.
     autoSearchJobs: integer("auto_search_jobs"),
+    // Which mornings: every day, weekdays, every other day, or Mondays only.
+    autoSearchDays: text("auto_search_days").$type<AutoSearchDays>().notNull().default("daily"),
     // The Mind is on, outside a search, because packs were asked for; cleared when they land.
     packRequestedAt: timestamp("pack_requested_at", { withTimezone: true }),
     // Searches run only when the user asks. A search is active while started and not ended;
@@ -338,6 +340,7 @@ export type Question = typeof questions.$inferSelect;
 export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean; continued?: boolean; followUp?: boolean };
 // Where a search was started from: the person's button, setup, the admin, a re-run, or the morning
 // cron (and its same-day follow-up).
+export type AutoSearchDays = "daily" | "weekdays" | "alternate" | "weekly";
 export type SearchVia = "find" | "setup" | "admin" | "rerun" | "morning" | "followup";
 
 export const searches = pgTable(
