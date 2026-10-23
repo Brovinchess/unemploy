@@ -181,7 +181,7 @@ export async function sendWeeklyDigestEmail(args: { to: string; role: string; pl
 
 // The day's searches ran and found nothing: one email with the one change most likely to help.
 export async function sendMorningZeroEmail(args: { to: string; label: string; role: string; place: string; headline: string; body: string; cta: string; link: string; unsubscribe: string }) {
-  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} this morning and again this afternoon. Nothing passed every check. ${args.headline} ${args.body}`;
+  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} twice today. Nothing passed every check. ${args.headline} ${args.body}`;
   await send(
     args.to,
     "No new jobs today, and the one change that helps",
@@ -192,12 +192,12 @@ export async function sendMorningZeroEmail(args: { to: string; label: string; ro
 
 // The balance could not cover a morning search, so morning searches switched themselves off.
 export async function sendMorningOffEmail(args: { to: string; label: string; topUp: string; unsubscribe: string }) {
-  const intro = `Your ${args.label} headhunter's cognition ran out, so this morning's search could not start and morning searches are now off. Top up on Hello Minds, then turn them back on from your headhunter's page. Your settings and your jobs are as you left them.`;
+  const intro = `Your ${args.label} headhunter's cognition ran out, so today's search could not start and your daily search is now off. Top up on Hello Minds, then turn it back on from your headhunter's page. Your settings and your jobs are as you left them.`;
   await send(
     args.to,
-    "Your morning searches have stopped",
+    "Your daily search has stopped",
     `${intro}\n\nTop up: ${args.topUp}\n\nTurn these emails off: ${args.unsubscribe}`,
-    searchDoneHtml({ title: "Morning searches", intro, jobs: [], more: 0, link: args.topUp, empty: true, cta: "Top up on Hello Minds", unsubscribe: args.unsubscribe }),
+    searchDoneHtml({ title: "Daily search", intro, jobs: [], more: 0, link: args.topUp, empty: true, cta: "Top up on Hello Minds", unsubscribe: args.unsubscribe }),
   );
 }
 

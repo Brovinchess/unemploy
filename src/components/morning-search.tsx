@@ -6,7 +6,7 @@ import { setMorningSearch } from "@/app/actions";
 import { AUTO_SEARCH_DAYS, estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, type AutoSearchDaysValue } from "@/lib/preferences";
 
 // Morning searches, in three states. Off: one sentence and an Enable button. Setting up: the
-// slider and the days, nothing saved until "Start morning searches" is pressed. On: the saved
+// slider and the days, nothing saved until "Start daily search" is pressed. On: the saved
 // settings, editable, with "Save changes" once something differs and "Turn off" beside it.
 // The saved values live on the headhunter's row in the database; the hourly cron reads them.
 export function MorningSearch({
@@ -69,7 +69,7 @@ export function MorningSearch({
     if (balance == null || tooDear) return "";
     const mornings = Math.floor(balance / perDay);
     const weeks = mornings / perWeek;
-    if (weeks < 1) return `Your ${Math.round(balance)} covers ${mornings} ${mornings === 1 ? "morning" : "mornings"}.`;
+    if (weeks < 1) return `Your ${Math.round(balance)} covers ${mornings} ${mornings === 1 ? "day" : "days"}.`;
     const n = weeks >= 8 ? Math.round(weeks) : Math.round(weeks * 2) / 2;
     return `Your ${Math.round(balance)} lasts about ${n} ${n === 1 ? "week" : "weeks"} at this pace.`;
   })();
@@ -86,11 +86,11 @@ export function MorningSearch({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h2 className="font-display text-lg font-medium text-white">Morning searches</h2>
+              <h2 className="font-display text-lg font-medium text-white">Daily search</h2>
               <p className="mt-0.5 text-sm text-white/50">
                 {on
-                  ? `On. ${savedJobs} ${savedJobs === 1 ? "job" : "jobs"} ${when(savedDays)}, at 9am your time.`
-                  : disabled ?? "Your headhunter searches on its own at 9am your time, as often as you like."}
+                  ? `On. ${savedJobs} ${savedJobs === 1 ? "job" : "jobs"} ${when(savedDays)}.`
+                  : disabled ?? "Your headhunter finds new jobs on its own, on the days you choose."}
               </p>
             </div>
             {!showControls && (
@@ -105,7 +105,7 @@ export function MorningSearch({
             <div className="mt-5 space-y-5">
               <div>
                 <div className="flex items-baseline justify-between">
-                  <p className="text-sm text-white/60">Jobs each morning</p>
+                  <p className="text-sm text-white/60">Jobs each day</p>
                   <p className="font-display text-3xl font-medium text-white">{jobs}</p>
                 </div>
                 <input
@@ -116,7 +116,7 @@ export function MorningSearch({
                   value={jobs}
                   disabled={pending}
                   onChange={(e) => setJobs(Number(e.target.value))}
-                  aria-label="Jobs each morning"
+                  aria-label="Jobs each day"
                   className="slider mt-3 w-full"
                   style={{ ["--fill" as string]: `${pct}%` }}
                 />
@@ -124,7 +124,7 @@ export function MorningSearch({
                   <span>{MIN_JOBS_PER_SEARCH}</span>
                   <span>{MAX_JOBS_PER_SEARCH}</span>
                 </div>
-                <p className="mt-2 text-xs text-white/40">If the morning falls short, it searches once more three hours later, wider, for the rest. That day costs more.</p>
+                <p className="mt-2 text-xs text-white/40">If the day&rsquo;s first search falls short, it searches once more a few hours later, wider, for the rest. That day costs more.</p>
               </div>
 
               <div>
@@ -147,17 +147,17 @@ export function MorningSearch({
               </div>
 
               <p className="text-sm text-white/55">
-                <span className="text-white">{perDay} cognition</span> a morning.{runway ? ` ${runway}` : ""}
+                <span className="text-white">{perDay} cognition</span> a day.{runway ? ` ${runway}` : ""}
               </p>
-              {tooDear && <p className="text-sm text-rose">Not enough for one morning. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
+              {tooDear && <p className="text-sm text-rose">Not enough for one day. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
 
               <div className="flex flex-wrap items-center gap-4">
                 {dirty && (
                   <button type="button" className="btn btn-primary h-10" disabled={pending} onClick={() => save({ jobs, days })}>
-                    {pending ? "Saving…" : on ? "Save changes" : "Start morning searches"}
+                    {pending ? "Saving…" : on ? "Save changes" : "Start daily search"}
                   </button>
                 )}
-                {!dirty && saved && <span className="text-sm text-white/45">Saved. Next run at 9am.</span>}
+                {!dirty && saved && <span className="text-sm text-white/45">Saved.</span>}
                 {on ? (
                   <button type="button" className="text-sm text-white/55 hover:text-rose" disabled={pending} onClick={() => save(null)}>
                     Turn off
@@ -169,7 +169,7 @@ export function MorningSearch({
                 )}
               </div>
               <p className="text-xs text-white/35">
-                Stops by itself when the balance runs out.{email ? ` Results go to ${email}.` : " Add an email in Settings to get the results each morning."}
+                Stops by itself when the balance runs out.{email ? ` Results go to ${email}.` : " Add an email in Settings to get the results each day."}
               </p>
             </div>
           )}

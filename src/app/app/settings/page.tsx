@@ -51,7 +51,7 @@ export default async function Settings() {
             <ExtensionSetup detailsComplete={detailsComplete(user.applicant)} toApply={ready} other={other} />
           </Section>
 
-          <Section title="Morning searches" id="morning">
+          <Section title="Daily search" id="morning">
             <MorningSearch
               compact
               profileId={current.id}
