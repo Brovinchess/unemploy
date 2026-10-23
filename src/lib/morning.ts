@@ -9,17 +9,18 @@ import { searchOutcome } from "./outcome";
 import { isSearching } from "./search";
 import { startSearch } from "./start-search";
 
-// Morning searches. A person sets how many jobs they want each day; at 9 in their own time zone
-// the app starts a search for that many, and when it falls short, one follow-up three hours
-// after it ends, wider. The day's results go out by the usual search emails; a day with nothing
-// gets one email with the change most likely to help. Everything here runs from the hourly cron
-// and checks what already happened today, so a late or repeated tick never starts a second run.
+// Daily search. A person sets how many jobs they want a day and on which days. Each local day,
+// from midnight, the first hourly tick that finds no search yet that day starts one (so it
+// usually runs just after midnight and the cards are waiting in the morning; turned on in the
+// afternoon, it starts within the hour). When it falls short, one follow-up three hours after it
+// ends, wider. A day with nothing gets one email with the change most likely to help.
+// Everything here runs from the hourly cron and checks what already happened today, so a late
+// or repeated tick never starts a second run.
 
-export const MORNING_HOUR = 9;
-const MORNING_WINDOW_END = 12; // a tick missed at 9 still runs until this hour
 const FOLLOW_UP_AFTER_MS = 3 * 60 * 60 * 1000;
-const FOLLOW_UP_LAST_HOUR = 21;
-const ZERO_EMAIL_FROM_HOUR = 15;
+// A new day's search never starts within this long of the last search ending, whoever started
+// it: two searches an hour apart mostly find the same postings.
+const MIN_GAP_MS = 3 * 60 * 60 * 1000;
 const CARDS_WAIT_MS = 6 * 60 * 60 * 1000;
 const CARDS_EMAIL_GAP_MS = 3 * 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -96,14 +97,15 @@ async function dueToday(a: Auto, now: Date) {
   return true;
 }
 
-// Starts the day's first search for everyone whose clock says 9 (or a little after, when a tick was missed).
+// Starts the day's search for everyone who has none yet today (their day, from midnight).
 export async function runMorningSearches(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
-    if (a.hour < MORNING_HOUR || a.hour >= MORNING_WINDOW_END) continue;
     if (isSearching(a.profile)) continue;
     if (!(await dueToday(a, now))) continue;
     if ((await todays(a, now)).length) continue;
+    const last = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, a.profile.id), orderBy: desc(schema.searches.startedAt), columns: { endedAt: true } });
+    if (last?.endedAt && now.getTime() - last.endedAt.getTime() < MIN_GAP_MS) continue;
     const r = await startSearch(a.user, a.profile, a.profile.autoSearchJobs!, "", { via: "morning" }).catch((e) => ({ error: String(e) }));
     if (r?.error) {
       if (outOfCognition(r.error)) await switchOffMorning(a, "balance");
@@ -120,10 +122,10 @@ export async function runMorningSearches(now = new Date()): Promise<number> {
 export async function runFollowUps(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
-    if (a.hour >= FOLLOW_UP_LAST_HOUR || isSearching(a.profile)) continue;
+    if (isSearching(a.profile)) continue;
     const ran = await todays(a, now);
-    // The morning run itself, or a search the person started before noon.
-    const morning = ran.find((r) => r.via === "morning" || (r.via !== "followup" && localHour(a.tz, r.startedAt) < MORNING_WINDOW_END));
+    // The day's first search, whoever started it.
+    const morning = ran.find((r) => r.via !== "followup");
     if (!morning?.endedAt || ran.some((r) => r.via === "followup")) continue;
     if (morning.endReason === "stopped" || morning.endReason === "no_cognition") continue;
     const found = morning.jobsAdded ?? 0;
@@ -141,8 +143,9 @@ export async function runFollowUps(now = new Date()): Promise<number> {
   return n;
 }
 
-// A day whose automatic searches are over and found nothing: one email with the fix. Sent once
-// a day, after the follow-up has ended, or mid-afternoon when there was no follow-up to wait for.
+// A day whose searches are over and found nothing: one email with the fix, once a day, after the
+// follow-up has ended (a first search that finds nothing always gets a follow-up, unless the
+// balance is out, and that case has its own email).
 export async function sendZeroDayEmails(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
@@ -152,8 +155,7 @@ export async function sendZeroDayEmails(now = new Date()): Promise<number> {
     const ran = await todays(a, now);
     if (!ran.length || ran.some((r) => !r.endedAt)) continue;
     if (ran.reduce((s, r) => s + (r.jobsAdded ?? 0), 0) > 0) continue;
-    const followedUp = ran.some((r) => r.via === "followup");
-    if (!followedUp && a.hour < ZERO_EMAIL_FROM_HOUR) continue;
+    if (!ran.some((r) => r.via === "followup")) continue;
     if (await sentToday(user.id, "morning_zero", a.day)) continue;
     const prefs = profile.preferences!;
     const outcome = await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null);
