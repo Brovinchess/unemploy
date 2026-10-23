@@ -151,20 +151,30 @@ export function MorningSearch({
               </p>
               {tooDear && <p className="text-sm text-rose">Not enough for one day. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
 
-              <div className="flex flex-wrap items-center gap-4">
-                {dirty && (
-                  <button type="button" className="btn btn-primary h-10" disabled={pending} onClick={() => save({ jobs, days })}>
-                    {pending ? "Saving…" : on ? "Save changes" : "Start daily search"}
-                  </button>
-                )}
-                {!dirty && saved && <span className="text-sm text-white/45">Saved.</span>}
-                {on ? (
-                  <button type="button" className="ml-auto text-sm text-white/55 hover:text-rose" disabled={pending} onClick={() => save(null)}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex flex-wrap items-center gap-4">
+                  {dirty && (
+                    <button type="button" className="btn btn-primary h-10" disabled={pending} onClick={() => save({ jobs, days })}>
+                      {pending ? "Saving…" : on ? "Save changes" : "Start daily search"}
+                    </button>
+                  )}
+                  {!dirty && saved && <span className="text-sm text-white/45">Saved.</span>}
+                  {!on && (
+                    <button type="button" className="text-sm text-white/55 hover:text-white" disabled={pending} onClick={() => setEditing(false)}>
+                      Cancel
+                    </button>
+                  )}
+                </div>
+                {on && (
+                  <button
+                    type="button"
+                    className="btn h-10 border border-rose/30 bg-rose/10 text-rose hover:bg-rose/20 hover:text-white"
+                    disabled={pending}
+                    onClick={() => {
+                      if (confirm("Turn off daily search? Your settings here are kept, so you can turn it back on any time.")) save(null);
+                    }}
+                  >
                     Turn off
-                  </button>
-                ) : (
-                  <button type="button" className="text-sm text-white/55 hover:text-white" disabled={pending} onClick={() => setEditing(false)}>
-                    Cancel
                   </button>
                 )}
               </div>
