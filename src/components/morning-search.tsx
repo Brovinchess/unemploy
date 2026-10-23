@@ -63,8 +63,16 @@ export function MorningSearch({
   const pct = ((jobs - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
   const when = (d: AutoSearchDaysValue) => AUTO_SEARCH_DAYS.find((x) => x.value === d)?.short ?? "every day";
   const perWeek = days === "daily" ? 7 : days === "weekdays" ? 5 : days === "alternate" ? 3.5 : 1;
-  const weekCost = Math.round(perDay * perWeek);
   const tooDear = balance != null && perDay > balance;
+  // How long the balance lasts at this pace: in mornings under a week, else in weeks.
+  const runway = (() => {
+    if (balance == null || tooDear) return "";
+    const mornings = Math.floor(balance / perDay);
+    const weeks = mornings / perWeek;
+    if (weeks < 1) return `Your ${Math.round(balance)} covers ${mornings} ${mornings === 1 ? "morning" : "mornings"}.`;
+    const n = weeks >= 8 ? Math.round(weeks) : Math.round(weeks * 2) / 2;
+    return `Your ${Math.round(balance)} lasts about ${n} ${n === 1 ? "week" : "weeks"} at this pace.`;
+  })();
   const showControls = on || editing;
 
   return (
@@ -116,7 +124,7 @@ export function MorningSearch({
                   <span>{MIN_JOBS_PER_SEARCH}</span>
                   <span>{MAX_JOBS_PER_SEARCH}</span>
                 </div>
-                <p className="mt-2 text-xs text-white/40">If the morning falls short, it searches once more three hours later, wider, for the rest.</p>
+                <p className="mt-2 text-xs text-white/40">If the morning falls short, it searches once more three hours later, wider, for the rest. That day costs more.</p>
               </div>
 
               <div>
@@ -139,11 +147,9 @@ export function MorningSearch({
               </div>
 
               <p className="text-sm text-white/55">
-                About <span className="text-white">{perDay} cognition</span> a morning, around {weekCost} a week
-                {balance != null && !tooDear ? <span className="text-white/40"> · {Math.round(balance)} available</span> : null}. More on a day with a second search. Stops by itself when the balance runs out.
-                {email ? ` Results go to ${email}.` : " Add an email in Settings and the results reach you each morning."}
+                <span className="text-white">{perDay} cognition</span> a morning.{runway ? ` ${runway}` : ""}
               </p>
-              {tooDear && <p className="text-sm text-rose">Not enough cognition for a morning like this. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
+              {tooDear && <p className="text-sm text-rose">Not enough for one morning. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
 
               <div className="flex flex-wrap items-center gap-4">
                 {dirty && (
@@ -162,6 +168,9 @@ export function MorningSearch({
                   </button>
                 )}
               </div>
+              <p className="text-xs text-white/35">
+                Stops by itself when the balance runs out.{email ? ` Results go to ${email}.` : " Add an email in Settings to get the results each morning."}
+              </p>
             </div>
           )}
           {error && <p className="mt-3 text-sm text-rose">{error}</p>}
