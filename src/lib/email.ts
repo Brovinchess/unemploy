@@ -176,3 +176,39 @@ export async function sendWeeklyDigestEmail(args: { to: string; role: string; pl
     searchDoneHtml({ title: "This week", intro, jobs: postings, more: 0, link: args.link, empty: false, cta: "Find new jobs", unsubscribe: args.unsubscribe }),
   );
 }
+
+// ---- Morning searches ------------------------------------------------------------------------
+
+// The day's searches ran and found nothing: one email with the one change most likely to help.
+export async function sendMorningZeroEmail(args: { to: string; label: string; role: string; place: string; headline: string; body: string; cta: string; link: string; unsubscribe: string }) {
+  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} this morning and again this afternoon. Nothing passed every check. ${args.headline} ${args.body}`;
+  await send(
+    args.to,
+    "No new jobs today, and the one change that helps",
+    `${intro}\n\n${args.cta}: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Today's search", intro, jobs: [], more: 0, link: args.link, empty: true, cta: args.cta, unsubscribe: args.unsubscribe }),
+  );
+}
+
+// The balance could not cover a morning search, so morning searches switched themselves off.
+export async function sendMorningOffEmail(args: { to: string; label: string; topUp: string; unsubscribe: string }) {
+  const intro = `Your ${args.label} headhunter's cognition ran out, so this morning's search could not start and morning searches are now off. Top up on Hello Minds, then turn them back on from your headhunter's page. Your settings and your jobs are as you left them.`;
+  await send(
+    args.to,
+    "Your morning searches have stopped",
+    `${intro}\n\nTop up: ${args.topUp}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Morning searches", intro, jobs: [], more: 0, link: args.topUp, empty: true, cta: "Top up on Hello Minds", unsubscribe: args.unsubscribe }),
+  );
+}
+
+// Cards that have sat unswiped for hours.
+export async function sendCardsWaitingEmail(args: { to: string; n: number; jobs: DigestJob[]; link: string; unsubscribe: string }) {
+  const n = args.n;
+  const intro = `Your headhunter found ${n} ${n === 1 ? "job" : "jobs"} that passed every check, and ${n === 1 ? "it has" : "they have"} been waiting for a few hours. Swipe right to keep one and your headhunter writes the application. Swipe left and it learns what to skip next time.`;
+  await send(
+    args.to,
+    `${n} ${n === 1 ? "job is" : "jobs are"} waiting for you`,
+    `${intro}\n\n${args.jobs.map((j) => `- ${j.title} at ${j.company}`).join("\n")}\n\nReview them: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Waiting for you", intro, jobs: args.jobs, more: Math.max(0, n - args.jobs.length), link: args.link, empty: false, cta: n === 1 ? "Review it" : "Review them", unsubscribe: args.unsubscribe }),
+  );
+}

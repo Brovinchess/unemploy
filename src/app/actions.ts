@@ -18,7 +18,7 @@ import { queueQuestions } from "@/lib/personal";
 import { track } from "@/lib/analytics/server";
 import { guessName, parsePlace } from "@/lib/normalise";
 import { GENERATED_PREFIX, quickResumeText, readQuickProfile, textToPdf } from "@/lib/quick-resume";
-import { PENDING_LABEL, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
+import { MAX_JOBS_PER_SEARCH, PENDING_LABEL, preferencesSchema, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "@/lib/preferences";
 import { extractResumeText, MAX_RESUME_BYTES, resumeType } from "@/lib/resume";
 import { SAMPLE_RESUME } from "@/lib/sample-resume";
 import { endSearch, isSearching, requestPacks, RESUME_TEXT_MAX, switchOff } from "@/lib/search";
@@ -403,6 +403,17 @@ export async function setPaused(profileId: string, paused: boolean): Promise<For
     return { error: friendly(e) };
   }
   await db.update(schema.profiles).set({ status: paused ? "paused" : "hunting" }).where(eq(schema.profiles.id, profile.id));
+  revalidatePath("/app", "layout");
+}
+
+// Morning searches: how many jobs a day, or off. Starts tomorrow at 9 in the person's time zone.
+export async function setMorningSearch(profileId: string, jobs: number | null): Promise<FormState> {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  const n = jobs == null ? null : Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(1, Number(jobs) || 1)));
+  if (n != null && profile.status !== "hunting") return { error: "Finish setting up this headhunter first." };
+  await db.update(schema.profiles).set({ autoSearchJobs: n }).where(eq(schema.profiles.id, profile.id));
+  track(user.id, "morning_search_set", { jobs: n, on: n != null });
   revalidatePath("/app", "layout");
 }
 

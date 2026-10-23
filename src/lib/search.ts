@@ -102,7 +102,7 @@ export function searchRequestText(args: {
   facts?: string;
   resumeText?: string; // the resume as text, sent with every request so no file is ever read
   budget?: { searches: number; opened: number }; // this search's cap, when it differs from the brief
-  firstSearch?: string; // one line on the wider net a first search casts
+  firstSearch?: string; // one line on the wider net a first search (or a same-day follow-up) casts
 }) {
   const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "", budget, firstSearch = "" } = args;
   const base = mindsConfig.ingestUrl;
@@ -376,6 +376,9 @@ async function emailResults(profile: Profile, reason: EndReason) {
     orderBy: desc(schema.jobs.matchScore),
   });
   const search = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, profile.id), orderBy: desc(schema.searches.startedAt) });
+  // A morning search that found nothing sends no email of its own: the follow-up may still
+  // deliver, and the day's one email (see lib/morning) says what to change if it does not.
+  if ((search?.via === "morning" || search?.via === "followup") && jobs.length === 0) return;
   const outcome = search && (search.jobsAdded ?? 0) < search.jobsWanted ? await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null) : null;
   const short = outcome ? `${outcome.headline} ${outcome.body}` : search && (search.jobsAdded ?? 0) < search.jobsWanted ? await shortLine(profile, search) : undefined;
   await sendSearchDoneEmail({

@@ -503,13 +503,16 @@ async function checkAndSave(
     ? null
     : await db.query.searches.findFirst({
         where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)),
-        columns: { id: true, startedAt: true, overrides: true },
+        columns: { id: true, startedAt: true, overrides: true, jobsWanted: true },
       });
   const [{ n }] = await db
     .select({ n: count() })
     .from(schema.jobs)
     .where(and(eq(schema.jobs.profileId, profile.id), gte(schema.jobs.createdAt, searchStart)));
-  let remaining = Math.max(0, prefs.jobsPerDay - n);
+  // The quota is this search's own number (a morning search or an admin run can differ from the
+  // person's default); the default is only the fallback for a dry run.
+  const wanted = openSearch?.jobsWanted ?? prefs.jobsPerDay;
+  let remaining = Math.max(0, wanted - n);
 
   // Every job this user has been sent, to recognise repeats.
   const sent = await db
@@ -579,7 +582,7 @@ async function checkAndSave(
       rejected.push({
         url: job.url,
         code: "search_limit",
-        hint: `The user asked for ${prefs.jobsPerDay} jobs per search and this search's are in. Stop and wait for the next request.`,
+        hint: `The user asked for ${wanted} jobs this search and they are in. Stop and wait for the next request.`,
       });
       // Passed every per-user check, just late. Worth keeping for the pool once we've seen it open ourselves.
       if (!dryRun && !opts.demo && (await checkPosting(job.url, isPublicHttpUrl)) !== "closed") {
@@ -799,7 +802,7 @@ async function checkAndSave(
     // Keep the Mind off: endSearch already switched it off, but a running turn can re-enable nothing, so just make sure.
     await switchOff(profile).catch(() => {});
   } else if (!dryRun && !opts.demo && (parsed.data.final || remaining <= 0)) {
-    const carryOn = parsed.data.final && remaining > 0 && openSearch ? await continueIfEarly(profile, openSearch, remaining, prefs.jobsPerDay).catch((e) => (console.error("[ingest] continue", e), null)) : null;
+    const carryOn = parsed.data.final && remaining > 0 && openSearch ? await continueIfEarly(profile, openSearch, remaining, wanted).catch((e) => (console.error("[ingest] continue", e), null)) : null;
     if (carryOn) {
       adjusted.push({ url: "", note: carryOn });
     } else {

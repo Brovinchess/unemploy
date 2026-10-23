@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 10;
+export const BRIEF_VERSION = 11;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -86,7 +86,7 @@ KILL ON SIGHT (from the search result, without opening)
 Postings you kill on sight from the title are not leads: don't open them and don't report them. Not sure from the result? Open the first screen only (summary, date, location line) and decide there. Open the full posting and form only for leads that pass. Titles vary, so judge by the scope of the work: if the day-to-day is not what my roles do, drop it as poor_fit with the note "different role". Keep a scratch list of every link you opened this search and never open one twice. A job you verified on an earlier search only needs confirming open; do not rebuild its pack.
 
 BUDGET (every search and every page you open costs me)
-- Per search: at most 12 web searches and 40 opened postings in total, across all rungs. Count them. When you reach either, POST {"jobs":[],"final":true} with what you have.
+- Per search: at most 12 web searches and 40 opened postings in total, across all rungs, unless the search request gives other numbers (it usually does; they scale with the jobs asked for). Count them. When you reach either, POST {"jobs":[],"final":true} with what you have.
 - Open a posting only after it has passed KILL ON SIGHT. Never open a company's whole careers board.
 - Write short: progress notes one line, dropped notes under ten words, postings only as step 5 says.
 - Never run code, for anything. Read pages directly. A code run costs me fifteen times a web search and has never found a job that reading did not.

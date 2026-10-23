@@ -21,6 +21,11 @@ export type Event =
   | "weekly_digest_sent"
   | "share_link_copied"
   | "search_continued"
+  | "morning_search_set"
+  | "morning_search_started"
+  | "morning_search_off"
+  | "morning_zero_sent"
+  | "cards_waiting_sent"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";

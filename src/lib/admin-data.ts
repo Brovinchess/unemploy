@@ -550,7 +550,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
   // Query 1: the search with its headhunter and the person, in one go.
   const [row] = await db
     .select({
-      id: schema.searches.id, startedAt: schema.searches.startedAt, endedAt: schema.searches.endedAt, endReason: schema.searches.endReason, jobsWanted: schema.searches.jobsWanted, jobsAdded: schema.searches.jobsAdded,
+      id: schema.searches.id, startedAt: schema.searches.startedAt, endedAt: schema.searches.endedAt, endReason: schema.searches.endReason, jobsWanted: schema.searches.jobsWanted, jobsAdded: schema.searches.jobsAdded, via: schema.searches.via,
       focus: schema.searches.focus, nudgedAt: schema.searches.nudgedAt, balanceStart: schema.searches.balanceStart, balanceEnd: schema.searches.balanceEnd, cognitionUsed: schema.searches.cognitionUsed, profileId: schema.searches.profileId,
       poolHits: schema.searches.poolHits, opened: schema.searches.opened, summary: schema.searches.summary, toolUsage: schema.searches.toolUsage, mindId: schema.profiles.mindId, alias: schema.profiles.conversationAlias,
       pId: schema.profiles.id, label: schema.profiles.label, mindName: schema.profiles.mindName, status: schema.profiles.status, preferences: schema.profiles.preferences,
@@ -586,7 +586,7 @@ async function loadSearchDetail(id: string): Promise<SearchDetail | null> {
     .limit(200);
 
   // Timeline: start, nudge, every push, end.
-  const events: SearchDetail["events"] = [{ at: row.startedAt, what: "Search started", detail: `${row.jobsWanted} jobs wanted${row.focus ? `, focus: ${row.focus}` : ""}` }];
+  const events: SearchDetail["events"] = [{ at: row.startedAt, what: "Search started", detail: `${row.jobsWanted} jobs wanted${row.via ? `, via ${row.via}` : ""}${row.focus ? `, focus: ${row.focus}` : ""}` }];
   if (row.nudgedAt) events.push({ at: row.nudgedAt, what: "Nudged", detail: "Nothing had arrived; the Mind was asked to send what it had." });
   for (const p of pushes) {
     const codes = codesOf(p.detail);

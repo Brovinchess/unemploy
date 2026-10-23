@@ -13,6 +13,7 @@ import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { ScrollToHash } from "@/components/scroll-to-hash";
 import { SearchButton } from "@/components/search-button";
+import { MorningSearch } from "@/components/morning-search";
 import { MochiAtWork, SearchingLine } from "@/components/searching-status";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { coachFor } from "@/lib/coach-ui";
@@ -213,6 +214,16 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
             <SearchOutcome profileId={current.id} outcome={outcome} />
           </div>
         )}
+
+        <MorningSearch
+          profileId={current.id}
+          jobs={current.autoSearchJobs}
+          defaultJobs={perSearch}
+          perJob={cost.perJob}
+          extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
+          email={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
+          disabled={paused ? "Resume this headhunter to turn this on." : balance != null && balance <= 0 ? "Top up to turn this on." : undefined}
+        />
 
         {/* What it works from. */}
         <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">

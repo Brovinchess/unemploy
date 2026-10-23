@@ -1,7 +1,7 @@
 import "server-only";
 import { and, count, eq, gt, isNotNull, isNull, or } from "drizzle-orm";
 import { db, schema } from "@/db";
-import type { Profile, SearchOverrides, User } from "@/db/schema";
+import type { Profile, SearchOverrides, SearchVia, User } from "@/db/schema";
 import { regionFor } from "./discovery";
 import { track } from "./analytics/server";
 import { BRIEF_VERSION, buildBrief } from "./brief";
@@ -11,7 +11,7 @@ import { rotateKey } from "./keys";
 import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
 import { localEmployers } from "./pool";
-import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH, type Preferences } from "./preferences";
+import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH, searchBudget, type Preferences } from "./preferences";
 import { blockedHosts, ingestReachable, isSearching, lastSearchLine, RESUME_TEXT_MAX, searchRequestText, skipLinks } from "./search";
 
 export type SearchStart = { error?: string } | undefined;
@@ -39,6 +39,23 @@ export function firstSearchLine(prefs: Preferences, o: SearchOverrides) {
   return `This is my first search with you, so cast a wider net this once: ${bits.join("; ")}. My usual settings apply from the next search.`;
 }
 
+// The same day's second search, after the morning one fell short: the near rungs were covered
+// hours ago, so it starts at the wider-title rung and, when remote or hybrid is on, may take
+// remote jobs from the region this once.
+export function followUpOverrides(prefs: Preferences, found: number, wanted: number): SearchOverrides {
+  const remoteOn = prefs.workSettings.includes("remote") || prefs.workSettings.includes("hybrid");
+  return {
+    followUp: true,
+    ...(remoteOn && prefs.remoteScope === "country" ? { remoteScope: "region" as const } : {}),
+    budget: searchBudget(Math.max(1, wanted - found)),
+  };
+}
+
+export function followUpLine(prefs: Preferences, o: SearchOverrides, found: number, wanted: number) {
+  const region = o.remoteScope === "region" ? ` Remote jobs open to people in ${regionFor(prefs.country)} count this once, as a rung after the others.` : "";
+  return `This is the second search today. This morning's search found ${found} of the ${wanted} I asked for and covered rungs 0 to 2, so skip rung 0 and the plain rung 1 and 2 searches; start at the wider-title rung with new search words (a synonym for the role, the next biggest city, "careers" plus an employer name), then the rungs after it.${region} My usual settings apply from tomorrow.`;
+}
+
 export function friendly(e: unknown): string {
   if (e instanceof LoginExpiredError) return "Your Hello Minds login has expired. Sign out from Settings and sign in again.";
   console.error(e);
@@ -60,9 +77,14 @@ export function resumeAttachment(p: Pick<Profile, "resumeFileName" | "resumeMime
 // `fitToBalance` (admin re-runs): when the asked-for size costs more than the Mind has, shrink
 // the search to what the balance covers, two jobs at least, instead of refusing. The person's
 // own default size is left as it was.
-export type StartOptions = { fitToBalance?: boolean; via?: "find" | "setup" | "admin" | "rerun" };
+export type StartOptions = {
+  fitToBalance?: boolean;
+  via?: SearchVia;
+  // A same-day follow-up: how the morning search did, so this one starts wider.
+  followUp?: { found: number; wanted: number };
+};
 export async function startSearch(user: User, profile: Profile, jobs: number, focus = "", opts: StartOptions = {}): Promise<SearchStart> {
-  const { fitToBalance = false, via = "find" } = opts;
+  const { fitToBalance = false, via = "find", followUp } = opts;
   let wanted = Math.round(Math.min(MAX_JOBS_PER_SEARCH, Math.max(MIN_JOBS_PER_SEARCH, Number(jobs) || RECOMMENDED_JOBS_PER_SEARCH)));
   let fitted = false;
   const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
@@ -83,8 +105,9 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const extra = profile.preferences?.extraPlaces?.length ?? 0;
     // A headhunter that has never found a job casts a wider net the first time: older postings,
     // remote from the region, a bigger budget. The person's own settings return after a success.
-    const overrides = profile.preferences ? await firstSearchOverrides(profile.id, profile.preferences) : null;
-    let need = estimateSearchCost(wanted, perJob, extra).cognition + (overrides ? FIRST_SEARCH_EXTRA_COGNITION : 0);
+    const first = profile.preferences ? await firstSearchOverrides(profile.id, profile.preferences) : null;
+    const overrides: SearchOverrides | null = first ?? (followUp && profile.preferences ? followUpOverrides(profile.preferences, followUp.found, followUp.wanted) : null);
+    let need = estimateSearchCost(wanted, perJob, extra).cognition + (first ? FIRST_SEARCH_EXTRA_COGNITION : 0);
     if (need > balance && fitToBalance) {
       const fits = Math.floor((balance - estimateSearchCost(0, perJob, extra).cognition) / Math.max(1, perJob));
       if (fits >= 2) {
@@ -102,17 +125,22 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
       .where(eq(schema.ingestLog.profileId, profile.id));
     // The chosen number becomes this search's quota (checked at ingest) and the next default.
     // Conditional on no search being open: two clicks (two tabs, a retry) start one search, not two.
+    // The budget rides with every search, sized to the number asked for (the brief's own numbers are a fallback).
+    const budget = overrides?.budget ?? searchBudget(wanted);
+    const stored: SearchOverrides = { ...(overrides ?? {}), budget };
+    // A morning search runs with its own number; it does not change the person's default.
+    const fromPerson = via === "find" || via === "setup";
     const started = await db
       .update(schema.profiles)
       .set({
         searchStartedAt: new Date(),
         searchEndedAt: null,
-        ...(profile.preferences && !fitted ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
+        ...(profile.preferences && !fitted && fromPerson ? { preferences: { ...profile.preferences, jobsPerDay: wanted } } : {}),
       })
       .where(and(eq(schema.profiles.id, profile.id), or(isNull(schema.profiles.searchStartedAt), isNotNull(schema.profiles.searchEndedAt))))
       .returning({ id: schema.profiles.id });
     if (!started.length) return;
-    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance, overrides });
+    await db.insert(schema.searches).values({ profileId: profile.id, jobsWanted: wanted, focus: note || null, balanceStart: balance, overrides: stored, via });
     track(user.id, "search_requested", { jobs: wanted, search_number: n + 1, via, fitted });
     await api.setEnabled(profile.mindId, true);
     // Anything changed since the Mind last heard from us goes in this same message: a new brief
@@ -160,8 +188,8 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
         employers: profile.preferences ? await localEmployers(profile.preferences).catch(() => []) : [],
         lastTime: await lastSearchLine(profile.id),
         maxAgeDays: overrides?.maxPostingAgeDays ?? (profile.preferences ? postingAgeDays(profile.preferences) : undefined),
-        budget: overrides?.budget,
-        firstSearch: overrides ? firstSearchLine(profile.preferences!, overrides) : "",
+        budget,
+        firstSearch: first ? firstSearchLine(profile.preferences!, first) : followUp && overrides ? followUpLine(profile.preferences!, overrides, followUp.found, followUp.wanted) : "",
         resumeChanged: newResume,
         facts: newBrief ? "" : factsText(user), // a new brief below already carries it
         resumeText: profile.resumeText?.slice(0, RESUME_TEXT_MAX) ?? "",

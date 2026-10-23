@@ -54,6 +54,14 @@ export const RECOMMENDED_JOBS_PER_SEARCH = 5;
 // Each extra place the person would also work in is one more rung: a few more searches.
 export const COGNITION_PER_EXTRA_PLACE = 4;
 
+// How much ground one search may cover: web searches and opened postings scale with the number
+// of jobs asked for, so a one-job search stays cheap and a ten-job search has room to fill up.
+export const MAX_WEB_SEARCHES = 30;
+export function searchBudget(jobs: number) {
+  const searches = Math.min(MAX_WEB_SEARCHES, 8 + 2 * Math.max(1, jobs));
+  return { searches, opened: searches * 3 };
+}
+
 export function estimateSearchCost(jobsPerDay: number, perJob = DEFAULT_COGNITION_PER_JOB, extraPlaces = 0) {
   const cognition = Math.round(BASE_COGNITION_PER_SEARCH + perJob * jobsPerDay + COGNITION_PER_EXTRA_PLACE * extraPlaces);
   return { cognition, usd: cognition * COGNITION_USD };
