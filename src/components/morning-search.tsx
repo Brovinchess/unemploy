@@ -5,14 +5,14 @@ import { Sunrise } from "lucide-react";
 import { setMorningSearch } from "@/app/actions";
 import { AUTO_SEARCH_DAYS, estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, type AutoSearchDaysValue } from "@/lib/preferences";
 
-// Morning searches: a panel the person can read at a glance and set in two moves. A switch, a
-// slider for how many jobs each morning, and a row of days. Every change saves on its own; the
-// panel shows what will happen in one sentence and what it costs in another. The same panel
-// sits on the headhunter's page and in Settings.
+// Morning searches, in three states. Off: one sentence and an Enable button. Setting up: the
+// slider and the days, nothing saved until "Start morning searches" is pressed. On: the saved
+// settings, editable, with "Save changes" once something differs and "Turn off" beside it.
+// The saved values live on the headhunter's row in the database; the hourly cron reads them.
 export function MorningSearch({
   profileId,
-  jobs: initialJobs,
-  days: initialDays,
+  jobs: savedJobs,
+  days: savedDays,
   defaultJobs,
   perJob,
   extraPlaces = 0,
@@ -32,28 +32,40 @@ export function MorningSearch({
   disabled?: string; // why it can't be turned on
   compact?: boolean; // in Settings: no card chrome of its own
 }) {
-  const [on, setOn] = useState(initialJobs != null);
-  const [jobs, setJobs] = useState(initialJobs ?? Math.min(defaultJobs, 3));
-  const [days, setDays] = useState<AutoSearchDaysValue>(initialDays);
+  const on = savedJobs != null;
+  const [editing, setEditing] = useState(false);
+  const [jobs, setJobs] = useState(savedJobs ?? Math.min(defaultJobs, 3));
+  const [days, setDays] = useState<AutoSearchDaysValue>(savedDays);
   const [pending, start] = useTransition();
   const [error, setError] = useState<string>();
   const [saved, setSaved] = useState(false);
+  // The page re-renders with the saved values after each save; the draft follows them.
+  const [seen, setSeen] = useState({ savedJobs, savedDays });
+  if (seen.savedJobs !== savedJobs || seen.savedDays !== savedDays) {
+    setSeen({ savedJobs, savedDays });
+    if (savedJobs != null) {
+      setJobs(savedJobs);
+      setDays(savedDays);
+    }
+  }
+  const dirty = !on || jobs !== savedJobs || days !== savedDays;
   const save = (next: { jobs: number; days: AutoSearchDaysValue } | null) =>
     start(async () => {
       const r = await setMorningSearch(profileId, next);
       setError(r?.error);
-      if (r?.error) setOn(initialJobs != null);
-      else {
+      if (!r?.error) {
+        setEditing(false);
         setSaved(true);
-        setTimeout(() => setSaved(false), 1500);
+        setTimeout(() => setSaved(false), 2000);
       }
     });
   const perDay = estimateSearchCost(jobs, perJob, extraPlaces).cognition;
   const pct = ((jobs - MIN_JOBS_PER_SEARCH) / (MAX_JOBS_PER_SEARCH - MIN_JOBS_PER_SEARCH)) * 100;
-  const when = AUTO_SEARCH_DAYS.find((d) => d.value === days)?.short ?? "every day";
+  const when = (d: AutoSearchDaysValue) => AUTO_SEARCH_DAYS.find((x) => x.value === d)?.short ?? "every day";
   const perWeek = days === "daily" ? 7 : days === "weekdays" ? 5 : days === "alternate" ? 3.5 : 1;
   const weekCost = Math.round(perDay * perWeek);
   const tooDear = balance != null && perDay > balance;
+  const showControls = on || editing;
 
   return (
     <section id="morning" className={compact ? "" : "rise rise-2 mt-6 scroll-mt-8 rounded-3xl bg-surface p-6"}>
@@ -64,33 +76,24 @@ export function MorningSearch({
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <label className="flex cursor-pointer items-center justify-between gap-4">
-            <span>
-              <span className="font-display block text-lg font-medium text-white">Morning searches</span>
-              <span className="mt-0.5 block text-sm text-white/50">
-                {on ? `On. ${jobs} ${jobs === 1 ? "job" : "jobs"} ${when}, at 9am your time.` : disabled ?? "Your headhunter searches on its own at 9am your time."}
-              </span>
-            </span>
-            <span className="flex shrink-0 items-center gap-3">
-              {saved && <span className="text-xs text-white/40">Saved</span>}
-              <input
-                type="checkbox"
-                role="switch"
-                aria-checked={on}
-                aria-label="Morning searches"
-                className="size-5 accent-[var(--coral)]"
-                checked={on}
-                disabled={pending || (!on && !!disabled)}
-                onChange={(e) => {
-                  const v = e.target.checked;
-                  setOn(v);
-                  save(v ? { jobs, days } : null);
-                }}
-              />
-            </span>
-          </label>
+          <div className="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h2 className="font-display text-lg font-medium text-white">Morning searches</h2>
+              <p className="mt-0.5 text-sm text-white/50">
+                {on
+                  ? `On. ${savedJobs} ${savedJobs === 1 ? "job" : "jobs"} ${when(savedDays)}, at 9am your time.`
+                  : disabled ?? "Your headhunter searches on its own at 9am your time, as often as you like."}
+              </p>
+            </div>
+            {!showControls && (
+              <button type="button" className="btn btn-primary h-10 shrink-0" disabled={!!disabled || pending} onClick={() => setEditing(true)}>
+                Enable
+              </button>
+            )}
+            {on && !compact && saved && <span className="text-xs text-white/40">Saved</span>}
+          </div>
 
-          {on && (
+          {showControls && (
             <div className="mt-5 space-y-5">
               <div>
                 <div className="flex items-baseline justify-between">
@@ -105,8 +108,6 @@ export function MorningSearch({
                   value={jobs}
                   disabled={pending}
                   onChange={(e) => setJobs(Number(e.target.value))}
-                  onPointerUp={() => save({ jobs, days })}
-                  onKeyUp={() => save({ jobs, days })}
                   aria-label="Jobs each morning"
                   className="slider mt-3 w-full"
                   style={{ ["--fill" as string]: `${pct}%` }}
@@ -128,10 +129,7 @@ export function MorningSearch({
                       role="radio"
                       aria-checked={days === d.value}
                       disabled={pending}
-                      onClick={() => {
-                        setDays(d.value);
-                        save({ jobs, days: d.value });
-                      }}
+                      onClick={() => setDays(d.value)}
                       className={`rounded-full px-3.5 py-1.5 text-sm transition ${days === d.value ? "bg-coral text-white" : "bg-white/[0.06] text-white/70 hover:bg-white/[0.1] hover:text-white"}`}
                     >
                       {d.label}
@@ -146,6 +144,24 @@ export function MorningSearch({
                 {email ? ` Results go to ${email}.` : " Add an email in Settings and the results reach you each morning."}
               </p>
               {tooDear && <p className="text-sm text-rose">Not enough cognition for a morning like this. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
+
+              <div className="flex flex-wrap items-center gap-4">
+                {dirty && (
+                  <button type="button" className="btn btn-primary h-10" disabled={pending} onClick={() => save({ jobs, days })}>
+                    {pending ? "Saving…" : on ? "Save changes" : "Start morning searches"}
+                  </button>
+                )}
+                {!dirty && saved && <span className="text-sm text-white/45">Saved. Next run at 9am.</span>}
+                {on ? (
+                  <button type="button" className="text-sm text-white/55 hover:text-rose" disabled={pending} onClick={() => save(null)}>
+                    Turn off
+                  </button>
+                ) : (
+                  <button type="button" className="text-sm text-white/55 hover:text-white" disabled={pending} onClick={() => setEditing(false)}>
+                    Cancel
+                  </button>
+                )}
+              </div>
             </div>
           )}
           {error && <p className="mt-3 text-sm text-rose">{error}</p>}
