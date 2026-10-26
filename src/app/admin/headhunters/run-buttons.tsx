@@ -3,7 +3,8 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { rerunShortSearches, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { refreshBalances, rerunShortSearches, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
 export function RunOne({ profileId, disabled, defaultJobs = 5 }: { profileId: string; disabled?: boolean; defaultJobs?: number }) {
@@ -142,5 +143,32 @@ export function RolesEditor({ profileId, roles }: { profileId: string; roles: st
       </button>
       {note && <span className="admin-text-3 text-xs">{note}</span>}
     </form>
+  );
+}
+
+// Read every live headhunter's cognition from Hello Minds now.
+export function RefreshBalances() {
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState<string>();
+  const router = useRouter();
+  return (
+    <span className="inline-flex items-center gap-2">
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        disabled={pending}
+        title="Ask Hello Minds for every live headhunter's balance now"
+        onClick={() =>
+          start(async () => {
+            const r = await refreshBalances();
+            setNote(`${r.checked} read${r.empty ? `, ${r.empty} at zero or below` : ""}${r.failed ? `, ${r.failed} could not be read` : ""}.`);
+            router.refresh();
+          })
+        }
+      >
+        <RefreshCw className={`size-3.5 ${pending ? "animate-spin" : ""}`} aria-hidden /> {pending ? "Reading…" : "Refresh balances"}
+      </button>
+      {note && <span className="admin-text-3 text-xs">{note}</span>}
+    </span>
   );
 }

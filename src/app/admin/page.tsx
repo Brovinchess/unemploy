@@ -77,7 +77,8 @@ export default async function Overview({ searchParams }: { searchParams: Promise
       </div>
 
       <GroupLabel>Cost, last {days} days</GroupLabel>
-      <Tiles cols={4} className="mt-2">
+      <Tiles cols={5} className="mt-2">
+        <Stat label="Cognition left, all headhunters" value={allTime.balance} hint={`${allTime.balanceMinds} live, ${allTime.balanceEmpty} at zero`} href="/admin/users?sort=balance&dir=asc" />
         <Stat label="Cognition used" value={Math.round(w.cognition)} href={`/admin/costs?days=${days}`} />
         <Stat label="Per search" value={w.searches ? Math.round(w.cognition / w.searches) : "–"} />
         <Stat label="Per job delivered" value={w.jobs ? Math.round(w.cognition / w.jobs) : "–"} />

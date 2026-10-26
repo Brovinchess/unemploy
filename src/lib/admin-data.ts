@@ -53,6 +53,11 @@ const store = new Map<string, { at: number; value: Promise<unknown> }>();
 
 // Returns the cached promise for `key` while it is younger than ttlMs; otherwise runs fn once
 // and caches it (so concurrent renders share one set of queries). Failures are not cached.
+// Drops cached pages whose key starts with `prefix`, so a refresh shows up at once.
+export function forget(prefix: string) {
+  for (const k of store.keys()) if (k.startsWith(prefix)) store.delete(k);
+}
+
 export function memo<T>(key: string, ttlMs: number, fn: () => Promise<T>): Promise<T> {
   const now = Date.now();
   const hit = store.get(key);
@@ -138,7 +143,7 @@ const NOTICE_LABELS: Record<string, string> = {
 export type Overview = {
   days: number;
   keys: string[];
-  allTime: { users: number; emailVerified: number; deployed: number; live: number; searchingNow: number; jobs: number; appliedPlus: number; extensionUsers: number };
+  allTime: { users: number; emailVerified: number; deployed: number; live: number; searchingNow: number; jobs: number; appliedPlus: number; extensionUsers: number; balance: number; balanceMinds: number; balanceEmpty: number };
   window: {
     newUsers: number; referred: number; activeUsers: number; searches: number; openSearches: number; finished: number; finishedWithJobs: number; jobs: number; kept: number; leads: number; cognition: number; poolJobs: number;
     avgMinutes: number | null; firstJobMinutes: number | null; wanted: number; applied: number; interviews: number; emptySearches: number;
@@ -173,6 +178,7 @@ async function loadOverview(days: number): Promise<Overview> {
     avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number; feedback_new: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
     daily_on: number; daily_paused: number; daily_off: number; runs: number; follow_ups: number; runs_wanted: number; runs_added: number; manual: number; manual_wanted: number; manual_added: number; run_cog: number; manual_cog: number; long_searches: number; email_blocked: number;
+    balance: number; balance_minds: number; balance_empty: number;
   };
   const s = await one<Scalars>(sql`
     select
@@ -186,6 +192,9 @@ async function loadOverview(days: number): Promise<Overview> {
       (select count(*) from jobs)::int as jobs,
       (select count(*) from jobs where status in (${lit(APPLIED_PLUS_LIST)}))::int as applied_plus,
       (select count(distinct user_id) from extension_tokens)::int as extension_users,
+      (select coalesce(sum(greatest(balance_cache, 0)), 0) from profiles where mind_id is not null and status in ('hunting', 'paused'))::int as balance,
+      (select count(balance_cache) from profiles where mind_id is not null and status in ('hunting', 'paused'))::int as balance_minds,
+      (select count(*) from profiles where mind_id is not null and status in ('hunting', 'paused') and balance_cache <= 0)::int as balance_empty,
       (select count(distinct user_id) from profiles where resume_file_name is not null)::int as with_resume,
       (select count(distinct user_id) from profiles where preferences is not null)::int as with_prefs,
       (select count(distinct user_id) from profiles where mind_id is not null)::int as with_mind,
@@ -298,7 +307,7 @@ async function loadOverview(days: number): Promise<Overview> {
     keys,
     countries: counts(groupCountries(of("country").map((f) => ({ key: f.key, n: f.n })))),
     people: people.map((p) => ({ id: p.id, username: p.username, country: p.country ?? "", searches: p.searches, jobs: p.jobs, kept: p.kept, avgMinutes: p.avg_minutes, cognition: Math.round(p.cognition) })),
-    allTime: { users: s.users, emailVerified: s.email_verified, deployed: s.deployed, live: s.live, searchingNow: s.searching_now, jobs: s.jobs, appliedPlus: s.applied_plus, extensionUsers: s.extension_users },
+    allTime: { users: s.users, emailVerified: s.email_verified, deployed: s.deployed, live: s.live, searchingNow: s.searching_now, jobs: s.jobs, appliedPlus: s.applied_plus, extensionUsers: s.extension_users, balance: s.balance, balanceMinds: s.balance_minds, balanceEmpty: s.balance_empty },
     window: {
       newUsers: s.new_users, referred: s.referred, activeUsers: s.active_users, searches: s.searches, openSearches: s.open_searches, finished: s.finished, finishedWithJobs: s.finished_with_jobs,
       jobs: s.window_jobs, kept: s.window_kept, leads: s.leads, cognition: s.cognition, poolJobs: s.pool_jobs,
@@ -401,7 +410,7 @@ export type HeadhunterRow = {
   id: string; userId: string; user: string; email: string | null; emailVerified: boolean; label: string; mindName: string | null; status: ProfileStatus;
   roles: string; place: string; settings: string; perSearch: number | null; age: number | null;
   searches: number; jobs: number; jobsPerSearch: number | null; avgMinutes: number | null; perJob: number | null;
-  lastSearch: Date | null; lastDeliveryAt: Date | null;
+  lastSearch: Date | null; lastDeliveryAt: Date | null; balance: number | null; balanceAt: Date | null;
 };
 export type Headhunters = { total: number; deployed: number; hunting: number; paused: number; rows: HeadhunterRow[] };
 
@@ -409,7 +418,7 @@ const HH_LIMIT = 200;
 const HH_SORT: Record<string, SQL> = {
   user: text('"user"'), label: text("label"), mind: text("mind_name"), status: sql.raw("status"), roles: text("roles"), place: text("place"), settings: text("settings"),
   perSearch: sql.raw("per_search"), age: sql.raw("age"), searches: sql.raw("searches"), jobs: sql.raw("jobs"), jobsPerSearch: sql.raw("jobs_per_search"),
-  avgMinutes: sql.raw("avg_minutes"), perJob: sql.raw("per_job"), lastSearch: sql.raw("last_search"), lastDelivery: sql.raw("last_delivery"), created: sql.raw("created"),
+  avgMinutes: sql.raw("avg_minutes"), perJob: sql.raw("per_job"), lastSearch: sql.raw("last_search"), lastDelivery: sql.raw("last_delivery"), created: sql.raw("created"), balance: sql.raw("balance"),
 };
 
 export const headhunters = (params: HeadhuntersParams) => memo(`headhunters:${JSON.stringify(params)}`, TTL, () => loadHeadhunters(params));
@@ -431,11 +440,12 @@ async function loadHeadhunters(params: HeadhuntersParams): Promise<Headhunters> 
   type Row = {
     id: string; user_id: string; user: string; email: string | null; email_verified: boolean; label: string; mind_name: string | null; status: ProfileStatus; roles: string; place: string; work_settings: string[] | null;
     per_search: number | null; age: number | null; searches: number; jobs: number; jobs_per_search: number | null; avg_minutes: number | null; per_job: number | null;
-    last_search: number | null; last_delivery: number | null;
+    last_search: number | null; last_delivery: number | null; balance: number | null; balance_at: number | null;
   };
   const list = await rows<Row>(sql`
     select * from (
       select p.id, p.user_id, ${NAME} as "user", u.email, (u.email_verified_at is not null) as email_verified, p.label, p.mind_name, p.status,
+        p.balance_cache::float8 as balance, ${ms(sql.raw("p.balance_cached_at"))} as balance_at,
         coalesce(p.preferences->>'targetRoles', '') as roles,
         case when p.preferences is null then '' else concat_ws(', ', nullif(p.preferences->>'city', ''), nullif(p.preferences->>'country', '')) end as place,
         case when p.preferences is null then '' else coalesce(p.preferences->>'workSettings', '') end as settings,
@@ -468,7 +478,7 @@ async function loadHeadhunters(params: HeadhuntersParams): Promise<Headhunters> 
       id: r.id, userId: r.user_id, user: r.user, email: r.email, emailVerified: r.email_verified, label: r.label, mindName: r.mind_name, status: r.status,
       roles: r.roles, place: r.place, settings: (r.work_settings ?? []).map(workSettingLabel).join(", "), perSearch: r.per_search, age: r.age,
       searches: r.searches, jobs: r.jobs, jobsPerSearch: r.jobs_per_search, avgMinutes: r.avg_minutes, perJob: r.per_job,
-      lastSearch: at(r.last_search), lastDeliveryAt: at(r.last_delivery),
+      lastSearch: at(r.last_search), lastDeliveryAt: at(r.last_delivery), balance: r.balance, balanceAt: at(r.balance_at),
     })),
   };
 }
@@ -887,18 +897,27 @@ async function loadQuality(params: QualityParams): Promise<Quality> {
 
 // ---- users -------------------------------------------------------------------------------
 
-export type UsersParams = { q?: string; deployed?: boolean; active?: number; idle?: boolean; nokeep?: boolean; sort: string; dir: Dir };
+export type UsersParams = { q?: string; deployed?: boolean; active?: number; idle?: boolean; nokeep?: boolean; stage?: string; sort: string; dir: Dir };
+export type UserStage = "no_name" | "setting_up" | "ready" | "searched" | "got_jobs" | "kept" | "applied";
+export const USER_STAGES: [UserStage, string][] = [
+  ["no_name", "No name yet"], ["setting_up", "Setting up"], ["ready", "Set up, never searched"], ["searched", "Searched, nothing yet"], ["got_jobs", "Got jobs, kept none"], ["kept", "Kept jobs"], ["applied", "Applied"],
+];
 export type UserRow = {
-  id: string; name: string; username: string | null; email: string | null; emailVerified: boolean; createdAt: Date; hhStatus: string; hhRaw: string;
+  id: string; name: string; username: string | null; email: string | null; emailVerified: boolean; createdAt: Date; hhStatus: string; hhRaw: string; hhLabel: string;
+  stage: UserStage; daily: "on" | "paused" | "off" | ""; balance: number | null; balanceAt: Date | null;
   searches: number; jobs: number; kept: number; applied: number; cognition: number; lastSearch: Date | null; lastSeen: Date | null;
   extension: boolean; extensionUsed: Date | null; referrer: string; referrerId?: string; waiting: number; answers: number;
 };
-export type Users = { total: number; allUsers: number; deployedUsers: number; unnamed: number; rows: UserRow[] };
+export type Users = {
+  total: number; allUsers: number; deployedUsers: number; unnamed: number; rows: UserRow[];
+  tiles: { verified: number; searched: number; kept: number; applied: number; balance: number; balanceMinds: number; balanceEmpty: number; dailyOn: number };
+};
 
 const USERS_LIMIT = 500;
 const USERS_SORT: Record<string, SQL> = {
   name: text("username"), joined: sql.raw("joined"), email: text("email"), status: text("hh_status"), searches: sql.raw("searches"), jobs: sql.raw("jobs"), kept: sql.raw("kept"), applied: sql.raw("applied"),
   cognition: sql.raw("cognition"), lastSearch: sql.raw("last_search"), lastSeen: sql.raw("last_seen"), extension: sql.raw("extension_used"), referrer: text("referrer_text"), waiting: sql.raw("waiting"), answers: sql.raw("answers"),
+  stage: sql.raw("stage_n"), balance: sql.raw("balance"), daily: text("daily"), label: text("hh_label"),
 };
 
 export const users = (params: UsersParams) => memo(`users:${JSON.stringify(params)}`, TTL, () => loadUsers(params));
@@ -911,7 +930,14 @@ async function loadUsers(params: UsersParams): Promise<Users> {
       select u.id, u.username, u.email, u.email_verified_at is not null as email_verified, (extract(epoch from u.created_at) * 1000)::float8 as joined, u.referred_by,
         coalesce(u.username, '(no name yet)') as name,
         exists (select 1 from profiles p where p.user_id = u.id and p.mind_id is not null) as deployed,
-        coalesce(replace(hh.status, '_', ' '), '') as hh_status, coalesce(hh.status, '') as hh_raw,
+        coalesce(replace(hh.status, '_', ' '), '') as hh_status, coalesce(hh.status, '') as hh_raw, coalesce(hh.label, '') as hh_label,
+        (select sum(p.balance_cache)::float8 from profiles p where p.user_id = u.id and p.mind_id is not null and p.status in ('hunting', 'paused')) as balance,
+        (extract(epoch from (select max(p.balance_cached_at) from profiles p where p.user_id = u.id and p.mind_id is not null)) * 1000)::float8 as balance_at,
+        case
+          when exists (select 1 from profiles p where p.user_id = u.id and p.auto_search_jobs is not null and p.auto_search_paused_at is null) then 'on'
+          when exists (select 1 from profiles p where p.user_id = u.id and p.auto_search_jobs is not null) then 'paused'
+          when exists (select 1 from profiles p where p.user_id = u.id and p.mind_id is not null) then 'off'
+          else '' end as daily,
         (select count(*) from searches s join profiles p on p.id = s.profile_id where p.user_id = u.id)::int as searches,
         (select count(*) from jobs j join profiles p on p.id = j.profile_id where p.user_id = u.id)::int as jobs,
         (select count(*) from jobs j join profiles p on p.id = j.profile_id where p.user_id = u.id and j.status in (${[...KEPT].map((x) => `'${x}'`).join(", ")}))::int as kept,
@@ -926,28 +952,42 @@ async function loadUsers(params: UsersParams): Promise<Users> {
         (select count(*) from questions q where q.user_id = u.id and q.status in (${WAITING_QUESTION_LIST.map((x) => `'${x}'`).join(", ")}))::int as waiting,
         case when jsonb_typeof(u.saved_answers) = 'array' then jsonb_array_length(u.saved_answers) else 0 end as answers
       from users u
-      left join lateral (select p.status from profiles p where p.user_id = u.id order by (p.status in ('hunting', 'paused')) desc, p.created_at asc limit 1) hh on true
+      left join lateral (select p.status, p.label from profiles p where p.user_id = u.id order by (p.status in ('hunting', 'paused')) desc, p.created_at asc limit 1) hh on true
       left join lateral (select r.id, r.username from users r where r.referral_code = u.referred_by limit 1) r on true
-    ), y as (select *, greatest(last_session, last_search) as last_seen from x)
+    ), y as (
+      select *, greatest(last_session, last_search) as last_seen,
+        case when username is null then 0 when not deployed then 1 when searches = 0 then 2 when jobs = 0 then 3 when kept = 0 then 4 when applied = 0 then 5 else 6 end as stage_n
+      from x
+    )
   `);
+  const STAGE_N: UserStage[] = ["no_name", "setting_up", "ready", "searched", "got_jobs", "kept", "applied"];
   const filters: SQL[] = [];
   if (params.q) filters.push(sql`(username ilike ${like(params.q)} or email ilike ${like(params.q)})`);
   if (params.deployed) filters.push(sql`deployed`);
   if (params.active) filters.push(sql`last_search >= ${daysAgo(params.active).getTime()}`);
   if (params.idle) filters.push(sql`deployed and searches = 0`);
   if (params.nokeep) filters.push(sql`searches > 0 and kept = 0`);
+  const stageIx = params.stage ? STAGE_N.indexOf(params.stage as UserStage) : -1;
+  if (stageIx >= 0) filters.push(sql`stage_n = ${stageIx}`);
   const where = filters.length ? sql.join(filters, sql` and `) : sql`true`;
 
-  // Query 1: how many match, plus the three numbers in the description.
-  const c = await one<{ total: number; all_users: number; deployed_users: number; unnamed: number }>(sql`
+  // Query 1: how many match, plus the numbers in the description and the tiles.
+  const c = await one<{ total: number; all_users: number; deployed_users: number; unnamed: number; verified: number; searched: number; kept_users: number; applied_users: number; balance: number; balance_minds: number; balance_empty: number; daily_on: number }>(sql`
     ${base}
     select (select count(*) from y where ${where})::int as total, (select count(*) from users)::int as all_users,
-      (select count(distinct user_id) from profiles where mind_id is not null)::int as deployed_users, (select count(*) from users where username is null)::int as unnamed
+      (select count(distinct user_id) from profiles where mind_id is not null)::int as deployed_users, (select count(*) from users where username is null)::int as unnamed,
+      (select count(*) from users where email_verified_at is not null)::int as verified,
+      (select count(*) from y where searches > 0)::int as searched, (select count(*) from y where kept > 0)::int as kept_users, (select count(*) from y where applied > 0)::int as applied_users,
+      (select coalesce(sum(greatest(balance_cache, 0)), 0) from profiles where mind_id is not null and status in ('hunting', 'paused'))::int as balance,
+      (select count(balance_cache) from profiles where mind_id is not null and status in ('hunting', 'paused'))::int as balance_minds,
+      (select count(*) from profiles where mind_id is not null and status in ('hunting', 'paused') and balance_cache <= 0)::int as balance_empty,
+      (select count(distinct user_id) from profiles where auto_search_jobs is not null and auto_search_paused_at is null)::int as daily_on
   `);
 
   // Query 2: the rows, filtered and sorted in SQL.
   type Row = {
-    id: string; username: string | null; email: string | null; email_verified: boolean; joined: number; name: string; hh_status: string; hh_raw: string;
+    id: string; username: string | null; email: string | null; email_verified: boolean; joined: number; name: string; hh_status: string; hh_raw: string; hh_label: string;
+    stage_n: number; daily: "on" | "paused" | "off" | ""; balance: number | null; balance_at: number | null;
     searches: number; jobs: number; kept: number; applied: number; cognition: number; last_search: number | null; last_session: number | null; last_seen: number | null;
     extension: boolean; extension_used: number | null; referrer_id: string | null; referrer_text: string; waiting: number; answers: number;
   };
@@ -958,8 +998,10 @@ async function loadUsers(params: UsersParams): Promise<Users> {
     allUsers: c.all_users,
     deployedUsers: c.deployed_users,
     unnamed: c.unnamed,
+    tiles: { verified: c.verified, searched: c.searched, kept: c.kept_users, applied: c.applied_users, balance: c.balance, balanceMinds: c.balance_minds, balanceEmpty: c.balance_empty, dailyOn: c.daily_on },
     rows: list.map((r) => ({
-      id: r.id, name: r.name, username: r.username, email: r.email, emailVerified: r.email_verified, createdAt: at(r.joined)!, hhStatus: r.hh_status, hhRaw: r.hh_raw,
+      id: r.id, name: r.name, username: r.username, email: r.email, emailVerified: r.email_verified, createdAt: at(r.joined)!, hhStatus: r.hh_status, hhRaw: r.hh_raw, hhLabel: r.hh_label,
+      stage: STAGE_N[r.stage_n] ?? "no_name", daily: r.daily, balance: r.balance, balanceAt: at(r.balance_at),
       searches: r.searches, jobs: r.jobs, kept: r.kept, applied: r.applied, cognition: r.cognition, lastSearch: at(r.last_search), lastSeen: at(r.last_seen),
       extension: r.extension, extensionUsed: at(r.extension_used), referrer: r.referrer_text, referrerId: r.referrer_id ?? undefined, waiting: r.waiting, answers: r.answers,
     })),

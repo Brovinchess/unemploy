@@ -8,6 +8,8 @@ import { decrypt } from "@/lib/crypto";
 import { tokenClaimKeys, tokenEmail } from "@/lib/minds/oauth";
 import { startSearch } from "@/lib/start-search";
 import { preferencesSchema } from "@/lib/preferences";
+import { freshBalance } from "@/lib/app-context";
+import { forget } from "@/lib/admin-data";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
 
@@ -130,4 +132,31 @@ export async function backfillEmailsFromTokens(): Promise<{ filled: number; chec
     } catch {}
   }
   return { filled, checked: people.length };
+}
+
+// Owner-side: read every live headhunter's cognition from Hello Minds now, instead of waiting
+// for each person to open the app. Each read uses that person's own token.
+export async function refreshBalances(): Promise<{ checked: number; empty: number; failed: number }> {
+  await requireAdmin();
+  const live = await db.query.profiles.findMany({ where: and(isNotNull(schema.profiles.mindId), or(eq(schema.profiles.status, "hunting"), eq(schema.profiles.status, "paused"))) });
+  const owners = new Map((await db.query.users.findMany({ where: sql`${schema.users.id} in ${live.length ? sql`(${sql.join(live.map((p) => sql`${p.userId}`), sql`, `)})` : sql`('')`}` })).map((u) => [u.id, u]));
+  let checked = 0, empty = 0, failed = 0;
+  // A few at a time: one Hello Minds call per headhunter.
+  for (let i = 0; i < live.length; i += 5) {
+    await Promise.all(
+      live.slice(i, i + 5).map(async (p) => {
+        const user = owners.get(p.userId);
+        if (!user?.refreshToken) return failed++;
+        const before = p.balanceCache;
+        const b = await freshBalance(user, p);
+        if (b == null || (b === before && p.balanceCachedAt && Date.now() - p.balanceCachedAt.getTime() < 1000)) return failed++;
+        checked++;
+        if (b <= 0) empty++;
+      }),
+    );
+  }
+  forget("users:");
+  forget("headhunters:");
+  forget("overview:");
+  return { checked, empty, failed };
 }
