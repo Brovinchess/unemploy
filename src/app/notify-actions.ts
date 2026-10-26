@@ -2,10 +2,12 @@
 
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { revalidatePath } from "next/cache";
+import { after } from "next/server";
 import { and, count, desc, eq, gte, isNull } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
 import { emailConfigured, sendVerificationCode } from "@/lib/email";
+import { sendWelcome } from "@/lib/notices";
 import { requireUser } from "@/lib/session";
 
 // A verified email for "your search is done" messages. Same 6-digit code flow as the
@@ -70,6 +72,8 @@ export async function confirmEmailCode(emailInput: string, codeInput: string): P
     .update(schema.users)
     .set({ email, emailVerifiedAt: new Date(), emailOnSearchDone: true })
     .where(eq(schema.users.id, user.id));
+  // The welcome goes out once, after the response, so the code screen never waits on it.
+  after(() => sendWelcome(user.id).catch((e) => console.error("[notify] welcome", e)));
   revalidatePath("/app", "layout");
   return { ok: true, done: true };
 }

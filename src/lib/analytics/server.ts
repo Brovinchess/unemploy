@@ -26,6 +26,9 @@ export type Event =
   | "morning_search_off"
   | "morning_zero_sent"
   | "cards_waiting_sent"
+  | "welcome_sent"
+  | "weekly_summary_sent"
+  | "comeback_sent"
   | "search_finished"
   | "card_decided"
   | "headhunter_removed";

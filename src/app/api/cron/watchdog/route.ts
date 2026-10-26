@@ -4,7 +4,7 @@ import { db, schema } from "@/db";
 import { isPublicHttpUrl } from "@/lib/ingest";
 import { checkPosting } from "@/lib/quality";
 import { endSearch, isSearching, nudgeIfQuiet, reconcileFromChat } from "@/lib/search";
-import { sendSetupReminders, sendWeeklyDigests } from "@/lib/notices";
+import { sendComebacks, sendSetupReminders, sendWeeklyDigests, sendWeeklySummaries } from "@/lib/notices";
 
 // Runs daily (vercel.json): clears expired sessions, closes searches that never finished,
 // and rechecks shortlisted postings. It never wakes a Mind; searches start only from the user.
@@ -40,13 +40,15 @@ export async function GET(request: Request) {
 
   // The emails the app sends on its own: the day-after reminder, and the Monday digest.
   const reminders = await sendSetupReminders().catch((e) => (console.error("[watchdog] reminders", e), 0));
-  const digests = await sendWeeklyDigests().catch((e) => (console.error("[watchdog] digests", e), 0));
+  const summarised = await sendWeeklySummaries().catch((e) => (console.error("[watchdog] summaries", e), new Set<string>()));
+  const digests = await sendWeeklyDigests(new Date(), 200, summarised).catch((e) => (console.error("[watchdog] digests", e), 0));
+  const comebacks = await sendComebacks().catch((e) => (console.error("[watchdog] comebacks", e), 0));
 
   // Last, because it matters least if the run is cut short: keep the shared pool fresh.
   const pool = await recheckPostings().catch((e) => (console.error("[watchdog] postings", e), { checked: 0, closed: 0, retired: 0 }));
 
   console.log(`[watchdog] stale searches ${stale}, closed jobs ${closed}, pool checked ${pool.checked} closed ${pool.closed} retired ${pool.retired}, expired sessions ${expired.length}`);
-  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, reminders, digests, pool });
+  return NextResponse.json({ expiredSessions: expired.length, closedJobs: closed, staleSearches: stale, reminders, summaries: summarised.size, digests, comebacks, pool });
 }
 
 // Re-opens every job still waiting on the user (new or saved, last 30 days) and marks the

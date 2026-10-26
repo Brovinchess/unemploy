@@ -213,3 +213,46 @@ export async function sendCardsWaitingEmail(args: { to: string; n: number; jobs:
     searchDoneHtml({ title: "Waiting for you", intro, jobs: args.jobs, more: Math.max(0, n - args.jobs.length), link: args.link, empty: false, cta: n === 1 ? "Review it" : "Review them", unsubscribe: args.unsubscribe }),
   );
 }
+
+// ---- Welcome, weekly summary, come back --------------------------------------------------------
+
+// The moment the email is verified. Three short lines on what happens next.
+export async function sendWelcomeEmail(args: { to: string; link: string; unsubscribe: string }) {
+  const intro = "Your headhunter searches employers' own sites for jobs you fit, checks each one is still open, and sends you the good ones as cards. The first ones usually land within the hour. Swipe right on a job and it writes the application for you. When you are ready to apply, add the Chrome extension and it fills in the forms.";
+  await send(
+    args.to,
+    "You're set. Here's what happens next",
+    `${intro}\n\nOpen Career Ninja: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Welcome", intro, jobs: [], more: 0, link: args.link, empty: true, cta: "Open Career Ninja", unsubscribe: args.unsubscribe }),
+  );
+}
+
+// Mondays, for people with daily search on: what their headhunter did last week, in numbers.
+export async function sendWeeklySummaryEmail(args: { to: string; searches: number; found: number; kept: number; applied: number; best: DigestJob | null; link: string; unsubscribe: string }) {
+  const { searches, found, kept, applied, best } = args;
+  const n = (x: number, one: string, many = one + "s") => `${x} ${x === 1 ? one : many}`;
+  const intro = `Last week your headhunter ran ${n(searches, "search", "searches")} and found ${n(found, "job")} that passed every check. You kept ${kept} and applied to ${applied}.${best ? ` Your best match was ${best.title} at ${best.company}, ${Math.round(best.matchScore)}%.` : ""}`;
+  await send(
+    args.to,
+    `Your week: ${n(found, "job")} found, ${kept} kept`,
+    `${intro}\n\nSee your jobs: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "Your week", intro, jobs: best ? [best] : [], more: 0, link: args.link, empty: !best, cta: "See your jobs", unsubscribe: args.unsubscribe }),
+  );
+}
+
+// Two quiet weeks: one email, then nothing more.
+export async function sendComebackEmail(args: { to: string; waiting: number; jobs: DigestJob[]; dailyOn: boolean; link: string; unsubscribe: string }) {
+  const { waiting, jobs, dailyOn } = args;
+  const intro =
+    waiting > 0
+      ? `It has been two weeks. In that time your headhunter found ${waiting} ${waiting === 1 ? "job" : "jobs"} that passed every check. ${waiting === 1 ? "It is" : "They are"} on your board, waiting for a yes or a no.`
+      : dailyOn
+        ? "It has been two weeks. Your headhunter has kept searching and found nothing new that passed every check. One change to your settings usually opens things up, and the card on your jobs page says which."
+        : "It has been two weeks since your last search. New postings go up every day, and a fresh search takes about an hour. Your headhunter picks up right where it left off.";
+  await send(
+    args.to,
+    waiting > 0 ? `${waiting} ${waiting === 1 ? "job is" : "jobs are"} waiting for you` : "Still looking? Your headhunter is",
+    `${intro}\n\n${waiting > 0 ? "See them" : "Open Career Ninja"}: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
+    searchDoneHtml({ title: "While you were away", intro, jobs, more: Math.max(0, waiting - jobs.length), link: args.link, empty: waiting === 0, cta: waiting > 0 ? "See them" : "Open Career Ninja", unsubscribe: args.unsubscribe }),
+  );
+}
