@@ -42,6 +42,7 @@ export function FoundBar({ items }: { items: Find[] }) {
           <CompanyLogo name={f.company} domain={f.domain} size="sm" />
           <span className="truncate">
             <span className="text-white">{f.title}</span> at {f.company}
+            {f.place ? <span className="text-white/45"> · {f.place}</span> : null}
           </span>
         </span>
       </div>
