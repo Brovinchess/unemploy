@@ -9,6 +9,8 @@ import { estimateSearchCost } from "@/lib/preferences";
 import { questionCounts } from "@/lib/personal";
 import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
+import { FoundBar } from "./found-bar";
+import { recentFinds } from "@/lib/found";
 import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
 import { FeedbackButton } from "./feedback-button";
 import { RowStatus, SidebarSearch } from "./sidebar-search";
@@ -57,6 +59,7 @@ export async function AppShell({
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
   const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
+  const finds = await recentFinds(20).catch(() => []);
   const low = balance != null && balance < perSearch;
   const searching = isSearching(current);
   const initial: Live = {
@@ -144,6 +147,11 @@ export async function AppShell({
         </ul>
 
         <div className="mt-auto space-y-3">
+          {finds.length >= 5 && (
+            <div className="mb-3">
+              <FoundBar items={finds} compact />
+            </div>
+          )}
           <div id="cognition-card" className="rounded-2xl bg-white/[0.04] p-4">
             <LiveCognition perJob={perJob} />
             <a

@@ -16,7 +16,7 @@ const subscribeMotion = (fn: () => void) => {
 };
 const reducedMotion = () => window.matchMedia(MQ).matches;
 
-export function FoundBar({ items }: { items: Find[] }) {
+export function FoundBar({ items, compact = false }: { items: Find[]; compact?: boolean }) {
   const [i, setI] = useState(0);
   const [paused, setPaused] = useState(false);
   const still = useSyncExternalStore(subscribeMotion, reducedMotion, () => false);
@@ -27,6 +27,27 @@ export function FoundBar({ items }: { items: Find[] }) {
   }, [paused, still, items.length]);
   if (!items.length) return null;
   const f = items[i % items.length];
+  // In the app sidebar: a small card above the cognition card, two lines, same rotation.
+  if (compact) {
+    return (
+      <div className="rounded-2xl bg-white/[0.04] p-4" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} aria-live="polite">
+        <p className="text-xs text-white/40">Found lately</p>
+        <div key={i} className="found-swap mt-2 flex items-start gap-2.5">
+          <CompanyLogo name={f.company} domain={f.domain} size="sm" />
+          <div className="min-w-0 text-sm leading-snug">
+            <p className="text-white/45">
+              <span className="text-white/70">{f.owner}</span>&rsquo;s headhunter found
+            </p>
+            <p className="truncate text-white">{f.title}</p>
+            <p className="truncate text-white/55">
+              {f.company}
+              {f.place ? ` · ${f.place}` : ""}
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
   return (
     <section
       className="border-y border-white/[0.06] bg-night-2 px-[6%] py-3"
