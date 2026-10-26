@@ -7,6 +7,7 @@ import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
 import { ActivateStep } from "./mind-steps";
 import { NameStep } from "./name-step";
+import { EmailStep } from "./email-step";
 import { ResumeStep } from "./resume-step";
 import { ReviewStep } from "./review-step";
 import { GENERATED_PREFIX } from "@/lib/quick-resume";
@@ -24,7 +25,7 @@ function guessRole(resume: string | null | undefined) {
   return heads.find((h) => TITLE.test(h)) || undefined;
 }
 
-// Setup is name → resume → preferences → activate. The step comes from what's filled in, so
+// Setup is name → email → resume → preferences → activate. The step comes from what's filled in, so
 // a profile made before this order changed still lands on the right screen.
 export default async function Setup({ params, searchParams }: PageProps<"/profiles/[id]/setup">) {
   const { id } = await params;
@@ -44,9 +45,22 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
     );
   }
 
-  if (!profile.resumeData) {
+  // The address the jobs go to, confirmed with a code before anything is sent. People whose
+  // Hello Minds sign-in already gave a verified email skip this.
+  if (!user.email || !user.emailVerifiedAt) {
     return (
       <OnboardingShell step={1}>
+        <StepHeading eyebrow="Your email" title="Where should your jobs go?">
+          Your headhunter sends what it finds to your email, so you never have to check back.
+        </StepHeading>
+        <EmailStep />
+      </OnboardingShell>
+    );
+  }
+
+  if (!profile.resumeData) {
+    return (
+      <OnboardingShell step={2}>
         <StepHeading eyebrow={profile.label === PENDING_LABEL ? "Your headhunter" : `${profile.label} headhunter`} title="First, your resume">
           Your headhunter reads it to find jobs you fit, and everything it writes about you comes from it. No resume? Answer a few blanks instead.
         </StepHeading>
@@ -58,7 +72,7 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
   // A resume the app wrote from the blanks gets one look before the questions.
   if (!profile.preferences && sp.review === "1" && profile.resumeText && profile.resumeFileName?.startsWith(GENERATED_PREFIX)) {
     return (
-      <OnboardingShell step={1}>
+      <OnboardingShell step={2}>
         <StepHeading eyebrow="Here's your resume" title="Does this look right?">
           Written from what you filled in. Fix anything, or leave it as it is.
         </StepHeading>
@@ -69,7 +83,7 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
 
   if (!profile.preferences) {
     return (
-      <OnboardingShell step={2} wide>
+      <OnboardingShell step={3} wide>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
           Two quick questions, then your headhunter is ready. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
@@ -84,7 +98,7 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
   }
 
   return (
-    <OnboardingShell step={2}>
+    <OnboardingShell step={3}>
       <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Get your headhunter"}>
         {profile.mindName
           ? "Waiting for its first cognition to arrive. This usually takes a few seconds."
