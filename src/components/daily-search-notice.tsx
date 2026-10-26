@@ -1,13 +1,12 @@
 "use client";
 
-import Link from "next/link";
 import { useState, useTransition } from "react";
 import { Sunrise } from "lucide-react";
-import { noticeDailySearch, setMorningSearch } from "@/app/actions";
+import { noticeDailySearch } from "@/app/actions";
 
-// Daily search is on by default from the first search. This strip says so once, above the cards,
-// with what it costs and the way out, and goes away when the person answers it.
-export function DailySearchNotice({ profileId, jobs, perDay, href }: { profileId: string; jobs: number; perDay: number; href: string }) {
+// Daily search is on by default from the first search. This strip tells the person once, above
+// the cards, in two short lines, with one button. Turning it off lives on the headhunter's page.
+export function DailySearchNotice({ profileId, jobs }: { profileId: string; jobs: number }) {
   const [pending, start] = useTransition();
   const [gone, setGone] = useState(false);
   if (gone) return null;
@@ -19,41 +18,22 @@ export function DailySearchNotice({ profileId, jobs, perDay, href }: { profileId
       <div className="min-w-0 flex-1">
         <p className="text-white">Daily search is on.</p>
         <p className="text-sm text-white/55">
-          Your headhunter looks for {jobs} {jobs === 1 ? "job" : "jobs"} a day on its own, about {perDay} cognition a day. Turn it off any time.
+          Your headhunter now looks for {jobs} {jobs === 1 ? "job" : "jobs"} a day by itself. You can turn this off any time on your headhunter&rsquo;s page.
         </p>
       </div>
-      <div className="flex shrink-0 flex-wrap items-center gap-3">
-        <button
-          type="button"
-          className="btn btn-primary h-9"
-          disabled={pending}
-          onClick={() =>
-            start(async () => {
-              await noticeDailySearch(profileId);
-              setGone(true);
-            })
-          }
-        >
-          Keep it
-        </button>
-        <Link href={href} className="text-sm text-white/60 hover:text-white" onClick={() => start(async () => { await noticeDailySearch(profileId); })}>
-          Change
-        </Link>
-        <button
-          type="button"
-          className="text-sm text-white/60 hover:text-rose"
-          disabled={pending}
-          onClick={() => {
-            if (!confirm("Turn off daily search? You can turn it back on from your headhunter's page.")) return;
-            start(async () => {
-              await setMorningSearch(profileId, null);
-              setGone(true);
-            });
-          }}
-        >
-          Turn off
-        </button>
-      </div>
+      <button
+        type="button"
+        className="btn btn-primary h-9 shrink-0"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            await noticeDailySearch(profileId);
+            setGone(true);
+          })
+        }
+      >
+        Got it
+      </button>
     </section>
   );
 }
