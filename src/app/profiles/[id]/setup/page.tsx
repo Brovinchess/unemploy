@@ -50,8 +50,8 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
   if (!user.email || !user.emailVerifiedAt) {
     return (
       <OnboardingShell step={1}>
-        <StepHeading eyebrow="Your email" title="Where should your jobs go?">
-          Your headhunter sends what it finds to your email, so you never have to check back.
+        <StepHeading eyebrow="Your email" title="Verify your email">
+          We send a 6-digit code to confirm it is yours.
         </StepHeading>
         <EmailStep />
       </OnboardingShell>

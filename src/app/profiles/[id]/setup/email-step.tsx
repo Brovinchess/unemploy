@@ -101,7 +101,7 @@ export function EmailStep() {
           required
         />
       </label>
-      <p className="mt-3 text-sm text-muted">We send a 6-digit code to check it is right. Nothing else goes to it until your headhunter finds jobs.</p>
+      <p className="mt-3 text-sm text-muted">The code arrives in a moment. Check your spam folder if it does not.</p>
       <FormError message={error} />
       <button className="btn btn-primary mt-8 h-12 w-full" disabled={pending || !email.includes("@")}>
         {pending ? "Sending…" : "Send code"}
