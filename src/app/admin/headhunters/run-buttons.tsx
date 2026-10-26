@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { rerunShortSearches, runSearchFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { rerunShortSearches, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
 export function RunOne({ profileId, disabled, defaultJobs = 5 }: { profileId: string; disabled?: boolean; defaultJobs?: number }) {
@@ -109,5 +109,38 @@ export function RerunShort() {
         </div>
       )}
     </div>
+  );
+}
+
+// One headhunter: change the titles it looks for. Used when helping a person by hand.
+export function RolesEditor({ profileId, roles }: { profileId: string; roles: string }) {
+  const [value, setValue] = useState(roles);
+  const [note, setNote] = useState<string>();
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  return (
+    <form
+      className="flex flex-wrap items-center gap-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        start(async () => {
+          const r = await setRolesFor(profileId, value);
+          setNote(r.note);
+          router.refresh();
+        });
+      }}
+    >
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        maxLength={300}
+        aria-label="Titles this headhunter looks for"
+        className="h-8 min-w-[18rem] flex-1 rounded-full bg-white/[0.06] px-3 text-xs text-white/80 ring-1 ring-white/10"
+      />
+      <button type="submit" disabled={pending || value.trim() === roles.trim()} className="btn btn-ghost btn-sm">
+        {pending ? "Saving…" : "Save titles"}
+      </button>
+      {note && <span className="admin-text-3 text-xs">{note}</span>}
+    </form>
   );
 }

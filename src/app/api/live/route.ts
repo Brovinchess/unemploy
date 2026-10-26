@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   // Housekeeping that shouldn't wait for a page load or the daily job.
   after(async () => {
     if (profile.searchStartedAt && !profile.searchEndedAt && !isSearching(profile)) await endSearch(profile, "timeout").catch(() => {});
-    else if (live.profile.searching && live.profile.balance != null && live.profile.balance <= 0) await endSearch(profile, "no_cognition").catch(() => {});
+    else if (live.profile.searching && live.profile.balance != null && live.profile.balance <= 0 && (await mindQuiet(profile))) await endSearch(profile, "no_cognition").catch(() => {});
     else {
       await nudgeIfQuiet(profile).catch(() => {});
       await reconcileFromChat(profile).catch(() => {});
@@ -28,6 +28,18 @@ export async function GET(req: NextRequest) {
     }
   });
   return NextResponse.json(live, { headers: { "Cache-Control": "no-store" } });
+}
+
+// A balance at zero does not stop the Mind on the spot: Hello Minds lets a run finish and the
+// jobs keep arriving for a few minutes (seen 26 Oct 2026: a search closed at 2 minutes, five
+// jobs landed over the next six). So the search ends for lack of cognition only once the Mind
+// has also been quiet for a while.
+const QUIET_MS = 10 * 60 * 1000;
+async function mindQuiet(profile: Profile) {
+  const since = new Date(Date.now() - QUIET_MS);
+  if (profile.searchStartedAt && profile.searchStartedAt > since) return false;
+  const recent = await db.query.ingestLog.findFirst({ where: and(eq(schema.ingestLog.profileId, profile.id), gte(schema.ingestLog.createdAt, since)), columns: { id: true } });
+  return !recent;
 }
 
 type User = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;

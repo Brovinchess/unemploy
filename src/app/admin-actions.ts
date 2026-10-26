@@ -7,6 +7,7 @@ import { endSearch, isSearching } from "@/lib/search";
 import { decrypt } from "@/lib/crypto";
 import { tokenClaimKeys, tokenEmail } from "@/lib/minds/oauth";
 import { startSearch } from "@/lib/start-search";
+import { preferencesSchema } from "@/lib/preferences";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
 
@@ -21,6 +22,19 @@ export async function runSearchFor(profileId: string, jobs?: number, via: "admin
   const r = await startSearch(user, profile, jobs ?? profile.preferences?.jobsPerDay ?? 5, "", { fitToBalance: true, via }).catch((e) => ({ error: String(e?.message ?? e) }));
   const open = r?.error ? null : await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNull(schema.searches.endedAt)), columns: { jobsWanted: true } });
   return { username: user.username ?? "(no name yet)", label: profile.label, ok: !r?.error, note: r?.error ?? `Search started${open ? ` for ${open.jobsWanted} jobs` : ""}.` };
+}
+
+// Owner-side: change what a headhunter looks for, when a person has asked for help or a title
+// clearly needs a neighbour. The Mind gets the full brief again with its next request.
+export async function setRolesFor(profileId: string, roles: string): Promise<{ ok: boolean; note: string }> {
+  await requireAdmin();
+  const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
+  if (!profile?.preferences) return { ok: false, note: "No preferences to change." };
+  if (isSearching(profile)) return { ok: false, note: "A search is running; change it after." };
+  const parsed = preferencesSchema.safeParse({ ...profile.preferences, targetRoles: roles });
+  if (!parsed.success) return { ok: false, note: "Titles must be 2 to 300 characters." };
+  await db.update(schema.profiles).set({ preferences: parsed.data, prefsChangedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+  return { ok: true, note: `Now looking for: ${parsed.data.targetRoles}` };
 }
 
 // Headhunters whose last search came back short (or who never searched), not searching now,

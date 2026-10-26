@@ -49,6 +49,10 @@ export type Outcome = {
 
 const ROLE_NOTE = /different role|wrong role|not a .{0,20}role|other function|unrelated|not the role/i;
 const YEARS_NOTE = /\byears?\b|experience|senior|junior|level/i;
+// Leads with nothing to verify: agency posts that hide the employer, board copies, LinkedIn-only.
+const AGENCY_NOTE = /agenc|recruit|staffing|headhunt|linkedin|mirror|aggregat|job board|directory|client unnamed|unnamed client|no employer page|no page|employer not named/i;
+// A city state: the city and the country are the same place, so "widen to the country" is no change.
+const cityIsCountry = (p: Preferences) => !p.city || p.city.trim().toLowerCase() === p.country.trim().toLowerCase();
 
 const or_ = (...xs: (string | false | null | undefined)[]) => xs.filter(Boolean).join("");
 
@@ -72,9 +76,11 @@ export async function searchOutcome(profile: Profile, opts: { topUpUrl: string }
   const counts = new Map<DropReason, number>();
   let roleDrops = 0;
   let yearsDrops = 0;
+  let agencyDrops = 0;
   for (const l of leads) {
     const r: DropReason = l.reason === "pay" ? "other" : l.reason;
     counts.set(r, (counts.get(r) ?? 0) + 1);
+    if ((r === "other" || r === "unreachable") && AGENCY_NOTE.test(l.note ?? "")) agencyDrops++;
     if (r === "poor_fit") {
       if (ROLE_NOTE.test(l.note ?? "")) roleDrops++;
       else if (YEARS_NOTE.test(l.note ?? "")) yearsDrops++;
@@ -204,7 +210,7 @@ export async function searchOutcome(profile: Profile, opts: { topUpUrl: string }
       mood: "thinking",
       headline: `Widen your area to find ${role} jobs your headhunter can read.`,
       body: `Most listings it found were on job boards that block automated visitors, so it could not check whether they are open or who can apply. Employers' own career pages are readable, and a wider area brings more of those in.`,
-      button: prefs.city ? { label: `Widen the area to all of ${prefs.country}`, fix: { type: "wholeCountry" } } : prefs.remoteScope === "country" ? { label: "Include remote jobs from my region", fix: { type: "remoteScope", scope: "region" } } : undefined,
+      button: !cityIsCountry(prefs) ? { label: `Widen the area to all of ${prefs.country}`, fix: { type: "wholeCountry" } } : prefs.remoteScope === "country" ? { label: "Include remote jobs from my region", fix: { type: "remoteScope", scope: "region" } } : { label: "Add a second title", href: `/app/headhunters/${profile.id}#looks-for` },
     };
   }
   if (dominant === "closed" || dominant === "duplicate") {
@@ -217,7 +223,21 @@ export async function searchOutcome(profile: Profile, opts: { topUpUrl: string }
     };
   }
 
-  // 6. Few postings at all: a small market.
+  // 6. Nothing to verify: most leads were agency posts with no employer named, or board copies
+  //    with no employer page. Common for senior titles. A neighbouring title brings in direct postings.
+  if (found === 0 && total >= 3 && agencyDrops / total >= 0.4) {
+    const pct = Math.round((agencyDrops / total) * 100);
+    return {
+      ...base,
+      kind: "title",
+      mood: "thinking",
+      headline: `Add a second title to reach ${role} jobs your headhunter can verify.`,
+      body: `Your headhunter opened ${opened} ${role} postings in ${place}. ${pct}% were agency listings that do not name the employer, or copies on job boards and LinkedIn with no employer page, so it could not check whether they are open or who can apply. Senior roles are often posted under a neighbouring title. Adding one brings in direct postings it can check.`,
+      button: { label: "Add a second title", href: `/app/headhunters/${profile.id}#looks-for` },
+    };
+  }
+
+  // 7. Few postings at all: a small market.
   if (opened < 10 && found === 0) {
     return {
       ...base,
@@ -225,16 +245,16 @@ export async function searchOutcome(profile: Profile, opts: { topUpUrl: string }
       mood: "thinking",
       headline: `Widen your search: few ${role} jobs are posted in ${place} right now.`,
       body: `Your headhunter searched ${place}, then the whole country, then wider titles, and found ${opened} postings in total. That is the market this month, not a problem with your profile.`,
-      button: prefs.city ? { label: `Widen the area to all of ${prefs.country}`, fix: { type: "wholeCountry" } } : prefs.remoteScope === "country" && prefs.workSettings.includes("remote") ? { label: "Include remote jobs from my region", fix: { type: "remoteScope", scope: "region" } } : { label: "Try a neighbouring title", href: `/app/headhunters/${profile.id}#looks-for` },
+      button: !cityIsCountry(prefs) ? { label: `Widen the area to all of ${prefs.country}`, fix: { type: "wholeCountry" } } : prefs.remoteScope === "country" && prefs.workSettings.includes("remote") ? { label: "Include remote jobs from my region", fix: { type: "remoteScope", scope: "region" } } : { label: "Try a neighbouring title", href: `/app/headhunters/${profile.id}#looks-for` },
     };
   }
 
-  // 7. Ran out of time.
+  // 8. Ran out of time.
   if (search.endReason === "timeout") {
     return { ...base, kind: "keep_going", mood: "thinking", headline: `Keep going: your search hit the time limit with ${found} ${found === 1 ? "job" : "jobs"} found.`, body: "Everything it found is here. The next search starts where this one stopped." };
   }
 
-  // 8. Found some, not all: a line, not a card.
+  // 9. Found some, not all: a line, not a card.
   if (found > 0) {
     return { ...base, kind: "partial", mood: "thinking", headline: `Found ${found} of ${wanted}.`, body: or_(top && total ? `Most of the rest ${labelFor(top[0])}.` : "", " The next search starts from fresh listings.") };
   }

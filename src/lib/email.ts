@@ -61,7 +61,9 @@ export async function sendSearchDoneEmail(args: {
   const intro = noCognition
     ? `Your ${label} headhunter ran out of cognition before it finished${n ? `, after finding ${n} ${n === 1 ? "job" : "jobs"}` : ""}. Top it up on Hello Minds and ask again.`
     : n === 0
-      ? `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page and ask again.`
+      ? short
+        ? `Your ${label} headhunter searched but found nothing that passed every check. ${short}`
+        : `Your ${label} headhunter searched but found nothing that passed every check. Widen its search settings on its page and ask again.`
       : `Your ${label} headhunter ${timedOut ? "ran out of time, but found" : "finished searching and found"} ${n} ${n === 1 ? "job" : "jobs"} that passed every check. Keep the ones you like and your headhunter writes each application.${short ? ` ${short}` : ""}`;
   const top = jobs.slice(0, 5);
   const text =
