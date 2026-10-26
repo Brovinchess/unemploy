@@ -59,7 +59,7 @@ export async function AppShell({
 
   const perSearchJobs = current.preferences?.jobsPerDay ?? 5;
   const perSearch = estimateSearchCost(perSearchJobs, perJob).cognition;
-  const finds = await recentFinds(20).catch(() => []);
+  const finds = await recentFinds(40).catch(() => []);
   const low = balance != null && balance < perSearch;
   const searching = isSearching(current);
   const initial: Live = {

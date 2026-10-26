@@ -1,9 +1,9 @@
 import "server-only";
-import { and, desc, eq, gte, ne, notLike } from "drizzle-orm";
+import { and, desc, eq, ne, notLike } from "drizzle-orm";
 import { db, schema } from "@/db";
 
-// What headhunters found lately, for the landing page: title, company and place only. No names,
-// no times, nothing that points back at a person. One line per company and title.
+// What headhunters have found, for the landing page and the app sidebar: a lightly masked owner,
+// title, company and place. No times. Every job still open, in a fresh random order per request.
 export type Find = { title: string; company: string; domain: string | null; place: string; owner: string };
 
 // "rovin" becomes "R***N": first and last letter, stars for the rest, never the whole name.
@@ -12,9 +12,8 @@ export function maskName(name: string) {
   if (n.length <= 2) return `${n[0]?.toUpperCase() ?? "A"}*`;
   return `${n[0].toUpperCase()}${"*".repeat(Math.min(5, n.length - 2))}${n[n.length - 1].toUpperCase()}`;
 }
-const DAYS = 14;
 
-export async function recentFinds(limit = 40): Promise<Find[]> {
+export async function recentFinds(limit = 80): Promise<Find[]> {
   const rows = await db
     .select({ title: schema.jobs.title, company: schema.jobs.company, companyDomain: schema.jobs.companyDomain, city: schema.jobs.city, country: schema.jobs.country, workSetting: schema.jobs.workSetting, username: schema.users.username })
     .from(schema.jobs)
@@ -24,7 +23,6 @@ export async function recentFinds(limit = 40): Promise<Find[]> {
       and(
         eq(schema.jobs.demo, false),
         ne(schema.jobs.status, "expired"),
-        gte(schema.jobs.createdAt, new Date(Date.now() - DAYS * 86_400_000)),
         notLike(schema.jobs.url, "%example.com%"),
         notLike(schema.jobs.url, "%retired.example%"),
       ),
@@ -41,23 +39,7 @@ export async function recentFinds(limit = 40): Promise<Find[]> {
     out.push({ title: j.title, company: j.company, domain: j.companyDomain ?? null, place, owner: maskName(j.username ?? "someone") });
     if (out.length >= limit) break;
   }
-  return interleave(out);
-}
-
-// Takes turns between people, in a fresh random order each time, so the same name never comes
-// up several times in a row while someone else's finds wait.
-function interleave(finds: Find[]): Find[] {
-  const groups = new Map<string, Find[]>();
-  for (const f of finds) groups.set(f.owner, [...(groups.get(f.owner) ?? []), f]);
-  const queues = [...groups.values()].map(shuffle);
-  const out: Find[] = [];
-  while (queues.some((q) => q.length)) {
-    for (const q of shuffle(queues)) {
-      const next = q.shift();
-      if (next) out.push(next);
-    }
-  }
-  return out;
+  return shuffle(out);
 }
 
 function shuffle<T>(xs: T[]): T[] {
