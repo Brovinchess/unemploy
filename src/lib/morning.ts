@@ -21,6 +21,7 @@ const FOLLOW_UP_AFTER_MS = 3 * 60 * 60 * 1000;
 // A new day's search never starts within this long of the last search ending, whoever started
 // it: two searches an hour apart mostly find the same postings.
 const MIN_GAP_MS = 3 * 60 * 60 * 1000;
+const NOTICE_GRACE_MS = 24 * 60 * 60 * 1000;
 const CARDS_WAIT_MS = 6 * 60 * 60 * 1000;
 const CARDS_EMAIL_GAP_MS = 3 * 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
@@ -104,8 +105,11 @@ export async function runMorningSearches(now = new Date()): Promise<number> {
     if (isSearching(a.profile)) continue;
     if (!(await dueToday(a, now))) continue;
     if ((await todays(a, now)).length) continue;
-    const last = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, a.profile.id), orderBy: desc(schema.searches.startedAt), columns: { endedAt: true } });
+    const last = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, a.profile.id), orderBy: desc(schema.searches.startedAt), columns: { startedAt: true, endedAt: true } });
     if (last?.endedAt && now.getTime() - last.endedAt.getTime() < MIN_GAP_MS) continue;
+    // Daily search turned itself on with the first search. It does not spend again until the
+    // person has seen the notice on the Jobs page, or a day has passed since that search.
+    if (!a.profile.autoSearchNoticedAt && last && now.getTime() - last.startedAt.getTime() < NOTICE_GRACE_MS) continue;
     const r = await startSearch(a.user, a.profile, a.profile.autoSearchJobs!, "", { via: "morning" }).catch((e) => ({ error: String(e) }));
     if (r?.error) {
       if (outOfCognition(r.error)) await switchOffMorning(a, "balance");

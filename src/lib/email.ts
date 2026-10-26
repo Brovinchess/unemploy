@@ -28,7 +28,7 @@ async function send(to: string, subject: string, text: string, html: string) {
 }
 
 export async function sendVerificationCode(to: string, code: string, purpose: "waitlist" | "notify" = "waitlist") {
-  const heading = purpose === "waitlist" ? "Here's your code to join the waitlist" : "Here's your code to turn on email updates";
+  const heading = purpose === "waitlist" ? "Here's your code to join the waitlist" : "Here's your code to verify your email";
   await send(
     to,
     `${code} is your Career Ninja code`,
@@ -66,7 +66,7 @@ export async function sendSearchDoneEmail(args: {
   const top = jobs.slice(0, 5);
   const text =
     `${intro}\n\n` +
-    top.map((j) => `- ${j.title} at ${j.company} (${Math.round(j.matchScore)}% match)`).join("\n") +
+    top.map((j) => `- ${j.title} at ${j.company}${j.matchScore > 0 ? ` (${Math.round(j.matchScore)}% match)` : ""}`).join("\n") +
     (n > top.length ? `\n…and ${n - top.length} more` : "") +
     `\n\nSee your jobs: ${link}`;
   await send(to, subject, text, searchDoneHtml({ intro, jobs: top, more: n - top.length, link, empty: n === 0 , share, unsubscribe }));
@@ -109,7 +109,7 @@ export function searchDoneHtml({ intro, jobs, more, link, empty, share, unsubscr
       (j) => `<tr><td style="padding:14px 0;border-top:1px solid #2a3744">
         <p style="margin:0;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff">${esc(j.title)}</p>
         <p style="margin:4px 0 0;font-family:${FONT};font-size:13px;color:#8b98a5">${esc(j.company)}${j.place ? ` · ${esc(j.place)}` : ""}${j.verified ? ` · <span style="color:#e08a8c">✓ Verified</span>` : ""}</p>
-      </td><td align="right" style="padding:14px 0 14px 12px;border-top:1px solid #2a3744;font-family:${FONT};font-size:15px;font-weight:600;color:#e08a8c;white-space:nowrap">${Math.round(j.matchScore)}%</td></tr>`,
+      </td><td align="right" style="padding:14px 0 14px 12px;border-top:1px solid #2a3744;font-family:${FONT};font-size:15px;font-weight:600;color:#e08a8c;white-space:nowrap">${j.matchScore > 0 ? `${Math.round(j.matchScore)}%` : ""}</td></tr>`,
     )
     .join("");
   return `<!doctype html>

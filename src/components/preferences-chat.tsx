@@ -192,13 +192,19 @@ export function PreferencesChat({
         <div>
           <div className="card divide-y divide-line overflow-hidden">
             {mode === "setup" && username && <UsernameRow username={username} />}
-            {summarizePreferences(draft as Preferences).map((row, i) => {
-              const keys: (keyof Preferences)[] = [
-                "targetRoles", "country", "extraPlaces", "workSettings",
-                ...(draft.workSettings?.includes("remote") ? (["remoteScope"] as (keyof Preferences)[]) : []),
-                "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
-              ];
-              const key = keys[i];
+            {summarizePreferences(draft as Preferences)
+              .map((row, i) => {
+                const keys: (keyof Preferences)[] = [
+                  "targetRoles", "country", "extraPlaces", "workSettings",
+                  ...(draft.workSettings?.includes("remote") ? (["remoteScope"] as (keyof Preferences)[]) : []),
+                  "jobTypes", "levels", "avoidCompanies", "needsVisa", "jobsPerDay", "maxPostingAgeDays",
+                ];
+                return { row, key: keys[i] };
+              })
+              // The number of jobs is chosen on the Find button and the Daily search panel, not here;
+              // extra places are a settings-only question, so setup does not show the row.
+              .filter(({ key }) => key !== "jobsPerDay" && !(mode === "setup" && key === "extraPlaces"))
+              .map(({ row, key }) => {
               const tip = tips.find((t) => t.target === key);
               return (
                 <div key={row.label} id={`pref-${key}`} className={`relative flex items-start justify-between gap-4 px-5 py-4 transition-shadow ${tip ? "bg-coral/[0.07]" : ""}`}>
@@ -232,7 +238,7 @@ export function PreferencesChat({
           )}
           <FormError message={error} />
           <button className="btn btn-accent mt-6 h-12 w-full" disabled={pending} onClick={submit}>
-            {pending ? (mode === "setup" ? "Setting up your headhunter…" : "Saving…") : mode === "setup" ? "Get my headhunter" : saved ? "Saved" : "Save"}
+            {pending ? (mode === "setup" ? "Setting up your headhunter…" : "Saving…") : mode === "setup" ? "Start my first search" : saved ? "Saved" : "Save"}
           </button>
           {saved && <p className="mt-3 text-center text-sm text-white/55" aria-live="polite">Saved. Your next search uses these.</p>}
           {pending && mode === "setup" && (

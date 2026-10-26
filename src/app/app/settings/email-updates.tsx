@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { confirmEmailCode, removeEmail, sendEmailCode, setSearchEmails } from "@/app/notify-actions";
 
@@ -105,6 +106,19 @@ export function EmailUpdates({ email, on }: { email: string | null; on: boolean 
         </button>
         {error && <p className="mt-3 text-sm text-rose">{error}</p>}
       </form>
+    );
+  }
+
+  // No address at all: verification lives on the You page, so there is one place to do it.
+  if (!email) {
+    return (
+      <p className="text-white/70">
+        No email verified yet.{" "}
+        <Link href="/app/you#email" className="text-white underline underline-offset-4 hover:text-rose">
+          Verify it on the You page
+        </Link>{" "}
+        and search results come to you.
+      </p>
     );
   }
 

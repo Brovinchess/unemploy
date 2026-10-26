@@ -7,7 +7,6 @@ import { ApplyAllButton } from "@/components/extension-ui";
 import { JobsBoard, type BoardJob } from "@/components/jobs-board";
 import { PauseToggle } from "@/components/pause-toggle";
 import { SearchButton } from "@/components/search-button";
-import { SearchingChip } from "@/components/sidebar-search";
 import { CognitionIntro } from "@/components/cognition-intro";
 import { NewJobs } from "@/components/new-jobs";
 import { DailySearchNotice } from "@/components/daily-search-notice";
@@ -154,11 +153,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             </p>
           </div>
           {/* One way to ask for more; while a search runs, say so where people look first. */}
-          {searching ? (
-            <SearchingChip profileId={current.id} jobsPerDay={perSearch} />
-          ) : (
-            everDelivered && searchButton()
-          )}
+          {(searching || everDelivered) && searchButton()}
         </div>
 
         {sp.welcome === "1" && <CognitionIntro />}
@@ -219,7 +214,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
 
         {/* The last search came back with less than asked: what to do next, in one card. */}
         {fresh.length === 0 && !searching && everDelivered && outcome && (
-          <SearchOutcome profileId={current.id} outcome={outcome} after={outcome.kind === "partial" ? undefined : searchButton()} />
+          <SearchOutcome profileId={current.id} outcome={outcome} />
         )}
 
         {/* Everything found so far, in one list. */}

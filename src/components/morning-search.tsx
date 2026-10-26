@@ -183,7 +183,7 @@ export function MorningSearch({
                 )}
               </div>
               <p className="text-xs text-white/35">
-                Stops by itself when the balance runs out.{email ? ` Results go to ${email}.` : " Add an email in Settings to get the results each day."}
+                Stops by itself when the balance runs out.{email ? ` Results go to ${email}.` : " Verify your email on the You page to get the results each day."}
               </p>
             </div>
           )}

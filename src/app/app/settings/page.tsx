@@ -7,8 +7,8 @@ import { detailsComplete, isSupported } from "@/lib/extension";
 import { DeleteAccount } from "./delete-account";
 import { CoachSwitch } from "./coach-switch";
 import { EmailUpdates } from "./email-updates";
-import { MorningSearch } from "@/components/morning-search";
-import { costModel } from "@/lib/cost";
+import Link from "next/link";
+import { AUTO_SEARCH_DAYS } from "@/lib/preferences";
 
 function Section({ title, id, children }: { title: string; id?: string; children: React.ReactNode }) {
   return (
@@ -23,9 +23,8 @@ function Section({ title, id, children }: { title: string; id?: string; children
 // live on its page; details about the person live on the You page.
 export default async function Settings() {
   const { user, profiles, unfinished, current } = await appContext();
-  const [balance, cost, applyUrls] = await Promise.all([
+  const [balance, applyUrls] = await Promise.all([
     balanceFor(user, current),
-    costModel(current.id),
     // Kept jobs with a written application; the extension can fill only some of their sites.
     db
       .select({ url: schema.jobs.url })
@@ -52,20 +51,17 @@ export default async function Settings() {
           </Section>
 
           <Section title="Daily search" id="morning">
-            <MorningSearch
-              compact
-              profileId={current.id}
-              jobs={current.autoSearchJobs}
-              days={current.autoSearchDays}
-              paused={!!current.autoSearchPausedAt}
-              defaultJobs={current.preferences?.jobsPerDay ?? 5}
-              perJob={cost.perJob}
-              extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
-              balance={balance}
-              email={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
-              disabled={current.status === "paused" ? "Resume this headhunter to turn this on." : current.status !== "hunting" ? "Finish setting up your headhunter first." : balance != null && balance <= 0 ? "Top up to turn this on." : undefined}
-            />
-            {profiles.length > 1 && <p className="mt-4 text-xs text-white/35">This is for {current.label}. Each headhunter has its own, on its page.</p>}
+            <p className="text-white/70">
+              {current.autoSearchJobs == null
+                ? "Off."
+                : current.autoSearchPausedAt
+                  ? "Paused after a day with nothing new."
+                  : `On. ${current.autoSearchJobs} ${current.autoSearchJobs === 1 ? "job" : "jobs"} ${AUTO_SEARCH_DAYS.find((d) => d.value === current.autoSearchDays)?.short ?? "every day"}.`}{" "}
+              <Link href={`/app/headhunters/${current.id}#morning`} className="text-white underline underline-offset-4 hover:text-rose">
+                {current.autoSearchJobs == null ? "Turn it on" : "Change it"}
+              </Link>{" "}
+              on your headhunter&rsquo;s page.
+            </p>
           </Section>
 
           <Section title="Search coach" id="coach">
