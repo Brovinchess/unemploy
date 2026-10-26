@@ -411,3 +411,8 @@ body {
   0%, 100% { border-color: rgba(255, 255, 255, 0.1); background: var(--night-2, rgba(255, 255, 255, 0.06)); }
   50% { border-color: var(--rose); background: color-mix(in oklab, var(--rose) 22%, transparent); }
 }
+
+/* The landing bar swaps one find for the next: a short rise and fade-in. */
+.found-swap { animation: found-swap 0.45s ease-out both; }
+@keyframes found-swap { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .found-swap { animation: none; } }

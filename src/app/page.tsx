@@ -6,6 +6,8 @@ import { Ninja } from "@/components/brand";
 import { CardMock, ExtensionMock, FrontMock } from "@/components/landing-art";
 import { LandingHeader } from "@/components/landing-header";
 import { WaitlistForm } from "@/components/waitlist-form";
+import { FoundBar } from "@/components/found-bar";
+import { recentFinds } from "@/lib/found";
 import { db, schema } from "@/db";
 import { codeSignupAvailable } from "@/lib/email";
 import { launchMode } from "@/lib/launch";
@@ -72,6 +74,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
   const loginHref = "/auth/login";
   const action = open ? { label: "Log in", href: loginHref } : { label: "Join the waitlist", href: "#top" };
   const [{ n: waiting }] = open ? [{ n: 0 }] : await db.select({ n: count() }).from(schema.waitlist);
+  // Real finds from the last two weeks, anonymous. Shown once there are enough to keep changing.
+  const finds = await recentFinds().catch(() => []);
 
   return (
     <div id="top" className="flex flex-1 flex-col bg-night text-white">
@@ -123,6 +127,8 @@ export default async function Home({ searchParams }: PageProps<"/">) {
       </section>
 
       <main>
+        {finds.length >= 5 && <FoundBar items={finds} />}
+
         {/* Partners */}
         <section className="border-y border-white/[0.06] bg-night px-[6%] py-8">
           <div className="mx-auto flex max-w-6xl flex-col items-center justify-center gap-4 sm:flex-row sm:gap-10">
