@@ -30,20 +30,16 @@ export function FoundBar({ items, compact = false }: { items: Find[]; compact?: 
   // In the app sidebar: a small card above the cognition card, two lines, same rotation.
   if (compact) {
     return (
-      <div className="rounded-2xl bg-white/[0.04] p-4" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} aria-live="polite">
-        <p className="text-xs text-white/40">Found lately</p>
-        <div key={i} className="found-swap mt-2 flex items-start gap-2.5">
-          <CompanyLogo name={f.company} domain={f.domain} size="sm" />
-          <div className="min-w-0 text-sm leading-snug">
-            <p className="text-white/45">
-              <span className="text-white/70">{f.owner}</span>&rsquo;s headhunter found
-            </p>
-            <p className="truncate text-white">{f.title}</p>
-            <p className="truncate text-white/55">
-              {f.company}
-              {f.place ? ` · ${f.place}` : ""}
-            </p>
-          </div>
+      <div className="rounded-2xl bg-white/[0.04] px-4 py-3" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} aria-live="polite">
+        <p className="text-[11px] uppercase tracking-[0.14em] text-white/35">Found lately</p>
+        <div key={i} className="found-swap mt-1.5 min-w-0 text-xs leading-relaxed">
+          <p className="truncate text-white/45">
+            <span className="text-white/65">{f.owner}</span>&rsquo;s headhunter found
+          </p>
+          <p className="truncate text-white/90">
+            {f.title} <span className="text-white/50">at {f.company}</span>
+          </p>
+          {f.place && <p className="truncate text-white/40">{f.place}</p>}
         </div>
       </div>
     );
