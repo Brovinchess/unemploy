@@ -41,5 +41,30 @@ export async function recentFinds(limit = 40): Promise<Find[]> {
     out.push({ title: j.title, company: j.company, domain: j.companyDomain ?? null, place, owner: maskName(j.username ?? "someone") });
     if (out.length >= limit) break;
   }
+  return interleave(out);
+}
+
+// Takes turns between people, in a fresh random order each time, so the same name never comes
+// up several times in a row while someone else's finds wait.
+function interleave(finds: Find[]): Find[] {
+  const groups = new Map<string, Find[]>();
+  for (const f of finds) groups.set(f.owner, [...(groups.get(f.owner) ?? []), f]);
+  const queues = [...groups.values()].map(shuffle);
+  const out: Find[] = [];
+  while (queues.some((q) => q.length)) {
+    for (const q of shuffle(queues)) {
+      const next = q.shift();
+      if (next) out.push(next);
+    }
+  }
   return out;
+}
+
+function shuffle<T>(xs: T[]): T[] {
+  const a = [...xs];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
