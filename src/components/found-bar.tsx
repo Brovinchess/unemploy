@@ -37,7 +37,7 @@ export function FoundBar({ items }: { items: Find[] }) {
       <div className="mx-auto flex max-w-6xl items-center justify-center text-sm">
         <span key={i} className="found-swap flex min-w-0 items-center gap-2.5 text-white/85">
           <span className="shrink-0 text-white/45">
-            <span className="tracking-widest">*****</span> headhunter found
+            <span className="text-white/70">{f.owner}</span>&rsquo;s headhunter found
           </span>
           <CompanyLogo name={f.company} domain={f.domain} size="sm" />
           <span className="truncate">
