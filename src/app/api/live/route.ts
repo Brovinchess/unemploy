@@ -61,6 +61,6 @@ export async function snapshot(user: User, profile: Profile): Promise<Live> {
     },
     newJobs,
     toApply,
-    answers: { forYou: counts.forYou + (user.applicant ? 0 : 1) }, // missing details count as one thing to do
+    answers: { forYou: counts.forYou + (user.applicant ? 0 : 1) + (user.email && user.emailVerifiedAt ? 0 : 1) }, // missing details and an unverified email each count as one thing to do
   };
 }

@@ -9,6 +9,7 @@ import { guessDetails } from "@/lib/normalise";
 import { SavedAnswers } from "../settings/saved-answers";
 import { QuestionList } from "./answers-ui";
 import { DetailsCard } from "./details-card";
+import { EmailVerify } from "@/components/email-verify";
 
 // What the headhunter answers forms from, and the few questions it couldn't answer. Action
 // first (questions waiting on the person), then the facts: details, resume, saved answers.
@@ -47,6 +48,9 @@ export default async function YouPage() {
             that still need the person on the right. One column on phones, details first. */}
         <div className="mt-8 grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] md:items-start">
           <div className="min-w-0 space-y-4 md:sticky md:top-6">
+            <section id="email" className="rise rise-1 scroll-mt-8 rounded-3xl bg-surface px-6 py-5">
+              <EmailVerify email={user.email} verified={!!user.email && !!user.emailVerifiedAt} />
+            </section>
             <div className="rise rise-1">
               <DetailsCard initial={user.applicant ?? null} suggested={suggested} />
             </div>

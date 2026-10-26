@@ -86,7 +86,9 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
         user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null
       }
       disabled={
-        paused
+        !(user.email && user.emailVerifiedAt)
+          ? "Verify your email on the You page first"
+          : paused
           ? "Resume this headhunter to search"
           : balance != null && balance <= 0
             ? "Top up to search"

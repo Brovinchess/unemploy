@@ -140,7 +140,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               defaultJobs={perSearch}
               balance={balance}
               notifyEmail={user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null}
-              disabled={paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
+              disabled={!(user.email && user.emailVerifiedAt) ? "Verify your email on the You page first" : paused ? "Resume this headhunter to search" : balance != null && balance <= 0 ? "Top up to search" : undefined}
               perJob={cost.perJob}
       extraPlaces={current.preferences?.extraPlaces?.length ?? 0}
               coach={coach}

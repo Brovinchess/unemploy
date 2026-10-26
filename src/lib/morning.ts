@@ -59,7 +59,7 @@ async function people(now: Date): Promise<Auto[]> {
   const out: Auto[] = [];
   for (const profile of profiles) {
     const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
-    if (!user) continue;
+    if (!user || !user.email || !user.emailVerifiedAt) continue; // no searching until the email is verified
     const tz = timeZoneFor(user, profile.preferences);
     out.push({ profile, user, tz, hour: localHour(tz, now), day: localDay(tz, now) });
   }

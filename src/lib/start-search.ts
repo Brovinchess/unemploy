@@ -95,6 +95,7 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
   let fitted = false;
   const note = String(focus).replace(/\s+/g, " ").trim().slice(0, 200);
   if (profile.status === "paused") return { error: "This headhunter is paused. Resume it first." };
+  if (via !== "admin" && via !== "rerun" && !(user.email && user.emailVerifiedAt)) return { error: "Verify your email on the You page first." };
   if (profile.status !== "hunting" || !profile.mindId || !profile.conversationAlias) return { error: "Finish setting up this headhunter first." };
   if (isSearching(profile)) return;
   if (mindsMode === "live" && /^https?:\/\/(localhost|127\.0\.0\.1)/.test(mindsConfig.ingestUrl)) {
