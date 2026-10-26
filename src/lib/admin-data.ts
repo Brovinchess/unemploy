@@ -130,6 +130,11 @@ function groupCountries(raw: { key: string; n: number }[]) {
 
 // ---- overview -----------------------------------------------------------------------------
 
+const NOTICE_LABELS: Record<string, string> = {
+  welcome: "Welcome", setup_reminder: "Setup reminder", weekly_digest: "Monday postings", weekly_summary: "Monday summary", morning_zero: "Daily search paused",
+  morning_off: "Daily search stopped", cards_waiting: "Cards waiting", comeback: "Come back", key_rejected: "Key reissued",
+};
+
 export type Overview = {
   days: number;
   keys: string[];
@@ -146,6 +151,10 @@ export type Overview = {
   byReason: [string, number][];
   alerts: { label: string; count: number; href: string; hint?: string }[];
   recent: { id: string; startedAt: Date; who: string; userId?: string; jobsWanted: number; jobsAdded: number | null; cognitionUsed: number | null; open: boolean; endReason: string | null; minutes: number }[];
+  // Daily search and the emails, for the push: who has it on, how the automatic runs do against
+  // the ones people start, who is blocked by the email gate, and what went out.
+  daily: { on: number; paused: number; turnedOff: number; runs: number; followUps: number; runsWanted: number; runsAdded: number; manual: number; manualWanted: number; manualAdded: number; runCog: number; manualCog: number; long: number };
+  emails: { verified: number; blocked: number; sent: [string, number][] };
 };
 
 export const overview = (days: number) => memo(`overview:${days}`, TTL, () => loadOverview(days));
@@ -163,6 +172,7 @@ async function loadOverview(days: number): Promise<Overview> {
     new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number; pool_jobs: number;
     avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number; feedback_new: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
+    daily_on: number; daily_paused: number; daily_off: number; runs: number; follow_ups: number; runs_wanted: number; runs_added: number; manual: number; manual_wanted: number; manual_added: number; run_cog: number; manual_cog: number; long_searches: number; email_blocked: number;
   };
   const s = await one<Scalars>(sql`
     select
@@ -215,7 +225,21 @@ async function loadOverview(days: number): Promise<Overview> {
         where s.ended_at is null and s.started_at < now() - interval '2 hours' order by s.started_at desc limit 3) x) as stuck_hint,
       (select coalesce(sum(rejected), 0) from ingest_log where created_at >= now() - interval '1 day' and not dry_run)::int as refused_24h,
       (select count(*) from questions where status in (${lit(WAITING_QUESTION_LIST)}) and created_at < now() - interval '7 days')::int as old_questions,
-      (select count(distinct user_id) from questions where status in (${lit(WAITING_QUESTION_LIST)}) and created_at < now() - interval '7 days')::int as old_question_people
+      (select count(distinct user_id) from questions where status in (${lit(WAITING_QUESTION_LIST)}) and created_at < now() - interval '7 days')::int as old_question_people,
+      (select count(*) from profiles where status = 'hunting' and auto_search_jobs is not null and auto_search_paused_at is null)::int as daily_on,
+      (select count(*) from profiles where status = 'hunting' and auto_search_jobs is not null and auto_search_paused_at is not null)::int as daily_paused,
+      (select count(*) from profiles where status = 'hunting' and auto_search_jobs is null and auto_search_off_at is not null)::int as daily_off,
+      (select count(*) from searches where started_at >= ${ts(since)} and via = 'morning')::int as runs,
+      (select count(*) from searches where started_at >= ${ts(since)} and via = 'followup')::int as follow_ups,
+      (select coalesce(sum(jobs_wanted), 0) from searches where started_at >= ${ts(since)} and via in ('morning', 'followup'))::int as runs_wanted,
+      (select coalesce(sum(jobs_added), 0) from searches where started_at >= ${ts(since)} and via in ('morning', 'followup'))::int as runs_added,
+      (select count(*) from searches where started_at >= ${ts(since)} and coalesce(via, 'find') in ('find', 'setup'))::int as manual,
+      (select coalesce(sum(jobs_wanted), 0) from searches where started_at >= ${ts(since)} and coalesce(via, 'find') in ('find', 'setup'))::int as manual_wanted,
+      (select coalesce(sum(jobs_added), 0) from searches where started_at >= ${ts(since)} and coalesce(via, 'find') in ('find', 'setup'))::int as manual_added,
+      (select coalesce(sum(cognition_used), 0) from searches where started_at >= ${ts(since)} and via in ('morning', 'followup'))::float8 as run_cog,
+      (select coalesce(sum(cognition_used), 0) from searches where started_at >= ${ts(since)} and coalesce(via, 'find') in ('find', 'setup'))::float8 as manual_cog,
+      (select count(*) from searches where started_at >= ${ts(since)} and extract(epoch from (coalesce(ended_at, now()) - started_at)) > 90 * 60)::int as long_searches,
+      (select count(distinct p.user_id) from profiles p join users u on u.id = p.user_id where p.status = 'hunting' and (u.email is null or u.email_verified_at is null))::int as email_blocked
   `);
 
   // Query 2: every breakdown for the window in one UNION: per-day signups, searches, jobs and
@@ -227,6 +251,7 @@ async function loadOverview(days: number): Promise<Overview> {
     union all select 'cognition', ${dayOf(sql.raw("coalesce(ended_at, started_at)"))}, 0, coalesce(sum(cognition_used), 0)::float8 from searches where started_at >= ${ts(since)} group by 2
     union all select 'stage', status, count(*)::int, 0::float8 from jobs where created_at >= ${ts(since)} group by 2
     union all select 'reason', reason, count(*)::int, 0::float8 from leads where created_at >= ${ts(since)} group by 2
+    union all select 'notice', kind, count(*)::int, 0::float8 from notices where sent_at >= ${ts(since)} group by 2
     union all select 'country', c, count(*)::int, 0::float8 from (
       select u.id, coalesce(nullif(max(p.preferences->>'country'), ''), case when u.timezone is null then 'Unknown' else 'Unknown (' || split_part(u.timezone, '/', 1) || ')' end) as c
       from users u left join profiles p on p.user_id = u.id group by u.id, u.timezone) t group by 2
@@ -282,6 +307,7 @@ async function loadOverview(days: number): Promise<Overview> {
     funnel: [
       { label: "Signed up", count: s.users, href: "/admin/users" },
       { label: "Chose a name", count: s.named },
+      { label: "Verified an email", count: s.email_verified },
       { label: "Uploaded a resume", count: s.with_resume },
       { label: "Set preferences", count: s.with_prefs },
       { label: "Deployed a headhunter", count: s.with_mind, href: "/admin/users?deployed=1" },
@@ -301,8 +327,15 @@ async function loadOverview(days: number): Promise<Overview> {
       { label: "Searched but kept nothing", count: s.kept_nothing, href: "/admin/users?nokeep=1" },
       { label: "Jobs refused by the app, last 24 hours", count: s.refused_24h, href: "/admin/quality?days=1" },
       { label: "Headhunters paused", count: s.paused, href: "/admin/headhunters?status=paused" },
+      { label: "People who cannot search until they verify an email", count: s.email_blocked, href: "/admin/headhunters" },
+      { label: `Searches over 90 minutes (last ${days} days)`, count: s.long_searches, href: `/admin/searches?days=${days}&sort=minutes&dir=desc` },
       { label: "Questions waiting on people for over a week", count: s.old_questions, href: "/admin/applications", hint: `${s.old_question_people} people` },
     ],
+    daily: {
+      on: s.daily_on, paused: s.daily_paused, turnedOff: s.daily_off, runs: s.runs, followUps: s.follow_ups, runsWanted: s.runs_wanted, runsAdded: s.runs_added,
+      manual: s.manual, manualWanted: s.manual_wanted, manualAdded: s.manual_added, runCog: s.run_cog, manualCog: s.manual_cog, long: s.long_searches,
+    },
+    emails: { verified: s.email_verified, blocked: s.email_blocked, sent: counts(of("notice").map((f) => ({ key: NOTICE_LABELS[f.key] ?? f.key, n: f.n }))) },
     recent: recent.map((r) => ({
       id: r.id,
       startedAt: r.startedAt,

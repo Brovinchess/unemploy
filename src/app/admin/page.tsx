@@ -8,7 +8,7 @@ import { Alerts, Badge, BarChart, CHART, Card, Counts, DaysPicker, Funnel, Group
 export default async function Overview({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const q = await searchParams;
   const days = daysParam(q, 7);
-  const { keys, allTime, window: w, funnel, trend, byStage, byReason, alerts, recent, countries, people } = await overview(days);
+  const { keys, allTime, window: w, funnel, trend, byStage, byReason, alerts, recent, countries, people, daily, emails } = await overview(days);
   const min = (n: number | null) => (n == null ? "–" : n >= 90 ? `${Math.floor(n / 60)} h ${n % 60} min` : `${n} min`);
 
   return (
@@ -55,6 +55,25 @@ export default async function Overview({ searchParams }: { searchParams: Promise
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <Counts title="What people did with them" total={w.jobs} rows={byStage} />
         <Counts title="Why leads were dropped" total={w.leads} rows={byReason} />
+      </div>
+
+      <GroupLabel>Daily search, last {days} days</GroupLabel>
+      <Tiles cols={6} className="mt-2">
+        <Stat label="Daily search on" value={daily.on} hint={`${daily.paused} paused, ${daily.turnedOff} turned off`} href="/admin/headhunters" />
+        <Stat label="Automatic runs" value={daily.runs} hint={`${daily.followUps} follow-ups`} href={`/admin/searches?days=${days}`} />
+        <Stat label="Automatic fill rate" value={pct(daily.runsAdded, daily.runsWanted)} hint={`${daily.runsAdded} of ${daily.runsWanted} asked for`} />
+        <Stat label="Manual fill rate" value={pct(daily.manualAdded, daily.manualWanted)} hint={`${daily.manual} searches people started`} />
+        <Stat label="Cognition per job, automatic" value={daily.runsAdded ? Math.round(daily.runCog / daily.runsAdded) : "–"} hint={daily.manualAdded ? `${Math.round(daily.manualCog / daily.manualAdded)} manual` : undefined} />
+        <Stat label="Over 90 minutes" value={daily.long} hint="searches" href={`/admin/searches?days=${days}&sort=minutes&dir=desc`} />
+      </Tiles>
+
+      <GroupLabel>Emails, last {days} days</GroupLabel>
+      <div className="mt-2 grid gap-4 md:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
+        <Tiles cols={4} className="md:grid-cols-2">
+          <Stat label="Verified an email" value={emails.verified} hint={`${pct(emails.verified, allTime.users)} of accounts`} />
+          <Stat label="Blocked until verified" value={emails.blocked} hint="active headhunters, no email" href="/admin/headhunters" />
+        </Tiles>
+        <Counts title="Emails sent" total={emails.sent.reduce((a, [, n]) => a + n, 0)} rows={emails.sent} />
       </div>
 
       <GroupLabel>Cost, last {days} days</GroupLabel>
