@@ -7,7 +7,7 @@ import type { Find } from "@/lib/found";
 // One slim bar under the hero that shows, one at a time, what headhunters found in the last two
 // weeks. Title, company and place only. It changes every few seconds, pauses while hovered, and
 // stands still for people who prefer reduced motion.
-const EVERY_MS = 3800;
+const EVERY_MS = 5000;
 const MQ = "(prefers-reduced-motion: reduce)";
 const subscribeMotion = (fn: () => void) => {
   const mq = window.matchMedia(MQ);
