@@ -34,16 +34,13 @@ export function FoundBar({ items }: { items: Find[] }) {
       onMouseLeave={() => setPaused(false)}
       aria-live="polite"
     >
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
-        <span className="text-xs font-medium uppercase tracking-[0.18em] text-white/40">Found in the last two weeks</span>
+      <div className="mx-auto flex max-w-6xl items-center justify-center text-sm">
         <span key={i} className="found-swap flex min-w-0 items-center gap-2.5 text-white/85">
           <CompanyLogo name={f.company} domain={f.domain} size="sm" />
           <span className="truncate">
             <span className="text-white">{f.title}</span> at {f.company}
-            {f.place ? <span className="text-white/50"> · {f.place}</span> : null}
           </span>
         </span>
-        <span className="text-xs text-white/35">{items.length} jobs, names kept private</span>
       </div>
     </section>
   );
