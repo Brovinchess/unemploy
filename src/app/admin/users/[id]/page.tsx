@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { WAITING_QUESTION, maskEmail, maskPhone, stageLabel, when } from "@/lib/admin";
-import { userDetail } from "@/lib/admin-data";
+import { mindLedgers, userDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
 import { RolesEditor, RunOne } from "../../headhunters/run-buttons";
 import { Badge, Breadcrumb, Card, Clamp, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
@@ -15,6 +15,7 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
   const data = await userDetail(id);
   if (!data) notFound();
   const { user, referrer, sessions, profiles, main, totals, searches, jobs, questions, questionTotal, waiting, tokens, tokenTotal, made, received } = data;
+  const ledgers = await mindLedgers(id, 24);
   const a = user.applicant;
   const displayName = user.username ?? "(no name yet)";
 
@@ -129,6 +130,32 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
           </div>
         )}
       </div>
+
+      {ledgers.length > 0 && (
+        <>
+          <SectionTitle title="Where the cognition went, last 24 hours" hint="Hello Minds' own hourly ledger for this person's Minds, read now. Spending here with no search running is the Mind acting on its own or a charge outside Career Ninja." />
+          <div className="mt-3 space-y-3">
+            {ledgers.map((l) => (
+              <Card key={l.profileId} title={`${l.label}${l.mindName ? ` (${l.mindName})` : ""}`} hint={`${Math.round(l.total)} cognition in 24 h · balance ${l.balance == null ? "unknown" : Math.round(l.balance)}`}>
+                {l.error ? (
+                  <p className="text-sm text-rose-300">Could not read the ledger: {l.error}</p>
+                ) : l.hours.length === 0 ? (
+                  <p className="admin-text-3 text-sm">Nothing spent in the last 24 hours.</p>
+                ) : (
+                  <Table
+                    head={["Hour (UTC)", "Cognition", "What"]}
+                    rows={l.hours.map((h) => [
+                      h.at.toISOString().slice(0, 13).replace("T", " ") + ":00",
+                      Math.round(h.cognition * 10) / 10,
+                      h.tools.map(([tool, calls, cog]) => `${tool} ×${calls} (${Math.round(cog * 10) / 10})`).join(", "),
+                    ])}
+                  />
+                )}
+              </Card>
+            ))}
+          </div>
+        </>
+      )}
 
       <SectionTitle title={`Searches (${totals.searches})`} />
       <div className="mt-3">

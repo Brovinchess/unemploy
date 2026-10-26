@@ -7,7 +7,7 @@ import { postingAgeDays } from "./preferences";
 import { searchRequestText, usageByTool } from "./search";
 import { minds } from "./minds/client";
 import { COUNTRY_NAMES, countryCodeOf } from "./normalise";
-import { and, asc, desc, eq, gte, isNull, lte, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNotNull, isNull, lte, or, sql, type SQL } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { db, schema } from "@/db";
 import type { DropReason, JobStatus, ProfileStatus, QuestionStatus, SavedAnswer, ApplicantDetails } from "@/db/schema";
@@ -1439,4 +1439,48 @@ async function loadSystem(): Promise<System> {
     questionsByStatus: qStatus,
     tokensByUse: { last7: s.tok7, last30: s.tok30, older: Math.max(0, s.tokens - s.tok7 - s.tok30 - s.tok_never), never: s.tok_never },
   };
+}
+
+// ---- a person's Mind ledger ------------------------------------------------------------------
+
+export type LedgerHour = { at: Date; tools: [string, number, number][]; cognition: number }; // tool, calls, cognition
+export type MindLedger = { profileId: string; label: string; mindName: string | null; balance: number | null; hours: LedgerHour[]; total: number; error?: string };
+
+// Hello Minds' own hourly ledger for each live headhunter, read with the owner's token. Shows
+// spending that happened outside our searches, which the search pages cannot.
+export const mindLedgers = (userId: string, hours = 24) => memo(`ledger:${userId}:${hours}`, DETAIL_TTL, () => loadMindLedgers(userId, hours));
+
+async function loadMindLedgers(userId: string, hours: number): Promise<MindLedger[]> {
+  const owner = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
+  if (!owner?.refreshToken) return [];
+  const live = await db.query.profiles.findMany({ where: and(eq(schema.profiles.userId, userId), isNotNull(schema.profiles.mindId)) });
+  const api = minds(owner);
+  const since = new Date(Date.now() - hours * 3_600_000);
+  since.setUTCMinutes(0, 0, 0);
+  return Promise.all(
+    live.map(async (p): Promise<MindLedger> => {
+      const base = { profileId: p.id, label: p.label, mindName: p.mindName, balance: p.balanceCache };
+      try {
+        const rows = await api.toolUsage(p.mindId!, since);
+        const byHour = new Map<number, Map<string, [number, number]>>();
+        for (const r of rows) {
+          const h = r.at.getTime();
+          const m = byHour.get(h) ?? new Map<string, [number, number]>();
+          const t = m.get(r.tool) ?? [0, 0];
+          m.set(r.tool, [t[0] + r.calls, t[1] + r.cognition]);
+          byHour.set(h, m);
+        }
+        const hoursOut: LedgerHour[] = [...byHour.entries()]
+          .sort((a, b) => b[0] - a[0])
+          .map(([h, m]) => {
+            const tools = [...m.entries()].map(([tool, [calls, cog]]) => [tool, calls, cog] as [string, number, number]).sort((a, b) => b[2] - a[2]);
+            return { at: new Date(h), tools, cognition: tools.reduce((a, t) => a + t[2], 0) };
+          })
+          .filter((h) => h.cognition > 0 || h.tools.some((t) => t[1] > 0));
+        return { ...base, hours: hoursOut, total: hoursOut.reduce((a, h) => a + h.cognition, 0) };
+      } catch (e) {
+        return { ...base, hours: [], total: 0, error: String((e as Error)?.message ?? e).slice(0, 160) };
+      }
+    }),
+  );
 }
