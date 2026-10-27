@@ -202,6 +202,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             notifyEmail={
               user.emailVerifiedAt && user.emailOnSearchDone ? user.email : null
             }
+            detailsDone={detailsComplete(user.applicant)}
           />
         )}
 

@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, count, desc, eq, gte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import type { Rejection } from "./ingest";
@@ -24,6 +24,7 @@ export type ActivityStats = {
   cognitionUsed: number;
   deliveries: number;
   jobsAdded: number;
+  checked: number; // postings it opened and judged this search: the ones it ruled out plus the jobs it sent
 };
 
 const WINDOW_MS = 3 * 86_400_000;
@@ -210,13 +211,19 @@ export async function buildActivity(
   statsHour.setUTCMinutes(0, 0, 0);
   const sum = (tool: string) => usage.filter((u) => u.tool === tool && u.at >= statsHour).reduce((a, u) => a + u.calls, 0);
   const real = deliveries.filter((d) => !d.dryRun && d.createdAt >= statsSince);
+  const [{ n: ruledOut }] = await db
+    .select({ n: count() })
+    .from(schema.leads)
+    .where(and(eq(schema.leads.profileId, profile.id), gte(schema.leads.createdAt, statsSince)));
+  const jobsAdded = real.reduce((a, d) => a + d.accepted, 0);
   const stats: ActivityStats = {
     replied: chat.some((m) => m.fromMind && m.at >= statsSince),
     webSearches: sum("SEARCH_Web"),
     filesRead: sum("FILE_Analyze"),
     cognitionUsed: Math.round(usage.filter((u) => u.at >= statsHour).reduce((a, u) => a + u.cognition, 0)),
     deliveries: real.length,
-    jobsAdded: real.reduce((a, d) => a + d.accepted, 0),
+    jobsAdded,
+    checked: ruledOut + jobsAdded,
   };
 
   items.sort((a, b) => b.at.localeCompare(a.at));

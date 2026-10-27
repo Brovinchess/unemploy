@@ -1,11 +1,11 @@
-import Link from "next/link";
 import { Ninja } from "./brand";
 import { SearchingPulse } from "./searching-status";
+import { WhileYouWait } from "./while-you-wait";
 
 // The Jobs page while the very first search runs and nothing has landed yet: Mochi thinking
-// in front of a radar that keeps sweeping, so the page clearly looks busy. No time estimate,
-// just what happens next.
-export function SearchingScene({ profileId, startedAt, notifyEmail }: { profileId: string; startedAt: string | null; notifyEmail: string | null }) {
+// in front of a radar that keeps sweeping, so the page clearly looks busy, with how long it
+// usually takes and a few useful things to do meanwhile.
+export function SearchingScene({ profileId, startedAt, notifyEmail, detailsDone }: { profileId: string; startedAt: string | null; notifyEmail: string | null; detailsDone: boolean }) {
   return (
     <section className="rise rise-1 flex flex-col items-center overflow-hidden rounded-3xl bg-surface px-8 py-14 text-center">
       <div className="relative flex size-56 items-center justify-center">
@@ -14,13 +14,7 @@ export function SearchingScene({ profileId, startedAt, notifyEmail }: { profileI
       </div>
       <h2 className="font-display mt-4 text-3xl font-medium tracking-tight text-white">Your headhunter is out searching</h2>
       <SearchingPulse profileId={profileId} startedAt={startedAt} />
-      <p className="mx-auto mt-3 max-w-sm leading-relaxed text-white/55">
-        A search takes a while.
-        {notifyEmail ? <> You&rsquo;ll get an email when it finds some.</> : <> Check back in a while.</>}
-      </p>
-      <Link href="/app/you#application" className="mt-7 text-sm text-white/50 underline underline-offset-4 hover:text-white">
-        Meanwhile, add your details so applications are ready to send
-      </Link>
+      <WhileYouWait profileId={profileId} startedAt={startedAt} notifyEmail={notifyEmail} detailsDone={detailsDone} />
     </section>
   );
 }

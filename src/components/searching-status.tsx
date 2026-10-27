@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useActivity } from "./activity-feed";
+import type { ActivityStats } from "@/lib/activity";
 import { Ninja } from "./brand";
 import { useLive } from "./live";
 import { Radar } from "./searching-scene";
@@ -24,6 +25,17 @@ export function MochiAtWork({ live, paused, className = "size-16" }: { live: boo
   );
 }
 
+// The numbers under the status line. "Jobs checked" moves before the first job lands (the ones it
+// rules out arrive first), so the wait shows progress a person can follow.
+function progressBits(s: ActivityStats | undefined) {
+  const left = s ? s.checked - s.jobsAdded : 0;
+  return [
+    s?.webSearches ? `${s.webSearches} ${s.webSearches === 1 ? "search" : "searches"}` : null,
+    s?.checked ? `${s.checked} ${s.checked === 1 ? "job" : "jobs"} checked` : null,
+    s?.jobsAdded ? `${s.jobsAdded} sent to you` : left > 0 ? "none good enough yet" : null,
+  ].filter(Boolean);
+}
+
 const PHASES = ["Scanning careers pages", "Reading postings", "Checking who can apply", "Sending you jobs"];
 
 export function SearchingLine({ profileId }: { profileId: string }) {
@@ -31,11 +43,7 @@ export function SearchingLine({ profileId }: { profileId: string }) {
   const s = data?.stats;
   // What it's up to, from the numbers: sent something → writing; searched → scanning; else reading the brief.
   const phase = !s ? "Starting up" : s.deliveries > 0 ? PHASES[3] : s.webSearches > 0 ? PHASES[(Math.floor(s.webSearches / 5) % 3) as 0 | 1 | 2] : "Reading your brief";
-  const bits = [
-    s?.webSearches ? `${s.webSearches} ${s.webSearches === 1 ? "search" : "searches"}` : null,
-    s?.filesRead ? `${s.filesRead} ${s.filesRead === 1 ? "file" : "files"} read` : null,
-    s?.jobsAdded ? `${s.jobsAdded} ${s.jobsAdded === 1 ? "job" : "jobs"} sent` : null,
-  ].filter(Boolean);
+  const bits = progressBits(s);
   // Three dots that walk, so the line reads as live even between updates.
   const [dots, setDots] = useState(1);
   useEffect(() => {
@@ -83,11 +91,7 @@ export function SearchingPulse({ profileId, startedAt }: { profileId: string; st
   const latest = start ? data?.items.find((i) => i.kind !== "brief" && i.at >= start) : undefined;
   const phase = !s ? "Starting up" : s.deliveries > 0 ? PHASES[3] : s.webSearches > 0 ? PHASES[(Math.floor(s.webSearches / 5) % 3) as 0 | 1 | 2] : "Reading your brief";
   const status = latest?.title ?? phase;
-  const bits = [
-    s?.webSearches ? `${s.webSearches} ${s.webSearches === 1 ? "search" : "searches"}` : null,
-    s?.filesRead ? `${s.filesRead} ${s.filesRead === 1 ? "file" : "files"} read` : null,
-    s?.jobsAdded ? `${s.jobsAdded} ${s.jobsAdded === 1 ? "job" : "jobs"} sent` : null,
-  ].filter(Boolean);
+  const bits = progressBits(s);
   const [dots, setDots] = useState(1);
   useEffect(() => {
     const t = setInterval(() => setDots((d) => (d % 3) + 1), 600);
