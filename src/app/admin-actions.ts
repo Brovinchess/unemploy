@@ -9,6 +9,7 @@ import { tokenClaimKeys, tokenEmail } from "@/lib/minds/oauth";
 import { startSearch } from "@/lib/start-search";
 import { preferencesSchema } from "@/lib/preferences";
 import { freshBalance } from "@/lib/app-context";
+import { minds } from "@/lib/minds/client";
 import { forget } from "@/lib/admin-data";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
@@ -159,4 +160,40 @@ export async function refreshBalances(): Promise<{ checked: number; empty: numbe
   forget("headhunters:");
   forget("overview:");
   return { checked, empty, failed };
+}
+
+// Owner-side, read-only: for every live headhunter, every Mind on the owner's Hello Minds account.
+// Tells apart people who were new to Hello Minds from people who had Minds before ours.
+export type MindHistoryRow = {
+  username: string; userId: string; joined: string; balance: number | null; ours: string; total: number; older: number; oldest: string | null; error?: string;
+};
+export async function mindHistory(): Promise<MindHistoryRow[]> {
+  await requireAdmin();
+  const live = await db.query.profiles.findMany({ where: and(isNotNull(schema.profiles.mindId), or(eq(schema.profiles.status, "hunting"), eq(schema.profiles.status, "paused"))) });
+  const byUser = new Map<string, typeof live>();
+  for (const p of live) byUser.set(p.userId, [...(byUser.get(p.userId) ?? []), p]);
+  const owners = await db.query.users.findMany({ where: sql`${schema.users.id} in ${byUser.size ? sql`(${sql.join([...byUser.keys()].map((id) => sql`${id}`), sql`, `)})` : sql`('')`}` });
+  const out: MindHistoryRow[] = [];
+  for (let i = 0; i < owners.length; i += 5) {
+    await Promise.all(
+      owners.slice(i, i + 5).map(async (u) => {
+        const mine = byUser.get(u.id) ?? [];
+        const ourIds = new Set(mine.map((p) => p.mindId));
+        const firstOurs = Math.min(...mine.map((p) => p.createdAt.getTime()));
+        const base = { username: u.username ?? "(no name yet)", userId: u.id, joined: u.createdAt.toISOString().slice(0, 10), balance: mine.reduce<number | null>((a, p) => (p.balanceCache == null ? a : (a ?? 0) + p.balanceCache), null), ours: mine.map((p) => p.mindName ?? "").join(", ") };
+        if (!u.refreshToken) return out.push({ ...base, total: 0, older: 0, oldest: null, error: "signed out, no token" });
+        try {
+          const list = await minds(u).listMinds();
+          const others = list.filter((m) => !ourIds.has(m.mindId));
+          // "Older" means made before this person's first Career Ninja headhunter, by more than an hour.
+          const older = others.filter((m) => m.createdAt && m.createdAt.getTime() < firstOurs - 3_600_000);
+          const dates = list.map((m) => m.createdAt?.getTime()).filter((t): t is number => !!t);
+          out.push({ ...base, total: list.length, older: older.length, oldest: dates.length ? new Date(Math.min(...dates)).toISOString().slice(0, 10) : null });
+        } catch (e) {
+          out.push({ ...base, total: 0, older: 0, oldest: null, error: String((e as Error)?.message ?? e).slice(0, 120) });
+        }
+      }),
+    );
+  }
+  return out.sort((a, b) => (a.balance ?? 0) - (b.balance ?? 0));
 }

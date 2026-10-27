@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { refreshBalances, rerunShortSearches, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { mindHistory, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
@@ -170,5 +170,41 @@ export function RefreshBalances() {
       </button>
       {note && <span className="admin-text-3 text-xs">{note}</span>}
     </span>
+  );
+}
+
+// Read-only: does each person own Minds made before their Career Ninja one? Shown with the balance.
+export function MindHistory() {
+  const [pending, start] = useTransition();
+  const [rows, setRows] = useState<MindHistoryRow[]>();
+  return (
+    <div className="mt-6">
+      <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => start(async () => setRows(await mindHistory()))}>
+        {pending ? "Reading Hello Minds…" : "Check Mind history"}
+      </button>
+      {rows && (
+        <div className="admin-table mt-3 max-h-[60vh] overflow-auto rounded-2xl border border-white/[0.06]">
+          <table className="w-full text-left text-sm">
+            <thead className="admin-text-2 text-[11px] uppercase tracking-wide">
+              <tr>{["Person", "Joined us", "Balance", "Minds on account", "Made before ours", "Oldest Mind", "Our Mind", "Note"].map((h) => <th key={h} className="whitespace-nowrap border-b border-white/[0.06] px-3 py-2.5 font-semibold">{h}</th>)}</tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.userId}>
+                  <td className="px-3 py-2"><a className="underline decoration-white/20" href={`/admin/users/${r.userId}`}>{r.username}</a></td>
+                  <td className="px-3 py-2 tabular-nums">{r.joined}</td>
+                  <td className={`px-3 py-2 tabular-nums ${r.balance != null && r.balance <= 0 ? "text-rose-300" : ""}`}>{r.balance == null ? "–" : Math.round(r.balance)}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.error ? "–" : r.total}</td>
+                  <td className={`px-3 py-2 tabular-nums ${r.older ? "text-amber-300" : ""}`}>{r.error ? "–" : r.older}</td>
+                  <td className="px-3 py-2 tabular-nums">{r.oldest ?? "–"}</td>
+                  <td className="admin-text-3 px-3 py-2 text-xs">{r.ours}</td>
+                  <td className="admin-text-3 px-3 py-2 text-xs">{r.error ?? ""}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
   );
 }

@@ -1,7 +1,7 @@
 import { sortParams, when } from "@/lib/admin";
 import { USER_STAGES, users, type UserStage } from "@/lib/admin-data";
 import { Badge, Cap, Check, ClearLink, FilterForm, Page, PageHead, Select, SortLink, Stat, Table, TextInput, Tiles, UserLink, type Tone } from "../ui";
-import { RefreshBalances } from "../headhunters/run-buttons";
+import { MindHistory, RefreshBalances } from "../headhunters/run-buttons";
 
 const BASE = "/admin/users";
 const MAX_ROWS = 500;
@@ -58,6 +58,8 @@ export default async function Users({ searchParams }: { searchParams: Promise<Re
         <Stat label="Cognition left" value={tiles.balance} hint={`across ${tiles.balanceMinds} live headhunters`} href={`${BASE}?sort=balance&dir=desc`} />
         <Stat label="At zero" value={tiles.balanceEmpty} hint="headhunters with no cognition" href={`${BASE}?sort=balance&dir=asc`} />
       </Tiles>
+
+      <MindHistory />
 
       <div className="mt-6">
         <Table

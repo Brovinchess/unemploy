@@ -24,6 +24,8 @@ export interface MindsApi {
   setEnabled(mindId: string, enabled: boolean): Promise<void>;
   history(alias: string, limit?: number): Promise<ChatMessage[]>;
   toolUsage(mindId: string, since: Date): Promise<ToolUse[]>;
+  // Every Mind on the person's Hello Minds account, not only the ones Career Ninja made.
+  listMinds(): Promise<{ mindId: string; name: string | null; createdAt: Date | null; isEnabled: boolean }[]>;
 }
 
 export class MindsApiError extends Error {
@@ -129,6 +131,12 @@ function liveMinds(user: User): MindsApi {
         text: r.messageText ?? "",
         at: new Date(r.createdAt),
       }));
+    },
+    async listMinds() {
+      const token = await accessTokenFor(user);
+      const sub = String(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")).sub ?? "");
+      const rows = await call<{ mindId: string; name?: string | null; createdAt?: string | null; isEnabled?: boolean }[]>("GET", `/v1/users/${encodeURIComponent(sub)}/minds`);
+      return rows.map((r) => ({ mindId: r.mindId, name: r.name ?? null, createdAt: r.createdAt ? new Date(r.createdAt.endsWith("Z") ? r.createdAt : `${r.createdAt}Z`) : null, isEnabled: !!r.isEnabled }));
     },
     async toolUsage(mindId, since) {
       const q = new URLSearchParams({ interval: "hour", startTime: since.toISOString(), endTime: new Date().toISOString() });

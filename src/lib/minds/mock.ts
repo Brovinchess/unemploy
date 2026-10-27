@@ -62,6 +62,9 @@ export const mockMinds: MindsApi = {
   async history(alias, limit = 30) {
     return [...(state.chats.get(alias) ?? [])].reverse().slice(0, limit);
   },
+  async listMinds() {
+    return [];
+  },
   async toolUsage(mindId, since) {
     return (state.usage.get(mindId) ?? []).filter((u: ToolUse) => u.at >= since);
   },
