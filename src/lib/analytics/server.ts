@@ -35,7 +35,8 @@ export type Event =
   | "account_deleted"
   | "delete_kept"
   | "search_stop_asked"
-  | "search_stop_kept";
+  | "search_stop_kept"
+  | "headhunter_deploy_failed";
 
 export const analyticsOn = !!client;
 

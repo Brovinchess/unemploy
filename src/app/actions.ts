@@ -10,7 +10,7 @@ import { LEAVE_REASONS, type JobStatus, type LeaveReason, type Profile, type Use
 import { BRIEF_VERSION, buildBrief } from "@/lib/brief";
 import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
-import { minds } from "@/lib/minds/client";
+import { minds, MindsApiError } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
 import { ownedJob, ownedProfile } from "@/lib/owned";
@@ -145,7 +145,15 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
   if (!claimed.length) return checkActivation(profileId, true);
   try {
     const name = await pickMindName(user);
-    const mind = await minds(user).awaken(mindsConfig.archetype, name);
+    const mind = await minds(user)
+      .awaken(mindsConfig.archetype, name)
+      .catch(async (e) => {
+        // Hello Minds sometimes refuses a name its own check called free (400, no reason given).
+        // One retry with a different name before giving up.
+        if (!(e instanceof MindsApiError) || e.status !== 400) throw e;
+        console.error("[launch] awaken refused, retrying with another name", name, e.message);
+        return minds(user).awaken(mindsConfig.archetype, `${name.slice(0, 33)}-${crypto.randomUUID().slice(0, 6)}`);
+      });
     await db
       .update(schema.profiles)
       .set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup" })
@@ -153,6 +161,11 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
     track(user.id, "headhunter_deployed", { mind: mind.name });
   } catch (e) {
     await db.update(schema.profiles).set({ mindName: null }).where(and(eq(schema.profiles.id, profile.id), eq(schema.profiles.mindName, claim)));
+    if (e instanceof MindsApiError && e.status >= 400 && e.status < 500) {
+      console.error("[launch] awaken refused twice", profile.id, e.message);
+      track(user.id, "headhunter_deploy_failed", { status: e.status });
+      return { error: "Hello Minds couldn't create your headhunter right now. This is a problem on their side, not with your answers. We've been told, and we'll email you as soon as it's fixed." };
+    }
     return { error: friendly(e) };
   }
   revalidatePath(`/profiles/${profileId}/setup`);
@@ -353,11 +366,25 @@ export async function loadSampleResume(profileId: string) {
   revalidatePath(`/profiles/${profileId}/setup`);
 }
 
+// One plain sentence naming the answer that needs fixing, instead of "something is missing".
+const PREF_LABELS: Record<string, string> = {
+  targetRoles: "job titles", country: "country", city: "city", workSettings: "work setting", remoteScope: "remote jobs from",
+  jobTypes: "job type", levels: "level", avoidCompanies: "companies to avoid", jobsPerDay: "jobs per search", maxPostingAgeDays: "posted within", extraPlaces: "other places",
+};
+function preferencesError(issues: { path: PropertyKey[]; code: string }[]) {
+  const first = issues[0];
+  const field = String(first?.path?.[0] ?? "");
+  if (field === "targetRoles" && first.code === "too_big") return "That's too many job titles. Tap Change next to Looking for and keep about 6 of the closest ones.";
+  if (field === "avoidCompanies" && first.code === "too_big") return "The list of companies to avoid is too long. Tap Change next to it and shorten it.";
+  const label = PREF_LABELS[field];
+  return label ? `Please check your answer for ${label}. Tap Change next to it to fix it.` : "One of your answers needs a look. Please check each step.";
+}
+
 export async function savePreferences(profileId: string, input: Preferences): Promise<FormState> {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
   const parsed = preferencesSchema.safeParse(input);
-  if (!parsed.success) return { error: "Some answers are missing. Please check each step." };
+  if (!parsed.success) return { error: preferencesError(parsed.error.issues) };
   const place = parsePlace(parsed.data.country, parsed.data.city ?? "");
   const prefs = { ...parsed.data, country: place.country, city: place.city };
 

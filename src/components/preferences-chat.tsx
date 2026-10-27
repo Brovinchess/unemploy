@@ -2,6 +2,8 @@
 
 import { TitleInput } from "@/components/title-input";
 
+const MAX_ROLES_CHARS = 300; // matches preferencesSchema.targetRoles
+
 import { useEffect, useRef, useState, useTransition } from "react";
 import { Pencil, Lightbulb } from "lucide-react";
 import { savePreferences } from "@/app/actions";
@@ -452,7 +454,9 @@ function TextAnswer({
   onSubmit: (v: string) => void;
 }) {
   const [value, setValue] = useState(initial);
-  const ok = !required || value.trim().length >= 2;
+  // Job titles have a length limit; past it the last step would fail, so stop here and say why.
+  const tooLong = !!check && value.trim().length > MAX_ROLES_CHARS;
+  const ok = (!required || value.trim().length >= 2) && !tooLong;
   const nudge = check && value.trim().length >= 3 ? check(value) : undefined;
   // A tapped suggestion replaces the vague part, keeping any real titles typed beside it.
   const take = (title: string) => {
@@ -493,6 +497,11 @@ function TextAnswer({
           {!required && !value.trim() ? "Skip" : "Next"}
         </button>
       </div>
+      {tooLong && (
+        <p className="mt-3 rounded-2xl bg-coral/10 px-4 py-3 text-sm text-white/80" role="status">
+          That&rsquo;s a lot of titles. Keep it to about 6 of the closest ones, so your headhunter can search each of them well.
+        </p>
+      )}
       {nudge && !nudge.ok && (
         <div className="mt-3 rounded-2xl bg-coral/10 px-4 py-3 text-sm" role="status">
           <p className="text-white/80">

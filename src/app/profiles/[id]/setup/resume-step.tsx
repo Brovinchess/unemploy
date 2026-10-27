@@ -68,7 +68,15 @@ export function ResumeStep({
       ).map(([m, Icon, label, hint]) => {
         const on = mode === m;
         return (
-          <button key={m} type="button" onClick={() => setMode(m)} aria-pressed={on} className={`flex items-center gap-3 rounded-2xl p-4 text-left transition-colors ${on ? "bg-coral/15 ring-2 ring-coral" : "bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07]"}`}>
+          <button
+            key={m}
+            type="button"
+            onClick={() => {
+              setMode(m);
+              // "I have a resume" goes straight to choosing the file; the drop zone stays for dragging.
+              if (m === "upload") setTimeout(() => input.current?.click(), 0);
+            }}
+            aria-pressed={on} className={`flex items-center gap-3 rounded-2xl p-4 text-left transition-colors ${on ? "bg-coral/15 ring-2 ring-coral" : "bg-white/[0.04] ring-1 ring-white/10 hover:bg-white/[0.07]"}`}>
             <span className={`flex size-10 shrink-0 items-center justify-center rounded-xl ${on ? "bg-coral text-white" : "bg-white/[0.08] text-white/70"}`}>
               <Icon className="size-5" aria-hidden />
             </span>

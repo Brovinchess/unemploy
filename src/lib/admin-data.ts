@@ -177,7 +177,7 @@ async function loadOverview(days: number): Promise<Overview> {
     new_users: number; referred: number; searches: number; open_searches: number; finished: number; finished_with_jobs: number; empty_searches: number; cognition: number; active_users: number; window_jobs: number; window_kept: number; leads: number; pool_jobs: number;
     avg_minutes: number | null; first_job_minutes: number | null; wanted: number; window_applied: number; window_interviews: number; feedback_new: number;
     stuck: number; stuck_hint: string | null; refused_24h: number; old_questions: number; old_question_people: number;
-    daily_on: number; daily_paused: number; daily_off: number; runs: number; follow_ups: number; runs_wanted: number; runs_added: number; manual: number; manual_wanted: number; manual_added: number; run_cog: number; manual_cog: number; long_searches: number; email_blocked: number;
+    daily_on: number; daily_paused: number; daily_off: number; runs: number; follow_ups: number; runs_wanted: number; runs_added: number; manual: number; manual_wanted: number; manual_added: number; run_cog: number; manual_cog: number; long_searches: number; email_blocked: number; deploy_stuck: number;
     balance: number; balance_minds: number; balance_empty: number;
   };
   const s = await one<Scalars>(sql`
@@ -248,7 +248,8 @@ async function loadOverview(days: number): Promise<Overview> {
       (select coalesce(sum(cognition_used), 0) from searches where started_at >= ${ts(since)} and via in ('morning', 'followup'))::float8 as run_cog,
       (select coalesce(sum(cognition_used), 0) from searches where started_at >= ${ts(since)} and coalesce(via, 'find') in ('find', 'setup'))::float8 as manual_cog,
       (select count(*) from searches where started_at >= ${ts(since)} and extract(epoch from (coalesce(ended_at, now()) - started_at)) > 90 * 60)::int as long_searches,
-      (select count(distinct p.user_id) from profiles p join users u on u.id = p.user_id where p.status = 'hunting' and (u.email is null or u.email_verified_at is null))::int as email_blocked
+      (select count(distinct p.user_id) from profiles p join users u on u.id = p.user_id where p.status = 'hunting' and (u.email is null or u.email_verified_at is null))::int as email_blocked,
+      (select count(*) from profiles where status = 'needs_topup' and mind_id is null and preferences is not null and created_at < now() - interval '15 minutes')::int as deploy_stuck
   `);
 
   // Query 2: every breakdown for the window in one UNION: per-day signups, searches, jobs and
@@ -337,6 +338,7 @@ async function loadOverview(days: number): Promise<Overview> {
       { label: "Jobs refused by the app, last 24 hours", count: s.refused_24h, href: "/admin/quality?days=1" },
       { label: "Headhunters paused", count: s.paused, href: "/admin/headhunters?status=paused" },
       { label: "People who cannot search until they verify an email", count: s.email_blocked, href: "/admin/headhunters" },
+      { label: "Finished setup but Hello Minds would not create their headhunter", count: s.deploy_stuck, href: "/admin/headhunters?status=needs_topup" },
       { label: `Searches over 90 minutes (last ${days} days)`, count: s.long_searches, href: `/admin/searches?days=${days}&sort=minutes&dir=desc` },
       { label: "Questions waiting on people for over a week", count: s.old_questions, href: "/admin/applications", hint: `${s.old_question_people} people` },
     ],
