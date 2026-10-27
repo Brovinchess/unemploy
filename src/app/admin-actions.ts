@@ -10,6 +10,7 @@ import { startSearch } from "@/lib/start-search";
 import { preferencesSchema } from "@/lib/preferences";
 import { freshBalance } from "@/lib/app-context";
 import { minds } from "@/lib/minds/client";
+import { mindsConfig } from "@/lib/minds/config";
 import { forget } from "@/lib/admin-data";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
@@ -196,4 +197,44 @@ export async function mindHistory(): Promise<MindHistoryRow[]> {
     );
   }
   return out.sort((a, b) => (a.balance ?? 0) - (b.balance ?? 0));
+}
+
+// Owner-side: create the Mind for someone whose setup stopped at the last step because Hello Minds
+// refused to create it. Only the Mind is made, with their own sign-in. The brief and first search
+// still start from their own visit to the setup page, so nothing is spent while they are away.
+export async function createHeadhunterFor(profileId: string): Promise<{ ok: boolean; note: string }> {
+  await requireAdmin();
+  const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
+  if (!profile) return { ok: false, note: "No such headhunter." };
+  if (profile.mindId) return { ok: false, note: `Already created: ${profile.mindName}.` };
+  if (!profile.preferences || !profile.resumeData) return { ok: false, note: "Setup isn't finished: no preferences or resume yet." };
+  const owner = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
+  if (!owner?.refreshToken || !owner.username) return { ok: false, note: "They are signed out, so their Hello Minds sign-in can't be used." };
+  const claim = `pending-${crypto.randomUUID().slice(0, 8)}`;
+  const claimed = await db
+    .update(schema.profiles)
+    .set({ mindName: claim })
+    .where(and(eq(schema.profiles.id, profile.id), isNull(schema.profiles.mindId), or(isNull(schema.profiles.mindName), eq(schema.profiles.mindName, ""))))
+    .returning({ id: schema.profiles.id });
+  if (!claimed.length) return { ok: false, note: "Someone else is creating it right now." };
+  try {
+    const api = minds(owner);
+    const base = `${owner.username}-careerninja`.slice(0, 40);
+    let name = `${base}-${crypto.randomUUID().slice(0, 6)}`;
+    for (let n = 1; n <= 12; n++) {
+      const candidate = n === 1 ? base : `${base}-${n}`;
+      if (await api.isNameAvailable(candidate)) {
+        name = candidate;
+        break;
+      }
+    }
+    const mind = await api.awaken(mindsConfig.archetype, name);
+    await db.update(schema.profiles).set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup" }).where(eq(schema.profiles.id, profile.id));
+    const balance = await api.getBalance(mind.mindId).catch(() => null);
+    if (balance != null) await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
+    return { ok: true, note: `Created ${mind.name}. Balance ${balance ?? "unknown"}. Its first search starts when they next open the app${balance != null && balance <= 0 ? ", once it has cognition" : ""}.` };
+  } catch (e) {
+    await db.update(schema.profiles).set({ mindName: null }).where(and(eq(schema.profiles.id, profile.id), eq(schema.profiles.mindName, claim)));
+    return { ok: false, note: `Hello Minds refused again: ${String((e as Error)?.message ?? e).slice(0, 160)}` };
+  }
 }

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { mindHistory, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { createHeadhunterFor, mindHistory, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
@@ -206,5 +206,31 @@ export function MindHistory() {
         </div>
       )}
     </div>
+  );
+}
+
+// For a setup stuck at the last step: create the Mind with the person's own sign-in.
+export function CreateHeadhunter({ profileId }: { profileId: string }) {
+  const [pending, start] = useTransition();
+  const [note, setNote] = useState<string>();
+  const router = useRouter();
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className="btn btn-ghost btn-sm"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const r = await createHeadhunterFor(profileId);
+            setNote(r.note);
+            router.refresh();
+          })
+        }
+      >
+        {pending ? "Creating…" : "Create their headhunter"}
+      </button>
+      {note && <span className="admin-text-3 text-xs">{note}</span>}
+    </span>
   );
 }

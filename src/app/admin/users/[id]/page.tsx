@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { WAITING_QUESTION, maskEmail, maskPhone, stageLabel, when } from "@/lib/admin";
 import { mindLedgers, userDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
-import { RolesEditor, RunOne } from "../../headhunters/run-buttons";
+import { CreateHeadhunter, RolesEditor, RunOne } from "../../headhunters/run-buttons";
 import { Badge, Breadcrumb, Card, Clamp, Empty, Ext, Facts, Hero, Page, PageHead, SectionTitle, Stat, Table, Tiles, UserLink, endTone, hhTone, stageTone } from "../../ui";
 
 const MAX_ROWS = 500;
@@ -116,6 +116,12 @@ export default async function UserDetail({ params }: { params: Promise<{ id: str
                 ...(p.preferences ? summarizePreferences(p.preferences).map((r) => [r.label, r.value] as [string, string]) : ([["Preferences", "not set"]] as [string, string][])),
               ]}
             />
+            {!p.mindId && p.preferences && p.status === "needs_topup" && (
+              <div className="mt-4 border-t border-white/10 pt-4">
+                <p className="admin-text-3 mb-2 text-xs">Setup stopped at the last step: Hello Minds didn&rsquo;t create the headhunter.</p>
+                <CreateHeadhunter profileId={p.id} />
+              </div>
+            )}
             {p.preferences && p.status === "hunting" && (
               <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-white/10 pt-4">
                 <RolesEditor profileId={p.id} roles={p.preferences.targetRoles} />
