@@ -114,8 +114,18 @@ const droppedSchema = z.object({
   reason: reasonSchema,
   note: z.string().trim().max(200).optional(),
   // The posting's facts, when the Mind opened it before dropping it. A malformed one is
-  // ignored rather than losing the lead.
-  posting: postingSchema.optional().catch(undefined),
+  // ignored rather than losing the lead. A missing work setting is read from the location
+  // line (the pool re-checks every posting before anyone sees it), so it no longer costs the posting.
+  posting: z
+    .preprocess((v) => {
+      if (!v || typeof v !== "object") return v;
+      const o = v as Record<string, unknown>;
+      if (o.workSetting) return o;
+      const where = `${o.locationText ?? ""} ${o.city ?? ""}`;
+      return { ...o, workSetting: /hybrid/i.test(where) ? "hybrid" : /remote/i.test(where) ? "remote" : "onsite" };
+    }, postingSchema)
+    .optional()
+    .catch(undefined),
 });
 type Dropped = z.infer<typeof droppedSchema>;
 
@@ -144,6 +154,8 @@ export type PushResult = {
   packsAccepted?: number;
   packsRejected?: Rejection[];
   droppedRecorded?: number;
+  // Fit, country, work-setting and duplicate drops that came without "posting": a reminder for next time.
+  droppedNote?: string;
   dryRun: boolean;
   // Changes the app made to accepted jobs (e.g. a match score capped), so the Mind learns.
   adjusted?: { url: string; note: string }[];
@@ -732,6 +744,7 @@ async function checkAndSave(
   // Each is validated on its own: a bad one is skipped, never the whole push. A lead the Mind
   // opened before dropping for a reason about this person goes into the shared pool too.
   let droppedRecorded = 0;
+  let droppedNote: string | undefined;
   if (!dryRun && parsed.data.dropped?.length) {
     const search = openSearch;
     const seen = new Set<string>();
@@ -774,6 +787,8 @@ async function checkAndSave(
     }
     if (rows.length) await db.insert(schema.leads).values(rows);
     droppedRecorded = rows.length;
+    const bare = items.filter((d) => POOLABLE_REASONS.has(d.reason) && !d.posting).length;
+    if (bare) droppedNote = `${bare} dropped ${bare === 1 ? "lead" : "leads"} (poor_fit, not_eligible, work_setting or duplicate) came without "posting". Whenever you had the page open, even just its first screen, add "posting": url, title, company, workSetting, city, country, postedAt, locationText from what you already read.`;
   }
   if (accepted > 0 && !dryRun) {
     await db.update(schema.profiles).set({ lastDeliveryAt: new Date() }).where(eq(schema.profiles.id, profile.id));
@@ -811,5 +826,5 @@ async function checkAndSave(
     }
   }
 
-  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, dryRun, adjusted, skippedRecently, logged: true, packsAccepted, packsRejected };
+  return { accepted, rejected, remaining, remainingToday: remaining, searchEnded, droppedRecorded, droppedNote, dryRun, adjusted, skippedRecently, logged: true, packsAccepted, packsRejected };
 }

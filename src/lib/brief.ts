@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 11;
+export const BRIEF_VERSION = 12;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {
@@ -61,7 +61,7 @@ HOW WE WORK
   2. Send each one as a card the moment it passes: the job's facts, locationText, mustHaves, whyFit, gaps, highlights, summary and company details. No cover letter, no answers, no form questions during a search; those come later, only for the jobs I keep (step 7).
   3. POST each job to ${appUrl}/api/ingest with header "x-unemploy-key: ${ingestKey}" as soon as it passes every check, one at a time if you like, so I see it right away. Don't save them up for the end. Use ?dry_run=1 at most once per search, for the first job only; after that POST directly (the reply tells you if anything's wrong).
   4. Progress notes: one line, only when something changes. Dropped leads go in "dropped", not in chat. No long updates; they cost cognition.
-  5. Every lead you drop goes in the same POST under "dropped": one line each, with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a note under ten words. Only when you opened a posting that is still open and dropped it as poor_fit, not_eligible, work_setting or duplicate, add a short "posting": url, title, company, city, country, workSetting, postedAt, locationText. Nothing more, and never for closed, too old or unreachable ones. Never open a posting just to fill this in.
+  5. Every lead you drop goes in the same POST under "dropped": one line each, with a reason (not_eligible, too_old, closed, poor_fit, duplicate, work_setting, unreachable, other) and a note under ten words. Whenever you had the page in front of you, even just its first screen, and dropped it as poor_fit, not_eligible, work_setting or duplicate, always add "posting": url, title, company, city, country, workSetting, postedAt, locationText, copied from what you already read. It is required for those four reasons: the posting may suit someone else. Never for closed, too old or unreachable ones, and never open a page just to fill this in.
   6. "final": true means you have stopped searching for good. Set it only on the very last push, after every search variant is exhausted or the time limit is up; never on a mid-search push, and never on a push that only reports dropped leads while you are still looking. Once you send final, the search is closed and later job pushes are refused.
   7. PACK REQUEST: when I keep a job, I send a message starting "PACK REQUEST" with its link and, when the app could read the form, its questions. Use that list and do not open the form; only when the request says the app could not read it, open the form once and copy its questions into "formQuestions" (skip name, email, phone, resume and cover letter). Then write the pack in English: cover letter, a short "about me", and an answer for every form question that is about the job, the company, or why I fit it (e.g. "Why us?", "What experience makes you a good fit for this position?"), each under the form's exact wording. The writing rules come with each PACK REQUEST. ${FACTS_RULE} POST {"packs":[{"url","formQuestions","pack"}]} to the same address; one pack per push is fine, send each as soon as it is written. A pack push is taken any time, search or not. Never search for new jobs on a PACK REQUEST.
 
@@ -129,9 +129,9 @@ Header: x-unemploy-key: <the key from your brief>
 Body: {"jobs":[JOB, ...], "final": true|false, "dropped":[DROP, ...], "packs":[PACK, ...]}  (0–50 jobs, 0–50 packs)
   "final": true only when you have stopped searching for good. It closes the search; pushes after it are refused.
   Mid-search pushes, including ones that only carry "dropped", are "final": false (or leave it out).
-DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|unreachable|other,"note"(short),"posting"(optional)}
-  "posting": only for a lead you opened that is still open and dropped as poor_fit, not_eligible, work_setting or duplicate:
-  url, title, company, city, country, workSetting, postedAt, locationText. Nothing else. Never for closed, too_old or unreachable.
+DROP: {"company","title","url"(optional),"reason": not_eligible|too_old|closed|poor_fit|duplicate|work_setting|unreachable|other,"note"(short),"posting"}
+  "posting": required for every poor_fit, not_eligible, work_setting or duplicate drop whose page you saw, even only its first screen:
+  url, title, company, city, country, workSetting, postedAt, locationText, from what you already read. Nothing else. Never for closed, too_old or unreachable.
   Every lead you looked at and dropped. Send them with the next push (or on their own with "jobs":[]).
   unreachable: the page blocked you or would not load. Hosts that blocked you are skipped for a week.
 Send each job as soon as it passes every check (one per push is fine) so the user sees it straight away. Don't hold jobs for one batch at the end.
