@@ -21,7 +21,6 @@ import { costModel } from "@/lib/cost";
 import { detailsComplete, isSupported } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
 import { topUpUrlFor } from "@/lib/minds/config";
-import { needsOwnCognition } from "@/lib/minds/balance";
 
 // Backend-only columns stay on the server: the board never receives them.
 const HIDDEN = new Set(["postingKey", "countryCode", "jobTypeKey", "levelKey", "postedOn"]);
@@ -155,7 +154,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           {(searching || everDelivered) && searchButton()}
         </div>
 
-        {sp.welcome === "1" && <CognitionIntro returning={needsOwnCognition(current)} topUpUrl={topUpUrlFor(current.mindId)} />}
+        {sp.welcome === "1" && <CognitionIntro />}
 
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">

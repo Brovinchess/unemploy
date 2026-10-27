@@ -8,7 +8,7 @@ const KEY = "cn-cognition-intro";
 
 // Shown once, right after setup: dims the page, lights up the cognition card in the sidebar
 // and says in two lines what cognition is. On small screens (no sidebar) it's a plain card.
-export function CognitionIntro({ returning = false, topUpUrl }: { returning?: boolean; topUpUrl?: string }) {
+export function CognitionIntro() {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [show, setShow] = useState(false);
 
@@ -45,28 +45,15 @@ export function CognitionIntro({ returning = false, topUpUrl }: { returning?: bo
           <p id="cog-title" className="font-display text-lg font-medium text-white">
             This is cognition
           </p>
-          {returning ? (
-            <>
-              <p className="mt-1 text-sm leading-relaxed text-white/65">
-                The credit your headhunter runs on. It uses the cognition on your Hello Minds account.
-              </p>
-            </>
-          ) : (
-            <p className="mt-1 text-sm leading-relaxed text-white/65">
-              The credit your headhunter runs on, like fuel. Every search uses some, nothing is spent in between, and you can top up on Hello
-              Minds any time.
-            </p>
-          )}
+          <p className="mt-1 text-sm leading-relaxed text-white/65">
+            The credit your headhunter runs on, like fuel. Every search uses some, nothing is spent in between, and you can top up on Hello
+            Minds any time.
+          </p>
         </div>
       </div>
       <button className="btn btn-accent mt-4 w-full justify-center" onClick={dismiss}>
         Got it
       </button>
-      {returning && topUpUrl && (
-        <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-sm text-white/60 underline underline-offset-2 hover:text-white">
-          Top up on Hello Minds
-        </a>
-      )}
     </div>
   );
 

@@ -2,8 +2,7 @@ import { redirect } from "next/navigation";
 import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsMode, topUpUrlFor } from "@/lib/minds/config";
-import { minds } from "@/lib/minds/client";
-import { needsOwnCognition, STARTER_MINDS } from "@/lib/minds/balance";
+import { needsOwnCognition } from "@/lib/minds/balance";
 import { ownedProfile } from "@/lib/owned";
 import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
@@ -99,15 +98,8 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
     );
   }
 
-  // Before it's made: does the person already have Minds on Hello Minds? Past the 3rd, a new one
-  // starts with no cognition, so they hear that now rather than after the first search.
-  const deployed = !!profile.mindId;
-  const ownCognition = deployed
-    ? needsOwnCognition(profile)
-    : await minds(user)
-        .listMinds()
-        .then((l) => l.length >= STARTER_MINDS)
-        .catch(() => false);
+  // Made, but with no cognition of its own (see lib/minds/balance): ask for a top-up.
+  const ownCognition = !!profile.mindId && needsOwnCognition(profile);
 
   return (
     <OnboardingShell step={3}>
@@ -119,9 +111,7 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
           ? ownCognition
             ? "Your headhunter is set up. Add cognition on Hello Minds and its first search starts by itself."
             : "Waiting for its first cognition to arrive. This usually takes a few seconds."
-          : ownCognition
-            ? "We'll set up your headhunter on Hello Minds. It works only for you, and you can pause it any time."
-            : "We'll set up your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
+          : "We'll set up your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}

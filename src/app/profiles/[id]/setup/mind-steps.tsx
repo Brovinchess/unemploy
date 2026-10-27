@@ -16,7 +16,7 @@ export function ActivateStep({
   mock,
 }: {
   profileId: string;
-  ownCognition?: boolean; // they already use Hello Minds: this headhunter starts with no cognition
+  ownCognition?: boolean; // set up, but it has no cognition yet: ask for a top-up
   mindName: string | null;
   topUpUrl: string;
   mock: boolean;
@@ -59,12 +59,6 @@ export function ActivateStep({
     return (
       <div className="w-full">
         <div className="rounded-3xl bg-night-2 p-6">{costLine}</div>
-        {ownCognition && (
-          <p className="mt-4 rounded-2xl border border-white/[0.08] px-5 py-4 text-sm text-white/75">
-            You already use Hello Minds, so this headhunter starts with no cognition. Once it&rsquo;s set up, top it up on Hello Minds and its first
-            search starts by itself.
-          </p>
-        )}
         <button
           className="btn btn-accent mt-8 h-12 w-full"
           disabled={pending}
@@ -77,7 +71,7 @@ export function ActivateStep({
             })
           }
         >
-          {pending ? "Setting up your headhunter…" : ownCognition ? "Set up my headhunter" : "Start my first search"}
+          {pending ? "Setting up your headhunter…" : "Start my first search"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
