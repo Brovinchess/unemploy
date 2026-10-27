@@ -11,6 +11,7 @@ import { isSearching } from "@/lib/search";
 import { Ninja, Wordmark } from "./brand";
 import { FoundBar } from "./found-bar";
 import { recentFinds } from "@/lib/found";
+import { CleanUrl } from "./clean-url";
 import { LiveBadge, LiveCognition, LiveCognitionShort, LiveProvider, type Live } from "./live";
 import { FeedbackButton } from "./feedback-button";
 import { RowStatus, SidebarSearch } from "./sidebar-search";
@@ -79,6 +80,8 @@ export async function AppShell({
 
   return (
     <LiveProvider key={current.id} initial={initial}>
+    {/* The first headhunter is the default, so ?profile=<its id> adds nothing to the address. */}
+    <CleanUrl drop={current.id === profiles[0]?.id ? ["profile"] : []} />
     <div className="flex min-h-svh flex-1 bg-night text-white">
       <TitleBadge count={allNew} />
       <aside className="sticky top-0 hidden h-svh w-[264px] shrink-0 flex-col border-r border-white/[0.06] bg-[#10161c] px-4 py-5 lg:flex">

@@ -3,18 +3,20 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Ninja } from "./brand";
+import { useDropParams } from "./clean-url";
 
 const KEY = "cn-cognition-intro";
 
 // Shown once, right after setup: dims the page, lights up the cognition card in the sidebar
 // and says in two lines what cognition is. On small screens (no sidebar) it's a plain card.
 export function CognitionIntro() {
+  const dropParams = useDropParams();
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [show, setShow] = useState(false);
 
   useEffect(() => {
     try {
-      if (localStorage.getItem(KEY)) return;
+      if (localStorage.getItem(KEY)) return dropParams(["welcome"]);
     } catch {
       /* no storage: show it anyway */
     }
@@ -24,6 +26,8 @@ export function CognitionIntro() {
       setShow(true);
     }, 600);
     return () => clearTimeout(t);
+    // Once, on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const dismiss = () => {
@@ -33,6 +37,7 @@ export function CognitionIntro() {
       /* fine */
     }
     setShow(false);
+    dropParams(["welcome"]);
   };
 
   if (!show) return null;
