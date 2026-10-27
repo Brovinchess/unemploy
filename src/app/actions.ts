@@ -10,6 +10,7 @@ import { LEAVE_REASONS, type JobStatus, type LeaveReason, type Profile, type Use
 import { BRIEF_VERSION, buildBrief } from "@/lib/brief";
 import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
+import { trustsStaged } from "@/lib/minds/balance";
 import { minds, MindsApiError } from "@/lib/minds/client";
 import { mindsConfig, mindsMode } from "@/lib/minds/config";
 import { mockTopUp } from "@/lib/minds/mock";
@@ -144,6 +145,12 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
     .returning({ id: schema.profiles.id });
   if (!claimed.length) return checkActivation(profileId, true);
   try {
+    // Count the Minds already on their Hello Minds account before adding one: past the 3rd, a new
+    // Mind starts with no cognition of its own, whatever its balance first says.
+    const before = await minds(user)
+      .listMinds()
+      .then((l) => l.length)
+      .catch(() => null);
     const name = await pickMindName(user);
     const mind = await minds(user)
       .awaken(mindsConfig.archetype, name)
@@ -156,15 +163,15 @@ export async function launchMind(profileId: string): Promise<ActivationState> {
       });
     await db
       .update(schema.profiles)
-      .set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup" })
+      .set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup", hmMindRank: before == null ? null : before + 1 })
       .where(eq(schema.profiles.id, profile.id));
-    track(user.id, "headhunter_deployed", { mind: mind.name });
+    track(user.id, "headhunter_deployed", { mind: mind.name, rank: before == null ? null : before + 1 });
   } catch (e) {
     await db.update(schema.profiles).set({ mindName: null }).where(and(eq(schema.profiles.id, profile.id), eq(schema.profiles.mindName, claim)));
     if (e instanceof MindsApiError && e.status >= 400 && e.status < 500) {
       console.error("[launch] awaken refused twice", profile.id, e.message);
       track(user.id, "headhunter_deploy_failed", { status: e.status });
-      return { error: "Hello Minds couldn't create your headhunter right now. This is a problem on their side, not with your answers. We've been told, and we'll email you as soon as it's fixed." };
+      return { error: "Hello Minds couldn't create your headhunter right now. This is on their side, not your answers. Please try again in a few minutes." };
     }
     return { error: friendly(e) };
   }
@@ -180,7 +187,18 @@ export async function checkActivation(profileId: string, quiet = false): Promise
   if (profile.status === "hunting" || profile.status === "paused") return { started: true };
   if (!profile.mindId) return { error: "This headhunter hasn't been created yet." };
   try {
-    const balance = await minds(user).getBalance(profile.mindId);
+    // The count at creation failed: count now (it includes this Mind), so the balance rule applies.
+    if (profile.hmMindRank == null) {
+      const total = await minds(user)
+        .listMinds()
+        .then((l) => l.length)
+        .catch(() => null);
+      if (total) {
+        profile.hmMindRank = total;
+        await db.update(schema.profiles).set({ hmMindRank: total }).where(eq(schema.profiles.id, profile.id));
+      }
+    }
+    const balance = await minds(user).getBalance(profile.mindId, trustsStaged(profile));
     // Keep the cached balance in step so the app shows the real number from the first screen.
     await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     if (balance <= 0) return { balance, error: quiet ? undefined : "No cognition yet. It can take a minute to arrive." };

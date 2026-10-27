@@ -6,6 +6,7 @@ import { asc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile, User } from "@/db/schema";
 import { minds } from "./minds/client";
+import { trustsStaged } from "./minds/balance";
 import { endSearch, isSearching } from "./search";
 import { requireUser } from "./session";
 
@@ -45,7 +46,7 @@ export const balanceFor = cache(async (user: User, profile: Profile): Promise<nu
 export async function freshBalance(user: User, profile: Profile): Promise<number | null> {
   if (!profile.mindId) return null;
   try {
-    const balance = await minds(user).getBalance(profile.mindId);
+    const balance = await minds(user).getBalance(profile.mindId, trustsStaged(profile));
     await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     return balance;
   } catch (e) {

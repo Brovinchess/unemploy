@@ -17,7 +17,8 @@ export type ToolUse = { tool: string; at: Date; calls: number; cognition: number
 export interface MindsApi {
   isNameAvailable(name: string): Promise<boolean>;
   awaken(archetype: string, mindName: string): Promise<{ mindId: string; name: string }>;
-  getBalance(mindId: string): Promise<number>;
+  // trustStaged false: count only cognition that is spendable now (see lib/minds/balance).
+  getBalance(mindId: string, trustStaged?: boolean): Promise<number>;
   createConversation(alias: string, mindId: string): Promise<void>;
   sendMessage(alias: string, text: string, attachments?: Attachment[]): Promise<void>;
   beacon(mindId: string, note: string): Promise<void>;
@@ -107,9 +108,9 @@ function liveMinds(user: User): MindsApi {
       const r = await call<{ mindId: string; name?: string }>("POST", "/v1/minds/awaken", { id: archetype, mindName });
       return { mindId: r.mindId, name: r.name ?? mindName };
     },
-    async getBalance(mindId) {
-      const r = await call<{ swarm: number }>("GET", `/v1/minds/${mindId}/credits`);
-      return r.swarm;
+    async getBalance(mindId, trustStaged = true) {
+      const r = await call<{ swarm: number; creditsMinted?: number; creditsStaged?: number }>("GET", `/v1/minds/${mindId}/credits`);
+      return trustStaged || r.creditsMinted == null ? r.swarm : r.creditsMinted;
     },
     async createConversation(alias, mindId) {
       await call("POST", "/v1/messaging/conversation", { alias, mindId });

@@ -2,6 +2,8 @@ import { redirect } from "next/navigation";
 import { OnboardingShell, StepHeading } from "@/components/onboarding-shell";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { mindsMode, topUpUrlFor } from "@/lib/minds/config";
+import { minds } from "@/lib/minds/client";
+import { needsOwnCognition, STARTER_MINDS } from "@/lib/minds/balance";
 import { ownedProfile } from "@/lib/owned";
 import { PENDING_LABEL } from "@/lib/preferences";
 import { requireUser } from "@/lib/session";
@@ -97,15 +99,33 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
     );
   }
 
+  // Before it's made: does the person already have Minds on Hello Minds? Past the 3rd, a new one
+  // starts with no cognition, so they hear that now rather than after the first search.
+  const deployed = !!profile.mindId;
+  const ownCognition = deployed
+    ? needsOwnCognition(profile)
+    : await minds(user)
+        .listMinds()
+        .then((l) => l.length >= STARTER_MINDS)
+        .catch(() => false);
+
   return (
     <OnboardingShell step={3}>
-      <StepHeading eyebrow="Nearly there" title={profile.mindName ? `Switching on ${profile.mindName}` : "Get your headhunter"}>
+      <StepHeading
+        eyebrow="Nearly there"
+        title={profile.mindName ? (ownCognition ? `Top up to switch on ${profile.mindName}` : `Switching on ${profile.mindName}`) : "Get your headhunter"}
+      >
         {profile.mindName
-          ? "Waiting for its first cognition to arrive. This usually takes a few seconds."
-          : "We'll set up your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
+          ? ownCognition
+            ? "Your headhunter is set up. Add cognition on Hello Minds and its first search starts by itself."
+            : "Waiting for its first cognition to arrive. This usually takes a few seconds."
+          : ownCognition
+            ? "We'll set up your headhunter on Hello Minds. It works only for you, and you can pause it any time."
+            : "We'll set up your headhunter on Hello Minds and start its first search straight away. It works only for you, and you can pause it any time."}
       </StepHeading>
       <ActivateStep
         profileId={profile.id}
+        ownCognition={ownCognition}
         mindName={profile.mindName}
         topUpUrl={topUpUrlFor(profile.mindId)}
         mock={mindsMode === "mock"}

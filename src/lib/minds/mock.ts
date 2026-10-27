@@ -7,14 +7,15 @@ import type { ChatMessage, MindsApi, ToolUse } from "./client";
 // A stand-in for Hello Minds so the full journey runs locally with no cognition spent.
 // State lives in memory per server instance (the database is the real store).
 type MockState = {
-  balances: Map<string, number>;
+  balances: Map<string, number>; // minted: spendable now
+  staged?: Map<string, number>; // starter cognition waiting to convert
   conversations: Map<string, string>;
   names: Set<string>;
   chats: Map<string, ChatMessage[]>; // alias -> oldest first
   usage: Map<string, ToolUse[]>; // mindId -> entries
 };
 const g = globalThis as unknown as { __unemployMock?: MockState };
-const state = (g.__unemployMock ??= { balances: new Map(), conversations: new Map(), names: new Set(), chats: new Map(), usage: new Map() });
+const state: MockState = (g.__unemployMock ??= { balances: new Map(), conversations: new Map(), names: new Set(), chats: new Map(), usage: new Map() });
 state.chats ??= new Map();
 state.usage ??= new Map();
 
@@ -42,11 +43,14 @@ export const mockMinds: MindsApi = {
   async awaken(_archetype, mindName) {
     state.names.add(mindName);
     const mindId = crypto.randomUUID();
-    state.balances.set(mindId, 500); // like a real new Mind: the free starter cognition
+    // Like a real new Mind: nothing minted, the starter cognition staged (see lib/minds/balance).
+    state.balances.set(mindId, 0);
+    (state.staged ??= new Map()).set(mindId, 500);
     return { mindId, name: mindName };
   },
-  async getBalance(mindId) {
-    return state.balances.get(mindId) ?? 160;
+  async getBalance(mindId, trustStaged = true) {
+    const minted = state.balances.get(mindId) ?? 160;
+    return trustStaged ? minted + ((state.staged ??= new Map()).get(mindId) ?? 0) : minted;
   },
   async createConversation(alias, mindId) {
     state.conversations.set(alias, mindId);
@@ -66,7 +70,8 @@ export const mockMinds: MindsApi = {
     return {};
   },
   async listMinds() {
-    return [];
+    // MOCK_HM_MINDS=4 pretends the person already had Minds on Hello Minds, to try that setup path.
+    return Array.from({ length: Number(process.env.MOCK_HM_MINDS ?? 0) }, (_, i) => ({ mindId: `mock-${i}`, name: `mock-${i}`, createdAt: null, isEnabled: true }));
   },
   async toolUsage(mindId, since) {
     return (state.usage.get(mindId) ?? []).filter((u: ToolUse) => u.at >= since);

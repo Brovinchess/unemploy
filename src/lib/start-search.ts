@@ -10,6 +10,7 @@ import { factsText } from "./facts";
 import { rotateKey } from "./keys";
 import { LoginExpiredError, minds, type Attachment } from "./minds/client";
 import { mindsConfig, mindsMode } from "./minds/config";
+import { trustsStaged } from "./minds/balance";
 import { localEmployers } from "./pool";
 import { estimateSearchCost, MAX_JOBS_PER_SEARCH, MIN_JOBS_PER_SEARCH, postingAgeDays, RECOMMENDED_JOBS_PER_SEARCH, searchBudget, type Preferences } from "./preferences";
 import { blockedHosts, ingestReachable, isSearching, lastSearchLine, RESUME_TEXT_MAX, searchRequestText, skipLinks } from "./search";
@@ -106,8 +107,8 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
   }
   const api = minds(user);
   try {
-    const balance = await api.getBalance(profile.mindId);
-    if (balance <= 0) return { error: "Your headhunter is out of cognition. Top it up on Hello Minds, then try again." };
+    const balance = await api.getBalance(profile.mindId, trustsStaged(profile));
+    if (balance <= 0) return { error: "Not enough cognition. Top up on Hello Minds to search again." };
     const { perJob } = await costModel(profile.id);
     const extra = profile.preferences?.extraPlaces?.length ?? 0;
     // A headhunter that has never found a job casts a wider net the first time: older postings,

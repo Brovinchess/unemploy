@@ -17,6 +17,7 @@ import { PACK_RULES } from "./brief";
 import { rotateKey } from "./keys";
 import { postingAgeDays } from "./preferences";
 import { gapsOf } from "./match";
+import { trustsStaged } from "./minds/balance";
 import type { DropReason } from "@/db/schema";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
@@ -202,7 +203,7 @@ export async function requestPacks(profileId: string) {
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   if (!user) return;
   const api = minds(user);
-  const balance = await api.getBalance(profile.mindId).catch(() => null);
+  const balance = await api.getBalance(profile.mindId, trustsStaged(profile)).catch(() => null);
   if (balance != null && balance < PACK_COGNITION * claimed.length) {
     // Not enough to write them. Release the claim so the next visit, after a top-up, asks again.
     await db.update(schema.jobs).set({ packRequestedAt: null }).where(inArray(schema.jobs.id, claimed.map((j) => j.id)));
@@ -340,7 +341,7 @@ async function recordEnd(profile: Profile, reason: EndReason, note?: string) {
     (note ? `, note: ${note.replace(/\s+/g, " ").slice(0, 200)}` : "");
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) });
   const api = user ? minds(user) : null;
-  const balanceEnd = api && profile.mindId ? await api.getBalance(profile.mindId).catch(() => null) : null;
+  const balanceEnd = api && profile.mindId ? await api.getBalance(profile.mindId, trustsStaged(profile)).catch(() => null) : null;
   // The ledger is bucketed by the hour, so read from the start of the hour the search began in.
   const since = new Date(row.startedAt);
   since.setUTCMinutes(0, 0, 0);

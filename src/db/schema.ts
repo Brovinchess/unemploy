@@ -157,6 +157,10 @@ export const profiles = pgTable(
     searchStartedAt: timestamp("search_started_at", { withTimezone: true }),
     searchEndedAt: timestamp("search_ended_at", { withTimezone: true }),
     // Last balance read from Hello Minds, so pages don't wait on that call; the live poll keeps it fresh.
+    // This headhunter's place among the Minds on the person's Hello Minds account when it was
+    // made (1 = their first). Hello Minds gives starting cognition to the first 3 only; past
+    // that, the "staged" part of the balance it reports is never spendable (see lib/minds/balance).
+    hmMindRank: integer("hm_mind_rank"),
     balanceCache: real("balance_cache"),
     balanceCachedAt: timestamp("balance_cached_at", { withTimezone: true }),
     createdAt: createdAt(),

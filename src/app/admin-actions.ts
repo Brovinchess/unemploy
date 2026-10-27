@@ -10,6 +10,7 @@ import { startSearch } from "@/lib/start-search";
 import { preferencesSchema } from "@/lib/preferences";
 import { freshBalance } from "@/lib/app-context";
 import { minds } from "@/lib/minds/client";
+import { trustsStaged } from "@/lib/minds/balance";
 import { mindsConfig } from "@/lib/minds/config";
 import { forget } from "@/lib/admin-data";
 
@@ -243,9 +244,14 @@ export async function createHeadhunterFor(profileId: string): Promise<{ ok: bool
         break;
       }
     }
+    const before = await api
+      .listMinds()
+      .then((l) => l.length)
+      .catch(() => null);
     const mind = await api.awaken(mindsConfig.archetype, name);
-    await db.update(schema.profiles).set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup" }).where(eq(schema.profiles.id, profile.id));
-    const balance = await api.getBalance(mind.mindId).catch(() => null);
+    const rank = before == null ? null : before + 1;
+    await db.update(schema.profiles).set({ mindId: mind.mindId, mindName: mind.name, status: "needs_topup", hmMindRank: rank }).where(eq(schema.profiles.id, profile.id));
+    const balance = await api.getBalance(mind.mindId, trustsStaged({ hmMindRank: rank })).catch(() => null);
     if (balance != null) await db.update(schema.profiles).set({ balanceCache: balance, balanceCachedAt: new Date() }).where(eq(schema.profiles.id, profile.id));
     return { ok: true, note: `Created ${mind.name}. Balance ${balance ?? "unknown"}. Its first search starts when they next open the app${balance != null && balance <= 0 ? ", once it has cognition" : ""}.` };
   } catch (e) {

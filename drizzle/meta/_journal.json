@@ -232,6 +232,13 @@
       "when": 1793072269759,
       "tag": "0032_account_deletions",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1793097213915,
+      "tag": "0033_hm_mind_rank",
+      "breakpoints": true
     }
   ]
 }

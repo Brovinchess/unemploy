@@ -10,11 +10,13 @@ const POLL_MS = 6000;
 
 export function ActivateStep({
   profileId,
+  ownCognition = false,
   mindName,
   topUpUrl,
   mock,
 }: {
   profileId: string;
+  ownCognition?: boolean; // they already use Hello Minds: this headhunter starts with no cognition
   mindName: string | null;
   topUpUrl: string;
   mock: boolean;
@@ -57,6 +59,12 @@ export function ActivateStep({
     return (
       <div className="w-full">
         <div className="rounded-3xl bg-night-2 p-6">{costLine}</div>
+        {ownCognition && (
+          <p className="mt-4 rounded-2xl border border-white/[0.08] px-5 py-4 text-sm text-white/75">
+            You already use Hello Minds, so this headhunter starts with no cognition. Once it&rsquo;s set up, top it up on Hello Minds and its first
+            search starts by itself.
+          </p>
+        )}
         <button
           className="btn btn-accent mt-8 h-12 w-full"
           disabled={pending}
@@ -69,7 +77,7 @@ export function ActivateStep({
             })
           }
         >
-          {pending ? "Setting up your headhunter…" : "Start my first search"}
+          {pending ? "Setting up your headhunter…" : ownCognition ? "Set up my headhunter" : "Start my first search"}
         </button>
         {pending && (
           <p className="mt-4 text-center text-sm text-white/55" aria-live="polite">
@@ -88,18 +96,25 @@ export function ActivateStep({
           <Step n={1} done>
             <span className="font-medium text-white">{mindName}</span> is set up.
           </Step>
-          <Step n={2}>As soon as its cognition arrives, it gets your brief and you&rsquo;re in.</Step>
+          <Step n={2}>
+            {ownCognition ? "Add cognition on Hello Minds. Its first search starts as soon as it arrives." : <>As soon as its cognition arrives, it gets your brief and you&rsquo;re in.</>}
+          </Step>
         </ol>
         <div className="mt-5 border-t border-white/[0.08] pt-4">{costLine}</div>
       </div>
 
+      {ownCognition && (
+        <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent mt-8 h-12 w-full justify-center">
+          Top up on Hello Minds
+        </a>
+      )}
       {waiting ? (
         <p className="mt-8 flex items-center justify-center gap-2.5 text-sm text-white/55" aria-live="polite">
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-coral opacity-60" />
             <span className="relative inline-flex size-2 rounded-full bg-coral" />
           </span>
-          Waiting for its cognition to arrive…
+          {ownCognition ? "Waiting for your top-up…" : "Waiting for its cognition to arrive…"}
           <button
             className="text-white/80 underline decoration-white/30 underline-offset-4 hover:text-white"
             disabled={pending}
@@ -109,6 +124,7 @@ export function ActivateStep({
           </button>
         </p>
       ) : null}
+      {!ownCognition && (
       <p className="mt-6 text-center text-xs text-white/40">
         Still nothing after a few minutes? You can{" "}
         <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-white/30 underline-offset-4 hover:text-white">
@@ -116,6 +132,7 @@ export function ActivateStep({
         </a>{" "}
         and it will start the moment it arrives.
       </p>
+      )}
 
       {mock && (
         <p className="mt-6 text-center text-sm text-white/45">
