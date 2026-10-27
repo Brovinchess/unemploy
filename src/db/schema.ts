@@ -489,6 +489,28 @@ export const feedback = pgTable(
   (t) => [index("feedback_created").on(t.createdAt)],
 ).enableRLS();
 
+// Why someone deleted their account, asked on the way out. Kept after the account is gone, so
+// no user id and no personal details: the reason, what they wrote, and a few numbers about their use.
+export const LEAVE_REASONS = ["found_job", "not_looking", "poor_fit", "few_jobs", "slow", "cost", "broken", "privacy", "other"] as const;
+export type LeaveReason = (typeof LEAVE_REASONS)[number];
+export const accountDeletions = pgTable(
+  "account_deletions",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reason: text("reason").$type<LeaveReason>().notNull(),
+    details: text("details"),
+    joinedAt: timestamp("joined_at", { withTimezone: true }),
+    country: text("country"),
+    searches: integer("searches").notNull().default(0),
+    jobs: integer("jobs").notNull().default(0),
+    kept: integer("kept").notNull().default(0),
+    applied: integer("applied").notNull().default(0),
+    balance: real("balance"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("account_deletions_created").on(t.createdAt)],
+).enableRLS();
+
 export const waitlist = pgTable(
   "waitlist",
   {

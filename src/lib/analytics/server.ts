@@ -31,7 +31,11 @@ export type Event =
   | "comeback_sent"
   | "search_finished"
   | "card_decided"
-  | "headhunter_removed";
+  | "headhunter_removed"
+  | "account_deleted"
+  | "delete_kept"
+  | "search_stop_asked"
+  | "search_stop_kept";
 
 export const analyticsOn = !!client;
 

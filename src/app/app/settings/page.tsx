@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { AppShell } from "@/components/app-shell";
 import { ExtensionSetup } from "@/components/extension-ui";
@@ -32,6 +32,24 @@ export default async function Settings() {
       .innerJoin(schema.packs, eq(schema.packs.jobId, schema.jobs.id))
       .where(and(inArray(schema.jobs.profileId, profiles.map((p) => p.id)), eq(schema.jobs.status, "saved"))),
   ]);
+  // What deleting the account would remove, in numbers, for the first step of the delete dialog.
+  const ids = profiles.map((p) => p.id);
+  const [counts] = ids.length
+    ? await db
+        .select({
+          jobs: sql<number>`count(*)`.mapWith(Number),
+          kept: sql<number>`count(*) filter (where ${schema.jobs.status} not in ('new', 'skipped', 'expired'))`.mapWith(Number),
+          applied: sql<number>`count(*) filter (where ${schema.jobs.status} in ('applied', 'heard_back', 'interview', 'offer'))`.mapWith(Number),
+        })
+        .from(schema.jobs)
+        .where(inArray(schema.jobs.profileId, ids))
+    : [{ jobs: 0, kept: 0, applied: 0 }];
+  const facts = {
+    ...counts,
+    answers: user.savedAnswers?.length ?? 0,
+    headhunters: profiles.map((p) => ({ id: p.id, label: p.label, paused: p.status === "paused" })),
+    dailyOn: profiles.some((p) => p.autoSearchJobs != null && !p.autoSearchPausedAt),
+  };
   const ready = applyUrls.filter((j) => isSupported(j.url)).length;
   const other = applyUrls.length - ready;
 
@@ -78,7 +96,7 @@ export default async function Settings() {
               <form action="/auth/logout" method="post">
                 <button className="btn btn-ghost">Sign out</button>
               </form>
-              <DeleteAccount />
+              <DeleteAccount facts={facts} />
             </div>
           </Section>
         </div>

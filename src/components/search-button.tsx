@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { createPortal } from "react-dom";
 import { ChevronRight, Lightbulb, Search, Square, X } from "lucide-react";
-import { requestSearch, stopSearch } from "@/app/actions";
+import { noteKept, requestSearch, stopSearch } from "@/app/actions";
 import { setCoachReminders } from "@/app/notify-actions";
 import Link from "next/link";
 import { estimateSearchCost } from "@/lib/preferences";
@@ -47,6 +47,7 @@ export function SearchButton({
   const [open, setOpen] = useState(big);
   const [jobs, setJobs] = useState(defaultJobs);
   const [coachOpen, setCoachOpen] = useState(false);
+  const [stopOpen, setStopOpen] = useState(false);
   const [mute, setMute] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -113,6 +114,14 @@ export function SearchButton({
     };
   }, [open, big, coachOpen]);
 
+  // Escape closes the stop dialog and keeps the search going.
+  useEffect(() => {
+    if (!stopOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setStopOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [stopOpen]);
+
   // Escape closes the coach pop-up.
   useEffect(() => {
     if (!coachOpen) return;
@@ -123,6 +132,61 @@ export function SearchButton({
 
   if (searching) {
     const mins = startedAt ? minutesSince(startedAt, now) : 0;
+    const found = mine?.jobsFound ?? 0;
+    const keepSearching = () => {
+      setStopOpen(false);
+      noteKept("stop").catch(() => {});
+    };
+    // Stopping ends the search for good, so ask once, with what has happened so far.
+    const stopModal =
+      stopOpen &&
+      createPortal(
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-night/80 p-4 backdrop-blur-sm sm:items-center" onClick={keepSearching}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="stop-title"
+            className="relative w-full max-w-md rounded-3xl border border-white/[0.08] bg-night-2 p-6 text-left shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] sm:p-7"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="absolute right-5 top-5 text-white/40 hover:text-white" onClick={keepSearching} aria-label="Close">
+              <X className="size-4" />
+            </button>
+            <Ninja mood="thinking" className="mx-auto size-20" />
+            <h2 id="stop-title" className="font-display mt-3 text-center text-xl font-medium text-white">
+              Stop this search?
+            </h2>
+            <p className="mt-2 text-center text-sm text-white/60">
+              Your headhunter has been searching for {mins > 0 ? `${mins} ${mins === 1 ? "minute" : "minutes"}` : "less than a minute"}
+              {found > 0 ? ` and has found ${found} ${found === 1 ? "job" : "jobs"} so far` : ""}. Most searches take 20 to 60 minutes, because each job is checked to be open and a good fit before it reaches you.
+            </p>
+            <div className="mt-5 rounded-2xl border border-rose/40 bg-rose/10 px-5 py-4 text-sm text-white/85">
+              <p className="font-medium text-rose">If you stop now, this search ends here.</p>
+              <p className="mt-1.5">
+                {found > 0 ? "The jobs already found stay on your list. " : ""}Any jobs it&rsquo;s still checking won&rsquo;t be sent, and the cognition used so far can&rsquo;t be refunded.
+              </p>
+            </div>
+            <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
+              <button
+                className="btn btn-ghost text-rose"
+                disabled={pending}
+                onClick={() =>
+                  start(async () => {
+                    await stopSearch(profileId);
+                    setStopOpen(false);
+                  })
+                }
+              >
+                {pending ? "Stopping…" : "Stop search"}
+              </button>
+              <button className="btn btn-accent" onClick={keepSearching} autoFocus>
+                Keep searching
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      );
     return (
       <div className={`flex flex-col gap-2 ${big ? "items-center" : "items-end"}`}>
         <div className="flex items-center gap-3">
@@ -132,11 +196,15 @@ export function SearchButton({
           <button
             className="flex items-center gap-1.5 rounded-full px-3 py-2.5 text-sm text-white/50 hover:bg-white/[0.06] hover:text-white"
             disabled={pending}
-            onClick={() => start(() => stopSearch(profileId))}
+            onClick={() => {
+              setStopOpen(true);
+              noteKept("stop_asked").catch(() => {});
+            }}
           >
             <Square className="size-3.5" aria-hidden /> Stop
           </button>
         </div>
+        {stopModal}
       </div>
     );
   }

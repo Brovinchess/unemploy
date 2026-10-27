@@ -3,10 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { and, eq, isNotNull, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { z } from "zod";
 import { db, schema } from "@/db";
-import type { JobStatus, Profile, User } from "@/db/schema";
+import { LEAVE_REASONS, type JobStatus, type LeaveReason, type Profile, type User } from "@/db/schema";
 import { BRIEF_VERSION, buildBrief } from "@/lib/brief";
 import { factsText } from "@/lib/facts";
 import { hashKey, newIngestKey } from "@/lib/keys";
@@ -440,6 +440,12 @@ export async function requestSearch(profileId: string, jobs: number, focus = "",
   revalidatePath("/app", "layout");
 }
 
+// The two "changed my mind" moments: someone opened the delete or stop dialog and backed out.
+export async function noteKept(what: "delete" | "stop" | "stop_asked") {
+  const user = await requireUser();
+  track(user.id, what === "delete" ? "delete_kept" : what === "stop" ? "search_stop_kept" : "search_stop_asked");
+}
+
 export async function stopSearch(profileId: string) {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
@@ -500,9 +506,40 @@ export async function setJobStatus(jobId: string, status: JobStatus, skipReason?
 
 // ---------- Account ----------
 
-export async function deleteAccount() {
+export async function deleteAccount(reason: LeaveReason, details = "") {
   const user = await requireUser();
   const profiles = await db.query.profiles.findMany({ where: eq(schema.profiles.userId, user.id) });
+  // Why they left, kept after the account is gone: no user id, no name, no email.
+  const why: LeaveReason = (LEAVE_REASONS as readonly string[]).includes(reason) ? reason : "other";
+  const note = String(details ?? "").replace(/\s+/g, " ").trim().slice(0, 1000);
+  try {
+    const ids = profiles.map((p) => p.id);
+    const [c] = ids.length
+      ? await db
+          .select({
+            searches: sql<number>`(select count(*) from ${schema.searches} where ${schema.searches.profileId} in ${ids})`.mapWith(Number),
+            jobs: sql<number>`count(*)`.mapWith(Number),
+            kept: sql<number>`count(*) filter (where ${schema.jobs.status} not in ('new', 'skipped', 'expired'))`.mapWith(Number),
+            applied: sql<number>`count(*) filter (where ${schema.jobs.status} in ('applied', 'heard_back', 'interview', 'offer'))`.mapWith(Number),
+          })
+          .from(schema.jobs)
+          .where(inArray(schema.jobs.profileId, ids))
+      : [{ searches: 0, jobs: 0, kept: 0, applied: 0 }];
+    await db.insert(schema.accountDeletions).values({
+      reason: why,
+      details: note || null,
+      joinedAt: user.createdAt,
+      country: profiles.find((p) => p.preferences?.country)?.preferences?.country ?? null,
+      searches: c.searches,
+      jobs: c.jobs,
+      kept: c.kept,
+      applied: c.applied,
+      balance: profiles.reduce<number | null>((a, p) => (p.balanceCache == null ? a : (a ?? 0) + p.balanceCache), null),
+    });
+  } catch (e) {
+    console.error("[delete] could not record the reason", e);
+  }
+  track(user.id, "account_deleted", { reason: why, wrote_details: !!note });
   // Minds can't be deleted on Hello Minds; turning them off stops all spending.
   for (const p of profiles) {
     if (p.mindId) await minds(user).setEnabled(p.mindId, false).catch((e) => console.error(e));

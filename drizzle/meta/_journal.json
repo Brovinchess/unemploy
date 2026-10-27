@@ -225,6 +225,13 @@
       "when": 1792735731816,
       "tag": "0031_daily_search_default",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1793072269759,
+      "tag": "0032_account_deletions",
+      "breakpoints": true
     }
   ]
 }
