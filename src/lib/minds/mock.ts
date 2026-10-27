@@ -62,6 +62,9 @@ export const mockMinds: MindsApi = {
   async history(alias, limit = 30) {
     return [...(state.chats.get(alias) ?? [])].reverse().slice(0, limit);
   },
+  async creditsProbe() {
+    return {};
+  },
   async listMinds() {
     return [];
   },

@@ -26,6 +26,8 @@ export interface MindsApi {
   toolUsage(mindId: string, since: Date): Promise<ToolUse[]>;
   // Every Mind on the person's Hello Minds account, not only the ones Career Ninja made.
   listMinds(): Promise<{ mindId: string; name: string | null; createdAt: Date | null; isEnabled: boolean }[]>;
+  // Admin diagnostic: the raw credits replies from every place Hello Minds might report a balance.
+  creditsProbe(mindId: string): Promise<Record<string, { status?: number; body?: string; error?: string }>>;
 }
 
 export class MindsApiError extends Error {
@@ -137,6 +139,29 @@ function liveMinds(user: User): MindsApi {
       const sub = String(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")).sub ?? "");
       const rows = await call<{ mindId: string; name?: string | null; createdAt?: string | null; isEnabled?: boolean }[]>("GET", `/v1/users/${encodeURIComponent(sub)}/minds`);
       return rows.map((r) => ({ mindId: r.mindId, name: r.name ?? null, createdAt: r.createdAt ? new Date(r.createdAt.endsWith("Z") ? r.createdAt : `${r.createdAt}Z`) : null, isEnabled: !!r.isEnabled }));
+    },
+    async creditsProbe(mindId) {
+      const token = await accessTokenFor(user);
+      const sub = String(JSON.parse(Buffer.from(token.split(".")[1], "base64url").toString("utf8")).sub ?? "");
+      const get = async (url: string) => {
+        try {
+          const res = await fetch(url, { headers: { Accept: "application/json", Authorization: `Bearer ${token}` }, cache: "no-store" });
+          return { status: res.status, body: (await res.text()).slice(0, 800) };
+        } catch (e) {
+          return { error: String((e as Error)?.message ?? e).slice(0, 200) };
+        }
+      };
+      const CORE = "https://api.hellominds.ai";
+      const s = encodeURIComponent(sub);
+      const [builderMind, builderRunway, builderUser, coreMind, coreHuman, coreRunway] = await Promise.all([
+        get(`${BUILDER_API}/v1/minds/${mindId}/credits`),
+        get(`${BUILDER_API}/v1/minds/${mindId}/runway`),
+        get(`${BUILDER_API}/v1/users/${s}/credits`),
+        get(`${CORE}/v1/minds/${mindId}/credits`),
+        get(`${CORE}/v1/humans/${s}/credits`),
+        get(`${CORE}/v1/minds/${mindId}/runway`),
+      ]);
+      return { builderMind, builderRunway, builderUser, coreMind, coreHuman, coreRunway };
     },
     async toolUsage(mindId, since) {
       const q = new URLSearchParams({ interval: "hour", startTime: since.toISOString(), endTime: new Date().toISOString() });

@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { createHeadhunterFor, mindHistory, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { createHeadhunterFor, mindHistory, probeCredits, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
@@ -232,5 +232,19 @@ export function CreateHeadhunter({ profileId }: { profileId: string }) {
       </button>
       {note && <span className="admin-text-3 text-xs">{note}</span>}
     </span>
+  );
+}
+
+// Read-only: the raw credits replies for one headhunter, to see which number is really spendable.
+export function CreditsProbe({ profileId }: { profileId: string }) {
+  const [pending, start] = useTransition();
+  const [out, setOut] = useState<string>();
+  return (
+    <div className="mt-3">
+      <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => start(async () => setOut(JSON.stringify(await probeCredits(profileId), null, 1)))}>
+        {pending ? "Reading…" : "Read raw credits"}
+      </button>
+      {out && <pre data-probe className="admin-text-3 mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white/[0.04] p-3 text-xs">{out}</pre>}
+    </div>
   );
 }

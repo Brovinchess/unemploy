@@ -165,6 +165,21 @@ export async function refreshBalances(): Promise<{ checked: number; empty: numbe
 
 // Owner-side, read-only: for every live headhunter, every Mind on the owner's Hello Minds account.
 // Tells apart people who were new to Hello Minds from people who had Minds before ours.
+// Read-only: what Hello Minds says about one headhunter's balance, from every endpoint that might
+// know, so we can tell spendable credit from credit that only looks spendable.
+export async function probeCredits(profileId: string) {
+  await requireAdmin();
+  const p = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, profileId) });
+  if (!p?.mindId) return { error: "no headhunter" };
+  const u = await db.query.users.findFirst({ where: eq(schema.users.id, p.userId) });
+  if (!u?.refreshToken) return { error: "signed out, no token" };
+  try {
+    return await minds(u).creditsProbe(p.mindId);
+  } catch (e) {
+    return { error: String((e as Error)?.message ?? e).slice(0, 200) };
+  }
+}
+
 export type MindHistoryRow = {
   username: string; userId: string; joined: string; balance: number | null; ours: string; total: number; older: number; oldest: string | null; error?: string;
 };
