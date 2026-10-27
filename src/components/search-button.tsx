@@ -132,7 +132,6 @@ export function SearchButton({
 
   if (searching) {
     const mins = startedAt ? minutesSince(startedAt, now) : 0;
-    const found = mine?.jobsFound ?? 0;
     const keepSearching = () => {
       setStopOpen(false);
       noteKept("stop").catch(() => {});
@@ -156,16 +155,8 @@ export function SearchButton({
             <h2 id="stop-title" className="font-display mt-3 text-center text-xl font-medium text-white">
               Stop this search?
             </h2>
-            <p className="mt-2 text-center text-sm text-white/60">
-              Your headhunter has been searching for {mins > 0 ? `${mins} ${mins === 1 ? "minute" : "minutes"}` : "less than a minute"}
-              {found > 0 ? ` and has found ${found} ${found === 1 ? "job" : "jobs"} so far` : ""}. Most searches take 20 to 60 minutes, because each job is checked to be open and a good fit before it reaches you.
-            </p>
-            <div className="mt-5 rounded-2xl border border-rose/40 bg-rose/10 px-5 py-4 text-sm text-white/85">
-              <p className="font-medium text-rose">If you stop now, this search ends here.</p>
-              <p className="mt-1.5">
-                {found > 0 ? "The jobs already found stay on your list. " : ""}Any jobs it&rsquo;s still checking won&rsquo;t be sent, and the cognition used so far can&rsquo;t be refunded.
-              </p>
-            </div>
+            <p className="mt-2 text-center text-sm text-white/60">Your headhunter is still looking for jobs that fit you. Good matches can take a little while.</p>
+            <p className="mt-5 rounded-2xl border border-rose/40 bg-rose/10 px-5 py-3.5 text-center text-sm text-white/85"><span className="font-medium text-rose">Stopping ends this search.</span> Any jobs already found stay on your list.</p>
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-between">
               <button
                 className="btn btn-ghost text-rose"
