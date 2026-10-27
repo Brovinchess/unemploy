@@ -157,7 +157,7 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
         {balance == null
           ? "Balance unavailable"
           : balance <= 0
-            ? "None left. Top up on Hello Minds to search again."
+            ? "None left. Top up to search again."
             : low
               ? "Not enough for another search. Top up to keep going."
             : `About ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearchJobs} jobs`}

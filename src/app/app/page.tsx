@@ -101,9 +101,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           ? "Verify your email on the You page first"
           : paused
           ? "Resume this headhunter to search"
-          : balance != null && balance <= 0
-            ? "Top up to search"
-            : undefined
+          : undefined
       }
       big={big}
       perJob={cost.perJob}

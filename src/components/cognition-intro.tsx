@@ -48,11 +48,8 @@ export function CognitionIntro({ returning = false, topUpUrl }: { returning?: bo
           {returning ? (
             <>
               <p className="mt-1 text-sm leading-relaxed text-white/65">
-                The credit your headhunter runs on, like fuel. Every search uses some, and nothing is spent in between.
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-white/65">
-                You already have a Hello Minds account, so your headhunter uses the cognition on it. Free starter cognition is only for new accounts.
-                If yours runs low, this first search may stop early.
+                The credit your headhunter runs on. It uses the cognition on your Hello Minds account, since starter cognition is only for new
+                accounts.
               </p>
             </>
           ) : (

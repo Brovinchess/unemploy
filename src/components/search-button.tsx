@@ -48,6 +48,7 @@ export function SearchButton({
   const [jobs, setJobs] = useState(defaultJobs);
   const [coachOpen, setCoachOpen] = useState(false);
   const [stopOpen, setStopOpen] = useState(false);
+  const [emptyOpen, setEmptyOpen] = useState(false);
   const [mute, setMute] = useState(false);
   const panel = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
@@ -121,6 +122,14 @@ export function SearchButton({
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [stopOpen]);
+
+  // Escape closes the "not enough cognition" pop-up.
+  useEffect(() => {
+    if (!emptyOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setEmptyOpen(false);
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [emptyOpen]);
 
   // Escape closes the coach pop-up.
   useEffect(() => {
@@ -199,12 +208,12 @@ export function SearchButton({
         </div>
         {runningLow && (
           <p role="status" className={`max-w-sm rounded-2xl border border-rose/40 bg-rose/10 px-4 py-2.5 text-sm text-white/85 ${big ? "text-center" : "text-right"}`}>
-            {balance! <= 0 ? "Your headhunter is out of cognition, so this search will stop soon." : "Cognition is running low, so this search may stop early."} Jobs it finds stay on your list.
+            {balance! <= 0 ? "Out of cognition. This search will stop soon." : "Cognition is low. This search may stop early."}
             {topUpUrl && (
               <>
                 {" "}
                 <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="text-rose underline underline-offset-2 hover:text-white">
-                  Top up on Hello Minds
+                  Top up
                 </a>
               </>
             )}
@@ -312,24 +321,59 @@ export function SearchButton({
     </div>
   );
 
+  // Out of cognition: the button looks off, but a click explains why and how to fix it.
+  const outOfCognition = balance != null && balance <= 0;
+  if (outOfCognition && !disabled) {
+    const emptyModal =
+      emptyOpen &&
+      createPortal(
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-night/80 p-4 backdrop-blur-sm sm:items-center" onClick={() => setEmptyOpen(false)}>
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="empty-title"
+            className="relative w-full max-w-sm rounded-3xl border border-white/[0.08] bg-night-2 p-6 text-center shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)] sm:p-7"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button className="absolute right-5 top-5 text-white/40 hover:text-white" onClick={() => setEmptyOpen(false)} aria-label="Close">
+              <X className="size-4" />
+            </button>
+            <Ninja mood="sleeping" className="mx-auto size-20" />
+            <h2 id="empty-title" className="font-display mt-3 text-xl font-medium text-white">
+              Not enough cognition
+            </h2>
+            <p className="mt-2 text-sm text-white/60">Top up on Hello Minds to search again.</p>
+            <div className="mt-6 flex flex-col gap-2">
+              {topUpUrl && (
+                <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="btn btn-accent justify-center" onClick={() => setEmptyOpen(false)} autoFocus>
+                  Top up
+                </a>
+              )}
+              <button className="btn btn-ghost justify-center" onClick={() => setEmptyOpen(false)}>
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      );
+    return (
+      <div className={`flex flex-col gap-2 ${big ? "items-center" : "items-end"}`}>
+        <button className="flex h-11 cursor-not-allowed items-center gap-2 rounded-full bg-coral px-5 text-sm font-medium text-white opacity-50" aria-disabled="true" onClick={() => setEmptyOpen(true)}>
+          <Search className="size-4" aria-hidden /> Find new jobs
+        </button>
+        {emptyModal}
+      </div>
+    );
+  }
+
   if (disabled) {
-    const outOfCognition = balance != null && balance <= 0;
     return (
       <div className={`flex flex-col gap-2 ${big ? "items-center" : "items-end"}`}>
         <button className="flex h-11 items-center gap-2 rounded-full bg-coral px-5 text-sm font-medium text-white opacity-50" disabled>
           <Search className="size-4" aria-hidden /> Find new jobs
         </button>
-        {outOfCognition && topUpUrl ? (
-          <p className={`text-sm text-white/60 ${big ? "text-center" : "text-right"}`}>
-            Your headhunter has no cognition left.{" "}
-            <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="text-rose underline underline-offset-2 hover:text-white">
-              Top up on Hello Minds
-            </a>{" "}
-            and it can search again.
-          </p>
-        ) : (
-          <p className="text-xs text-white/40">{disabled}</p>
-        )}
+        <p className="text-xs text-white/40">{disabled}</p>
       </div>
     );
   }
