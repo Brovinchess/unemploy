@@ -16,6 +16,7 @@ import { DROP_LABELS, dropAdvice } from "./dropped";
 import { PACK_RULES } from "./brief";
 import { rotateKey } from "./keys";
 import { postingAgeDays } from "./preferences";
+import { gapsOf } from "./match";
 import type { DropReason } from "@/db/schema";
 
 // Headhunters search only when the user asks. A search is "active" from the request until
@@ -395,6 +396,7 @@ async function emailResults(profile: Profile, reason: EndReason) {
       title: j.title,
       company: j.company,
       matchScore: j.matchScore,
+      gaps: gapsOf(j.mustHaves),
       place: [j.workSetting === "remote" ? "Remote" : null, j.city, j.country].filter(Boolean).join(", "),
       verified: !!j.verifiedAt && !!j.locationText,
     })),

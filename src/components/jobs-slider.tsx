@@ -53,12 +53,12 @@ export function JobsSlider({
       <p className="mt-2 text-xs text-white/40">Fewer jobs, better checked.</p>
       <p className="mt-3 text-sm text-white/55">
         Uses about <span className="text-white">{cost.cognition} cognition</span>
-        {balance != null && !short ? <span className="text-white/40"> · {Math.round(balance)} available</span> : null}
+        {balance != null && !short ? <span className="text-white/40"> · {Math.max(0, Math.round(balance))} available</span> : null}
       </p>
       {short ? (
         <div className="mt-3 rounded-2xl border border-coral/25 bg-coral/[0.08] px-4 py-3 text-sm">
           <p className="text-white">
-            Not enough cognition for {value} {value === 1 ? "job" : "jobs"}. You have {Math.round(balance ?? 0)}.
+            Not enough cognition for {value} {value === 1 ? "job" : "jobs"}. You have {Math.max(0, Math.round(balance ?? 0))}.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
             {affordable >= MIN_JOBS_PER_SEARCH && (

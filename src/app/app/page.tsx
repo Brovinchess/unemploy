@@ -21,10 +21,22 @@ import { costModel } from "@/lib/cost";
 import { detailsComplete, isSupported } from "@/lib/extension";
 import { isSearching } from "@/lib/search";
 import { topUpUrlFor } from "@/lib/minds/config";
+import { minds } from "@/lib/minds/client";
 
 // Backend-only columns stay on the server: the board never receives them.
 const HIDDEN = new Set(["postingKey", "countryCode", "jobTypeKey", "levelKey", "postedOn"]);
 const forBoard = (j: Record<string, unknown>) => Object.fromEntries(Object.entries(j).filter(([k]) => !HIDDEN.has(k))) as BoardJob;
+
+// Starter cognition only goes to people new to Hello Minds (see the admin's Check Mind history):
+// anyone with another Mind on their account runs on what that account already has. Asked once,
+// on the welcome screen, so they hear it before the number in the sidebar surprises them.
+async function hadMindsBefore(user: Parameters<typeof minds>[0]) {
+  try {
+    return (await minds(user).listMinds()).length > 1;
+  } catch {
+    return false;
+  }
+}
 
 function ago(d: Date) {
   const days = Math.floor((Date.now() - d.getTime()) / 86_400_000);
@@ -156,7 +168,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
           {(searching || everDelivered) && searchButton()}
         </div>
 
-        {sp.welcome === "1" && <CognitionIntro />}
+        {sp.welcome === "1" && <CognitionIntro returning={await hadMindsBefore(user)} topUpUrl={topUpUrlFor(current.mindId)} />}
 
         {paused && (
           <div className="mb-6 flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-surface px-5 py-4">

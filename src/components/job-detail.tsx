@@ -33,7 +33,7 @@ export async function JobDetail({ job, doneHref }: { job: Job; doneHref: string 
             {/* Badge beside the company, so the title keeps the full width on phones. */}
             <div className="flex items-center justify-between gap-3">
               <p className="truncate text-muted">{job.company}</p>
-              <MatchBadge score={job.matchScore} />
+              <MatchBadge score={job.matchScore} mustHaves={job.mustHaves} />
             </div>
             <h1 className="font-display mt-0.5 text-xl font-medium leading-tight tracking-tight text-ink sm:text-2xl">{job.title}</h1>
           </div>

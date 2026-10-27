@@ -8,6 +8,7 @@ import { mindsConfig, topUpUrlFor } from "./minds/config";
 import { searchOutcome } from "./outcome";
 import { isSearching } from "./search";
 import { startSearch } from "./start-search";
+import { gapsOf } from "./match";
 
 // Daily search. A person sets how many jobs they want a day and on which days. Each local day,
 // from midnight, the first hourly tick that finds no search yet that day starts one (so it
@@ -236,7 +237,7 @@ export async function sendCardsWaiting(now = new Date()): Promise<number> {
     const recent = await db.query.notices.findFirst({ where: and(eq(schema.notices.userId, user.id), eq(schema.notices.kind, "cards_waiting"), gte(schema.notices.sentAt, new Date(now.getTime() - CARDS_EMAIL_GAP_MS))), columns: { id: true } });
     if (recent) continue;
     const jobs = await db
-      .select({ title: schema.jobs.title, company: schema.jobs.company, matchScore: schema.jobs.matchScore, city: schema.jobs.city, country: schema.jobs.country, workSetting: schema.jobs.workSetting, verifiedAt: schema.jobs.verifiedAt, locationText: schema.jobs.locationText })
+      .select({ title: schema.jobs.title, company: schema.jobs.company, matchScore: schema.jobs.matchScore, mustHaves: schema.jobs.mustHaves, city: schema.jobs.city, country: schema.jobs.country, workSetting: schema.jobs.workSetting, verifiedAt: schema.jobs.verifiedAt, locationText: schema.jobs.locationText })
       .from(schema.jobs)
       .innerJoin(schema.profiles, eq(schema.profiles.id, schema.jobs.profileId))
       .where(and(eq(schema.profiles.userId, user.id), eq(schema.jobs.status, "new"), eq(schema.jobs.demo, false), gte(schema.jobs.createdAt, since)))
@@ -246,7 +247,7 @@ export async function sendCardsWaiting(now = new Date()): Promise<number> {
       await sendCardsWaitingEmail({
         to: user.email,
         n: w.n,
-        jobs: jobs.map((j) => ({ title: j.title, company: j.company, matchScore: j.matchScore, place: [j.workSetting === "remote" ? "Remote" : null, j.city, j.country].filter(Boolean).join(", "), verified: !!j.verifiedAt && !!j.locationText })),
+        jobs: jobs.map((j) => ({ title: j.title, company: j.company, matchScore: j.matchScore, gaps: gapsOf(j.mustHaves), place: [j.workSetting === "remote" ? "Remote" : null, j.city, j.country].filter(Boolean).join(", "), verified: !!j.verifiedAt && !!j.locationText })),
         link: `${mindsConfig.appUrl}/app`,
         unsubscribe: unsubscribeLink(user.id),
       });

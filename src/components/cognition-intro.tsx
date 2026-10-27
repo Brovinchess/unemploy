@@ -8,7 +8,7 @@ const KEY = "cn-cognition-intro";
 
 // Shown once, right after setup: dims the page, lights up the cognition card in the sidebar
 // and says in two lines what cognition is. On small screens (no sidebar) it's a plain card.
-export function CognitionIntro() {
+export function CognitionIntro({ returning = false, topUpUrl }: { returning?: boolean; topUpUrl?: string }) {
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [show, setShow] = useState(false);
 
@@ -45,15 +45,32 @@ export function CognitionIntro() {
           <p id="cog-title" className="font-display text-lg font-medium text-white">
             This is cognition
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-white/65">
-            The credit your headhunter runs on, like fuel. Every search uses some, nothing is spent in between, and you can top up on Hello
-            Minds any time.
-          </p>
+          {returning ? (
+            <>
+              <p className="mt-1 text-sm leading-relaxed text-white/65">
+                The credit your headhunter runs on, like fuel. Every search uses some, and nothing is spent in between.
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-white/65">
+                You already have a Hello Minds account, so your headhunter uses the cognition on it. Free starter cognition is only for new accounts.
+                If yours runs low, this first search may stop early.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 text-sm leading-relaxed text-white/65">
+              The credit your headhunter runs on, like fuel. Every search uses some, nothing is spent in between, and you can top up on Hello
+              Minds any time.
+            </p>
+          )}
         </div>
       </div>
       <button className="btn btn-accent mt-4 w-full justify-center" onClick={dismiss}>
         Got it
       </button>
+      {returning && topUpUrl && (
+        <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="mt-3 block text-center text-sm text-white/60 underline underline-offset-2 hover:text-white">
+          Top up on Hello Minds
+        </a>
+      )}
     </div>
   );
 

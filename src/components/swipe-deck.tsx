@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
+import { gapsOf, matchLabel } from "@/lib/match";
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 
@@ -504,7 +505,7 @@ function Row({ job, children }: { job: CardJob; children: React.ReactNode }) {
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium">{job.title}</p>
         <p className="text-xs text-white/55">
-          {job.company} · {Math.round(job.match)}% match
+          {job.company} · {matchLabel(job.match, gapsOf(job.mustHaves))}
         </p>
       </div>
       {children}

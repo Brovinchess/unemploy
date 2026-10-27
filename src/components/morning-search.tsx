@@ -71,9 +71,9 @@ export function MorningSearch({
     if (balance == null || tooDear) return "";
     const mornings = Math.floor(balance / perDay);
     const weeks = mornings / perWeek;
-    if (weeks < 1) return `Your ${Math.round(balance)} covers ${mornings} ${mornings === 1 ? "day" : "days"}.`;
+    if (weeks < 1) return `Your ${Math.max(0, Math.round(balance))} covers ${mornings} ${mornings === 1 ? "day" : "days"}.`;
     const n = weeks >= 8 ? Math.round(weeks) : Math.round(weeks * 2) / 2;
-    return `Your ${Math.round(balance)} lasts about ${n} ${n === 1 ? "week" : "weeks"} at this pace.`;
+    return `Your ${Math.max(0, Math.round(balance))} lasts about ${n} ${n === 1 ? "week" : "weeks"} at this pace.`;
   })();
   const showControls = on || editing;
 
@@ -153,7 +153,7 @@ export function MorningSearch({
               <p className="text-sm text-white/55">
                 <span className="text-white">{perDay} cognition</span> a day.{runway ? ` ${runway}` : ""}
               </p>
-              {tooDear && <p className="text-sm text-rose">Not enough for one day. You have {Math.round(balance ?? 0)}. Pick fewer jobs or top up.</p>}
+              {tooDear && <p className="text-sm text-rose">Not enough for one day. You have {Math.max(0, Math.round(balance ?? 0))}. Pick fewer jobs or top up.</p>}
 
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex flex-wrap items-center gap-4">

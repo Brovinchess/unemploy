@@ -147,7 +147,8 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
         <span className="flex items-center gap-1.5 text-white/60">
           Cognition <CognitionHelp />
         </span>
-        <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.round(balance)}</span>
+        {/* Hello Minds lets a balance run below zero; to a person that is simply none left. */}
+        <span className={low ? "text-rose" : "text-white"}>{balance == null ? "–" : Math.max(0, Math.round(balance))}</span>
       </p>
       <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-white/[0.08]">
         <div className={`h-full rounded-full transition-[width] duration-700 ${low ? "bg-rose" : "bg-coral"}`} style={{ width: `${fill}%` }} />
@@ -155,8 +156,10 @@ export function LiveCognition({ perJob }: { perJob?: number }) {
       <p className="mt-2 text-xs text-white/45">
         {balance == null
           ? "Balance unavailable"
-          : low
-            ? "Not enough for another search. Top up to keep going."
+          : balance <= 0
+            ? "None left. Top up on Hello Minds to search again."
+            : low
+              ? "Not enough for another search. Top up to keep going."
             : `About ${searchesLeft} ${searchesLeft === 1 ? "search" : "searches"} of ${perSearchJobs} jobs`}
       </p>
     </>
@@ -168,8 +171,9 @@ export function LiveCognitionShort({ perJob }: { perJob?: number }) {
   const balance = live?.profile.balance ?? null;
   if (balance == null) return null;
   const n = Math.max(0, Math.floor(balance / estimateSearchCost(COUNT_IN, perJob).cognition));
+  const shown = Math.max(0, Math.round(balance));
   // One line in the phone header: "160 · 1 search" with the long form as a tooltip.
-  return <span className="whitespace-nowrap" title={`${Math.round(balance)} cognition, about ${n} ${n === 1 ? "search" : "searches"} of ${COUNT_IN} jobs`}>{`${Math.round(balance)} · ${n} ${n === 1 ? "search" : "searches"}`}</span>;
+  return <span className="whitespace-nowrap" title={`${shown} cognition, about ${n} ${n === 1 ? "search" : "searches"} of ${COUNT_IN} jobs`}>{`${shown} · ${n} ${n === 1 ? "search" : "searches"}`}</span>;
 }
 
 export function LiveBadge({ kind }: { kind: "new" | "answers" }) {

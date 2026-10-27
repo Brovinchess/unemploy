@@ -24,6 +24,7 @@ import { DROP_LABELS, dropAdvice } from "@/lib/dropped";
 import { topUpUrlFor } from "@/lib/minds/config";
 import { AUTO_SEARCH_DAYS, extraPlacesText, postingAgeDays, workSettingLabel } from "@/lib/preferences";
 import { isSearching } from "@/lib/search";
+import { gapsOf, matchHint, matchShort } from "@/lib/match";
 
 const took = (mins: number) => (mins >= 60 ? `${Math.floor(mins / 60)} h ${mins % 60} min` : `${mins} min`);
 const when = (d: Date, tz?: string | null) => d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: tz || "UTC" });
@@ -76,7 +77,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
     ? await db.query.jobs.findMany({
         where: and(eq(schema.jobs.profileId, current.id), gte(schema.jobs.createdAt, last.startedAt)),
         orderBy: desc(schema.jobs.matchScore),
-        columns: { id: true, title: true, company: true, companyDomain: true, matchScore: true, status: true, city: true, country: true, workSetting: true },
+        columns: { id: true, title: true, company: true, companyDomain: true, matchScore: true, mustHaves: true, status: true, city: true, country: true, workSetting: true },
       })
     : [];
   if (last?.endedAt) {
@@ -183,6 +184,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                   const place = [j.city, j.country].filter(Boolean).join(", ");
                   const setting = j.workSetting ? j.workSetting[0].toUpperCase() + j.workSetting.slice(1) : null;
                   const match = Math.round(j.matchScore);
+                  const gaps = gapsOf(j.mustHaves);
                   return (
                     <li key={j.id}>
                       <Link href={`/app/jobs/${j.id}`} className="group flex items-center gap-4 py-3">
@@ -194,8 +196,8 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
                             {[place, setting].filter(Boolean).length > 0 && <> · {[place, setting].filter(Boolean).join(" · ")}</>}
                           </span>
                         </span>
-                        <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums sm:inline-flex ${match >= 80 ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`}>
-                          {match}%
+                        <span className={`hidden shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums sm:inline-flex ${!gaps && match >= 80 ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`} title={matchHint(gaps)}>
+                          {matchShort(match, gaps)}
                         </span>
                         <span className="w-20 shrink-0 text-right text-xs text-white/45">{STATUS_LABEL[j.status] ?? j.status}</span>
                         <ArrowRight className="size-4 shrink-0 text-white/30 transition-transform group-hover:translate-x-0.5" aria-hidden />

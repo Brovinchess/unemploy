@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Job } from "@/db/schema";
+import { gapsOf, matchHint, matchLabel } from "@/lib/match";
 import { workSettingLabel } from "@/lib/preferences";
 import { CompanyMark } from "./logo";
 
@@ -27,9 +28,16 @@ export function linkSource(url: string) {
   }
 }
 
-export function MatchBadge({ score }: { score: number }) {
+export function MatchBadge({ score, mustHaves }: { score: number; mustHaves?: { met: boolean }[] | null }) {
+  const gaps = gapsOf(mustHaves);
+  if (gaps > 0)
+    return (
+      <span className="font-display inline-flex items-baseline rounded-full bg-white/[0.08] px-2.5 py-1 text-sm font-semibold text-white/80" title={matchHint(gaps)}>
+        {matchLabel(score, gaps)}
+      </span>
+    );
   return (
-    <span className="font-display inline-flex items-baseline gap-1 rounded-full bg-coral-soft px-2.5 py-1 text-sm font-bold text-rose">
+    <span className="font-display inline-flex items-baseline gap-1 rounded-full bg-coral-soft px-2.5 py-1 text-sm font-bold text-rose" title={matchHint(0)}>
       {Math.round(score)}%<span className="text-xs font-semibold">match</span>
     </span>
   );
@@ -65,7 +73,7 @@ export function JobCard({ job, href, selected = false }: { job: Job; href: strin
             <h3 className="font-display truncate font-medium text-ink">{job.title}</h3>
             <p className="truncate text-sm text-muted">{job.company}</p>
           </div>
-          <MatchBadge score={job.matchScore} />
+          <MatchBadge score={job.matchScore} mustHaves={job.mustHaves} />
         </div>
         <div className="mt-2.5">
           <JobTags job={job} />

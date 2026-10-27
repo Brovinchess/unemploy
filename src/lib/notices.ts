@@ -5,6 +5,7 @@ import { track } from "./analytics/server";
 import { sendComebackEmail, sendSetupReminderEmail, sendWeeklyDigestEmail, sendWeeklySummaryEmail, sendWelcomeEmail, unsubscribeLink } from "./email";
 import { mindsConfig } from "./minds/config";
 import { poolFor } from "./pool";
+import { gapsOf } from "./match";
 
 // Emails the app sends on its own, from the daily cron. Each kind goes to a person at most once
 // per window, recorded in `notices`. Only people with a verified email and updates on.
@@ -95,7 +96,7 @@ export async function sendWelcome(userId: string): Promise<boolean> {
   }
 }
 
-const jobsOf = (p: typeof schema.jobs.$inferSelect) => ({ title: p.title, company: p.company, matchScore: p.matchScore, place: [p.workSetting === "remote" ? "Remote" : null, p.city, p.country].filter(Boolean).join(", "), verified: !!p.verifiedAt && !!p.locationText });
+const jobsOf = (p: typeof schema.jobs.$inferSelect) => ({ title: p.title, company: p.company, matchScore: p.matchScore, gaps: gapsOf(p.mustHaves), place: [p.workSetting === "remote" ? "Remote" : null, p.city, p.country].filter(Boolean).join(", "), verified: !!p.verifiedAt && !!p.locationText });
 
 // Mondays, for people with daily search on: last week's numbers. People who get this are left
 // out of the postings digest that day.

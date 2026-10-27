@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ChevronDown, ExternalLink, Puzzle, RotateCcw, Search } from "lucide-react";
 import { setJobStatus } from "@/app/actions";
 import type { Job, JobStatus } from "@/db/schema";
+import { gapsOf, matchHint, matchShort } from "@/lib/match";
 import { Ninja } from "./brand";
 import { CompanyLogo } from "./company-logo";
 import { ApplyAllButton } from "./extension-ui";
@@ -292,7 +293,8 @@ function Row({ job: j, index = 0, extReady = false, apply }: { job: BoardJob; in
   const dismissed = j.status === "skipped";
   const closed = j.status === "expired";
   const match = Math.round(j.matchScore);
-  const strong = match >= 80;
+  const gaps = gapsOf(j.mustHaves);
+  const strong = !gaps && match >= 80;
   return (
     <li
       className={`rise flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3.5 ${dismissed || closed ? "opacity-60" : ""}`}
@@ -314,9 +316,9 @@ function Row({ job: j, index = 0, extReady = false, apply }: { job: BoardJob; in
       <div className="ml-auto flex items-center gap-3">
         <span
           className={`inline-flex shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold tabular-nums ${strong ? "bg-coral/15 text-rose ring-1 ring-coral/30" : "bg-white/[0.06] text-white/55"}`}
-          title="How well it matches your resume"
+          title={matchHint(gaps)}
         >
-          {match}%
+          {matchShort(match, gaps)}
         </span>
         <span
           className="hidden w-14 shrink-0 text-right text-xs text-white/35 md:block"

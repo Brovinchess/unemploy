@@ -1,4 +1,5 @@
 import "server-only";
+import { matchLabel } from "./match";
 
 // Verification emails go through Resend (https://resend.com). Needs RESEND_API_KEY and
 // EMAIL_FROM, e.g. "Career Ninja <hello@careerninja.app>" on a domain verified in Resend.
@@ -37,7 +38,9 @@ export async function sendVerificationCode(to: string, code: string, purpose: "w
   );
 }
 
-export type DigestJob = { title: string; company: string; matchScore: number; place: string; verified: boolean };
+// gaps: must-haves the resume doesn't show yet. A job with any is "a close match", not "55%".
+export type DigestJob = { title: string; company: string; matchScore: number; gaps?: number; place: string; verified: boolean };
+const scoreText = (j: DigestJob) => (j.matchScore <= 0 ? "" : j.gaps ? matchLabel(j.matchScore, j.gaps).toLowerCase() : `${Math.round(j.matchScore)}% match`);
 
 // Sent when a search the user asked for has finished.
 export async function sendSearchDoneEmail(args: {
@@ -57,7 +60,7 @@ export async function sendSearchDoneEmail(args: {
   const subject =
     n === 0
       ? "Career Ninja: no new jobs this time"
-      : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
+      : `${n} new ${n === 1 ? "job" : "jobs"} from Career Ninja${jobs[0] && !jobs[0].gaps ? `, top match ${Math.round(jobs[0].matchScore)}%` : ""}`;
   const intro = noCognition
     ? `Your ${label} headhunter ran out of cognition before it finished${n ? `, after finding ${n} ${n === 1 ? "job" : "jobs"}` : ""}. Top it up on Hello Minds and ask again.`
     : n === 0
@@ -68,7 +71,7 @@ export async function sendSearchDoneEmail(args: {
   const top = jobs.slice(0, 5);
   const text =
     `${intro}\n\n` +
-    top.map((j) => `- ${j.title} at ${j.company}${j.matchScore > 0 ? ` (${Math.round(j.matchScore)}% match)` : ""}`).join("\n") +
+    top.map((j) => `- ${j.title} at ${j.company}${scoreText(j) ? ` (${scoreText(j)})` : ""}`).join("\n") +
     (n > top.length ? `\n…and ${n - top.length} more` : "") +
     `\n\nSee your jobs: ${link}`;
   await send(to, subject, text, searchDoneHtml({ intro, jobs: top, more: n - top.length, link, empty: n === 0 , share, unsubscribe }));
@@ -111,7 +114,7 @@ export function searchDoneHtml({ intro, jobs, more, link, empty, share, unsubscr
       (j) => `<tr><td style="padding:14px 0;border-top:1px solid #2a3744">
         <p style="margin:0;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff">${esc(j.title)}</p>
         <p style="margin:4px 0 0;font-family:${FONT};font-size:13px;color:#8b98a5">${esc(j.company)}${j.place ? ` · ${esc(j.place)}` : ""}${j.verified ? ` · <span style="color:#e08a8c">✓ Verified</span>` : ""}</p>
-      </td><td align="right" style="padding:14px 0 14px 12px;border-top:1px solid #2a3744;font-family:${FONT};font-size:15px;font-weight:600;color:#e08a8c;white-space:nowrap">${j.matchScore > 0 ? `${Math.round(j.matchScore)}%` : ""}</td></tr>`,
+      </td><td align="right" style="padding:14px 0 14px 12px;border-top:1px solid #2a3744;font-family:${FONT};font-size:15px;font-weight:600;color:#e08a8c;white-space:nowrap">${j.matchScore <= 0 ? "" : j.gaps ? `<span style="font-size:13px;color:#c5ced6">${j.gaps === 1 ? "1 gap" : `${j.gaps} gaps`}</span>` : `${Math.round(j.matchScore)}%`}</td></tr>`,
     )
     .join("");
   return `<!doctype html>
@@ -233,7 +236,7 @@ export async function sendWelcomeEmail(args: { to: string; link: string; unsubsc
 export async function sendWeeklySummaryEmail(args: { to: string; searches: number; found: number; kept: number; applied: number; best: DigestJob | null; link: string; unsubscribe: string }) {
   const { searches, found, kept, applied, best } = args;
   const n = (x: number, one: string, many = one + "s") => `${x} ${x === 1 ? one : many}`;
-  const intro = `Last week your headhunter ran ${n(searches, "search", "searches")} and found ${n(found, "job")} that passed every check. You kept ${kept} and applied to ${applied}.${best ? ` Your best match was ${best.title} at ${best.company}, ${Math.round(best.matchScore)}%.` : ""}`;
+  const intro = `Last week your headhunter ran ${n(searches, "search", "searches")} and found ${n(found, "job")} that passed every check. You kept ${kept} and applied to ${applied}.${best ? ` Your best match was ${best.title} at ${best.company}${best.gaps ? "" : `, ${Math.round(best.matchScore)}%`}.` : ""}`;
   await send(
     args.to,
     `Your week: ${n(found, "job")} found, ${kept} kept`,

@@ -6,7 +6,7 @@ import { ChevronRight, Lightbulb, Search, Square, X } from "lucide-react";
 import { noteKept, requestSearch, stopSearch } from "@/app/actions";
 import { setCoachReminders } from "@/app/notify-actions";
 import Link from "next/link";
-import { estimateSearchCost } from "@/lib/preferences";
+import { DEFAULT_COGNITION_PER_JOB, estimateSearchCost } from "@/lib/preferences";
 import { LiveDot } from "./activity-feed";
 import { Ninja } from "./brand";
 import { JobsSlider } from "./jobs-slider";
@@ -132,6 +132,8 @@ export function SearchButton({
 
   if (searching) {
     const mins = startedAt ? minutesSince(startedAt, now) : 0;
+    // Say so while it happens, not after: under about two jobs' worth left, the search may end early.
+    const runningLow = balance != null && balance < (perJob ?? DEFAULT_COGNITION_PER_JOB) * 2;
     const keepSearching = () => {
       setStopOpen(false);
       noteKept("stop").catch(() => {});
@@ -195,6 +197,19 @@ export function SearchButton({
             <Square className="size-3.5" aria-hidden /> Stop
           </button>
         </div>
+        {runningLow && (
+          <p role="status" className={`max-w-sm rounded-2xl border border-rose/40 bg-rose/10 px-4 py-2.5 text-sm text-white/85 ${big ? "text-center" : "text-right"}`}>
+            {balance! <= 0 ? "Your headhunter is out of cognition, so this search will stop soon." : "Cognition is running low, so this search may stop early."} Jobs it finds stay on your list.
+            {topUpUrl && (
+              <>
+                {" "}
+                <a href={topUpUrl} target="_blank" rel="noopener noreferrer" className="text-rose underline underline-offset-2 hover:text-white">
+                  Top up on Hello Minds
+                </a>
+              </>
+            )}
+          </p>
+        )}
         {stopModal}
       </div>
     );
