@@ -48,8 +48,7 @@ export function CognitionIntro({ returning = false, topUpUrl }: { returning?: bo
           {returning ? (
             <>
               <p className="mt-1 text-sm leading-relaxed text-white/65">
-                The credit your headhunter runs on. It uses the cognition on your Hello Minds account, since starter cognition is only for new
-                accounts.
+                The credit your headhunter runs on. It uses the cognition on your Hello Minds account.
               </p>
             </>
           ) : (
