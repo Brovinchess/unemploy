@@ -12,6 +12,9 @@ import { EmailStep } from "./email-step";
 import { ResumeStep } from "./resume-step";
 import { ReviewStep } from "./review-step";
 import { GENERATED_PREFIX } from "@/lib/quick-resume";
+import { chooseAnotherResume } from "@/app/actions";
+import { ResumeNotice } from "@/components/resume-notice";
+import { profileResumeProblem } from "@/lib/resume-check";
 
 // The most recent job title on the resume, as a starting answer for "which roles?".
 const TITLE = /\b(manager|engineer|designer|developer|analyst|lead|director|specialist|consultant|scientist|architect|marketer|accountant|recruiter|head of|officer|associate|coordinator|strategist|product owner)\b/i;
@@ -83,11 +86,23 @@ export default async function Setup({ params, searchParams }: PageProps<"/profil
   }
 
   if (!profile.preferences) {
+    // A file that isn't really a resume is kept; the person is only asked, once here, for the real one.
+    const resumeProblem = profileResumeProblem(profile);
     return (
       <OnboardingShell step={3} wide>
         <StepHeading eyebrow="Got it, thanks" title="What are you looking for?">
           Two quick questions, then your headhunter is ready. Everything else starts wide, and you can tighten it any time.
         </StepHeading>
+        {resumeProblem && (
+          <ResumeNotice
+            problem={resumeProblem}
+            action={
+              <form action={chooseAnotherResume.bind(null, profile.id)}>
+                <button type="submit" className="btn btn-primary h-9 shrink-0">Use a different file</button>
+              </form>
+            }
+          />
+        )}
         <PreferencesChat
           profileId={profile.id}
           mode="setup"

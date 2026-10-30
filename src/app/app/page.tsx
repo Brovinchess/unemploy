@@ -10,6 +10,9 @@ import { SearchButton } from "@/components/search-button";
 import { CognitionIntro } from "@/components/cognition-intro";
 import { NewJobs } from "@/components/new-jobs";
 import { DailySearchNotice } from "@/components/daily-search-notice";
+import { ResumeNotice } from "@/components/resume-notice";
+import { profileResumeProblem } from "@/lib/resume-check";
+import Link from "next/link";
 import { appContext, balanceFor } from "@/lib/app-context";
 import { toCard } from "@/lib/cards";
 import { coachFor } from "@/lib/coach-ui";
@@ -71,6 +74,7 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
   );
 
   const paused = current.status === "paused";
+  const resumeProblem = profileResumeProblem(current);
   const everDelivered = !!current.lastDeliveryAt;
   const searching = isSearching(current);
   const perSearch = current.preferences?.jobsPerDay ?? 5;
@@ -164,6 +168,18 @@ export default async function Shortlist({ searchParams }: PageProps<"/app">) {
             </p>
             <PauseToggle profileId={current.id} paused />
           </div>
+        )}
+
+        {/* The resume isn't really one: ask for the real one until it's replaced. */}
+        {resumeProblem && (
+          <ResumeNotice
+            problem={resumeProblem}
+            action={
+              <Link href={`/app/headhunters/${current.id}#resume`} className="btn btn-primary h-9 shrink-0">
+                Upload your resume
+              </Link>
+            }
+          />
         )}
 
         {/* Daily search turned itself on with the first search: say so once, with the way out. */}

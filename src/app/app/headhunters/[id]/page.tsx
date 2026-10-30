@@ -12,6 +12,8 @@ import { CompanyLogo } from "@/components/company-logo";
 import { PauseToggle } from "@/components/pause-toggle";
 import { PreferencesChat } from "@/components/preferences-chat";
 import { ScrollToHash } from "@/components/scroll-to-hash";
+import { ResumeNotice } from "@/components/resume-notice";
+import { profileResumeProblem } from "@/lib/resume-check";
 import { SearchButton } from "@/components/search-button";
 import { MorningSearch } from "@/components/morning-search";
 import { MochiAtWork, SearchingLine } from "@/components/searching-status";
@@ -54,6 +56,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
   ]);
   const searching = isSearching(current);
   const paused = current.status === "paused";
+  const resumeProblem = profileResumeProblem(current);
   const coach = user.coachReminders ? await coachFor(current) : null;
   const outcome = await searchOutcome(current, { topUpUrl: topUpUrlFor(current.mindId) });
   const prefs = current.preferences;
@@ -258,6 +261,7 @@ export default async function Headhunter({ params }: PageProps<"/app/headhunters
               <p className="mt-1 mb-5 text-sm text-white/55">
                 <span className="text-white">{current.resumeFileName}</span>
               </p>
+              {resumeProblem && <ResumeNotice problem={resumeProblem} compact className="mb-5" />}
               <ResumeStep profileId={current.id} submitLabel="Replace resume" />
             </section>
 

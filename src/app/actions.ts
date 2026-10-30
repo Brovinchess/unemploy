@@ -357,6 +357,15 @@ export async function saveReviewedResume(profileId: string, _: FormState, formDa
   redirect(`/profiles/${profileId}/setup`);
 }
 
+// During setup, after a file that doesn't look like a resume: back to the resume step for another.
+export async function chooseAnotherResume(profileId: string) {
+  const user = await requireUser();
+  const profile = await ownedProfile(user, profileId);
+  if (profile.status === "hunting" || profile.status === "paused") return;
+  await db.update(schema.profiles).set({ resumeFileName: null, resumeMime: null, resumeData: null, resumeText: null, status: "needs_resume" }).where(eq(schema.profiles.id, profile.id));
+  redirect(`/profiles/${profileId}/setup`);
+}
+
 export async function discardGeneratedResume(profileId: string) {
   const user = await requireUser();
   const profile = await ownedProfile(user, profileId);
