@@ -25,6 +25,7 @@ export type Event =
   | "morning_search_started"
   | "morning_search_off"
   | "morning_search_waiting"
+  | "careers_read"
   | "morning_zero_sent"
   | "cards_waiting_sent"
   | "welcome_sent"

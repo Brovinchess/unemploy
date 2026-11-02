@@ -6,7 +6,7 @@ import { avoidList, MAX_POSTING_AGE_DAYS, postingAgeDays, REMOTE_SCOPES, workSet
 
 // Bump when the brief's wording changes in a way every existing headhunter should get: the next
 // search request then carries the full new brief (profiles.brief_version < BRIEF_VERSION).
-export const BRIEF_VERSION = 12;
+export const BRIEF_VERSION = 13;
 
 // "Crypto" or "manager" is a field, not a title: say so, and name titles to search instead.
 function rolesNote(roles: string) {

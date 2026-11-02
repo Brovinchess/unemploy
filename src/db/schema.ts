@@ -257,7 +257,8 @@ export const jobs = pgTable(
 // Every posting any headhunter opened, as facts about the posting only: no user, no fit, no
 // pack, no finder. One row per posting (keyed by lib/dedupe jobKey), kept fresh by the daily
 // watchdog and retired after 60 days. The pool a Mind will check before searching.
-export type PostingSource = "accepted" | "quota_refused" | "dropped_lead";
+// board_read: listed on an employer's job board Career Ninja read for a headhunter (lib/boards).
+export type PostingSource = "accepted" | "quota_refused" | "dropped_lead" | "board_read";
 
 export const postings = pgTable(
   "postings",

@@ -58,7 +58,7 @@ export function ladder(prefs: { targetRoles: string; country: string; city: stri
       n: 1, name: `${city}`, minutes: 20,
       lines: [
         `One job-system search: ${SYSTEMS.slice(0, 3).map((h) => `site:${h}`).join(" OR ")} "${city}" ${q(main)}.`,
-        `Your employer list: companies in ${city} that hire ${main[0] ?? "my role"}s. Keep it in memory, reuse it, add to it each search; open each one's careers page directly.`,
+        `Your employer list: companies in ${city} that hire ${main[0] ?? "my role"}s. Keep it in memory, reuse it, add to it each search; read each one's careers page through Career Ninja (CAREERS PAGES in the search request), never by opening the page or its job board yourself.`,
         `One web search: ${q(main)} ${city} careers.`,
       ],
     });

@@ -218,7 +218,7 @@ export function fillCountry(job: { country?: string; city?: string; locationText
 // One row per posting in the shared pool. Facts only, newest wins, the row never says who
 // found it. Sources only upgrade: a lead someone dropped becomes "accepted" once anyone's
 // headhunter sends it as a job. Skipped for demo and dry runs.
-const SOURCE_RANK: Record<schema.PostingSource, number> = { dropped_lead: 0, quota_refused: 1, accepted: 2 };
+const SOURCE_RANK: Record<schema.PostingSource, number> = { board_read: 0, dropped_lead: 0, quota_refused: 1, accepted: 2 };
 export async function upsertPosting(p: PostingPush, source: schema.PostingSource, opts: { verifiedOpenAt?: string | null; demo?: boolean } = {}) {
   if (opts.demo) return null;
   if (!isPublicHttpUrl(p.url) || isAggregator(p.url)) return null;
