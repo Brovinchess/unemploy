@@ -136,8 +136,8 @@ function groupCountries(raw: { key: string; n: number }[]) {
 // ---- overview -----------------------------------------------------------------------------
 
 const NOTICE_LABELS: Record<string, string> = {
-  welcome: "Welcome", setup_reminder: "Setup reminder", weekly_digest: "Monday postings", weekly_summary: "Monday summary", morning_zero: "Daily search paused",
-  morning_off: "Daily search stopped", cards_waiting: "Cards waiting", comeback: "Come back", key_rejected: "Key reissued",
+  welcome: "Welcome", setup_reminder: "Setup reminder", weekly_digest: "Monday postings", weekly_summary: "Monday summary", morning_zero: "Nothing new today",
+  morning_off: "Waiting for cognition", cards_waiting: "Cards waiting", comeback: "Come back", key_rejected: "Key reissued",
 };
 
 export type Overview = {

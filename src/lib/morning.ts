@@ -14,7 +14,9 @@ import { gapsOf } from "./match";
 // from midnight, the first hourly tick that finds no search yet that day starts one (so it
 // usually runs just after midnight and the cards are waiting in the morning; turned on in the
 // afternoon, it starts within the hour). When it falls short, one follow-up three hours after it
-// ends, wider. A day with nothing gets one email with the change most likely to help.
+// ends, wider. A day with nothing gets one email with the change most likely to help, and daily
+// search carries on. It never switches itself off: with too little cognition it runs fewer jobs, or
+// waits and starts again by itself once the person tops up.
 // Everything here runs from the hourly cron and checks what already happened today, so a late
 // or repeated tick never starts a second run.
 
@@ -25,6 +27,8 @@ const MIN_GAP_MS = 3 * 60 * 60 * 1000;
 const NOTICE_GRACE_MS = 24 * 60 * 60 * 1000;
 const CARDS_WAIT_MS = 6 * 60 * 60 * 1000;
 const CARDS_EMAIL_GAP_MS = 3 * 24 * 60 * 60 * 1000;
+// The "waiting for cognition" email goes out at most this often while the balance stays empty.
+const WAITING_EMAIL_GAP_MS = 3 * 24 * 60 * 60 * 1000;
 const HOUR = 60 * 60 * 1000;
 
 // Time zone for a person: the one their browser reported at setup, else their country's main one.
@@ -111,9 +115,10 @@ export async function runMorningSearches(now = new Date()): Promise<number> {
     // Daily search turned itself on with the first search. It does not spend again until the
     // person has seen the notice on the Jobs page, or a day has passed since that search.
     if (!a.profile.autoSearchNoticedAt && last && now.getTime() - last.startedAt.getTime() < NOTICE_GRACE_MS) continue;
-    const r = await startSearch(a.user, a.profile, a.profile.autoSearchJobs!, "", { via: "morning" }).catch((e) => ({ error: String(e) }));
+    // Too little cognition for the usual number: as many as it covers (at least two), else wait.
+    const r = await startSearch(a.user, a.profile, a.profile.autoSearchJobs!, "", { via: "morning", fitToBalance: true }).catch((e) => ({ error: String(e) }));
     if (r?.error) {
-      if (outOfCognition(r.error)) await switchOffMorning(a, "balance");
+      if (outOfCognition(r.error)) await waitForCognition(a);
       else console.error("[morning] start failed", a.profile.id, r.error);
       continue;
     }
@@ -136,10 +141,10 @@ export async function runFollowUps(now = new Date()): Promise<number> {
     const found = morning.jobsAdded ?? 0;
     if (found >= morning.jobsWanted) continue;
     if (now.getTime() - morning.endedAt.getTime() < FOLLOW_UP_AFTER_MS) continue;
-    const r = await startSearch(a.user, a.profile, morning.jobsWanted - found, "", { via: "followup", followUp: { found, wanted: morning.jobsWanted } }).catch((e) => ({ error: String(e) }));
+    const r = await startSearch(a.user, a.profile, morning.jobsWanted - found, "", { via: "followup", followUp: { found, wanted: morning.jobsWanted }, fitToBalance: true }).catch((e) => ({ error: String(e) }));
     if (r?.error) {
-      if (outOfCognition(r.error)) await switchOffMorning(a, "balance");
-      else console.error("[morning] follow-up failed", a.profile.id, r.error);
+      // Not enough left for a follow-up: tomorrow's search covers it, nothing to say today.
+      if (!outOfCognition(r.error)) console.error("[morning] follow-up failed", a.profile.id, r.error);
       continue;
     }
     track(a.user.id, "morning_search_started", { jobs: morning.jobsWanted - found, via: "followup" });
@@ -148,11 +153,11 @@ export async function runFollowUps(now = new Date()): Promise<number> {
   return n;
 }
 
-// A day whose searches are over and found nothing: daily search pauses (the settings stay, one
-// tap resumes) and one email says so with the change most likely to help. Judged after the
-// follow-up has ended, since a first search that finds nothing always gets one unless the
-// balance is out, and that case has its own email.
-export async function pauseAfterDryDay(now = new Date()): Promise<number> {
+// A day whose searches are over and found nothing: one email with the change most likely to help.
+// Daily search keeps running; new postings appear every day, so tomorrow can still find some.
+// Judged after the follow-up has ended, since a first search that finds nothing always gets one
+// unless the balance is out.
+export async function sendDryDayEmails(now = new Date()): Promise<number> {
   let n = 0;
   for (const a of await people(now)) {
     const { user, profile } = a;
@@ -161,9 +166,6 @@ export async function pauseAfterDryDay(now = new Date()): Promise<number> {
     if (!ran.length || ran.some((r) => !r.endedAt)) continue;
     if (ran.reduce((s, r) => s + (r.jobsAdded ?? 0), 0) > 0) continue;
     if (!ran.some((r) => r.via === "followup")) continue;
-    await db.update(schema.profiles).set({ autoSearchPausedAt: now }).where(eq(schema.profiles.id, profile.id));
-    track(user.id, "morning_search_off", { reason: "dry_day" });
-    n++;
     if (!user.email || !user.emailVerifiedAt || !user.emailOnSearchDone) continue;
     if (await sentToday(user.id, "morning_zero", a.day)) continue;
     const prefs = profile.preferences!;
@@ -184,6 +186,7 @@ export async function pauseAfterDryDay(now = new Date()): Promise<number> {
       });
       await db.insert(schema.notices).values({ userId: user.id, kind: "morning_zero", meta: { profileId: profile.id, day: a.day, kind: outcome?.kind ?? null } });
       track(user.id, "morning_zero_sent", { kind: outcome?.kind ?? null });
+      n++;
     } catch (e) {
       console.error("[morning] zero-day email failed", profile.id, e);
     }
@@ -196,19 +199,20 @@ async function sentToday(userId: string, kind: string, day: string) {
   return rows.some((r) => (r.meta as { day?: string } | null)?.day === day);
 }
 
-// Morning searches switch off when the balance cannot cover one. One email says so.
-export async function switchOffMorning(a: Pick<Auto, "profile" | "user">, reason: "balance") {
-  await db.update(schema.profiles).set({ autoSearchJobs: null, autoSearchOffAt: new Date() }).where(eq(schema.profiles.id, a.profile.id));
-  track(a.user.id, "morning_search_off", { reason });
+// The balance cannot cover even a small search: daily search stays on and waits. Each hourly tick
+// tries again, so it starts by itself once the person tops up. One email says so, then quiet for
+// a few days.
+async function waitForCognition(a: Pick<Auto, "profile" | "user">) {
   const { user, profile } = a;
   if (!user.email || !user.emailVerifiedAt || !user.emailOnSearchDone) return;
-  const recent = await db.query.notices.findFirst({ where: and(eq(schema.notices.userId, user.id), eq(schema.notices.kind, "morning_off"), gte(schema.notices.sentAt, new Date(Date.now() - 24 * HOUR))), columns: { id: true } });
+  const recent = await db.query.notices.findFirst({ where: and(eq(schema.notices.userId, user.id), eq(schema.notices.kind, "morning_off"), gte(schema.notices.sentAt, new Date(Date.now() - WAITING_EMAIL_GAP_MS))), columns: { id: true } });
   if (recent) return;
   try {
     await sendMorningOffEmail({ to: user.email, label: profile.label, topUp: topUpUrlFor(profile.mindId), unsubscribe: unsubscribeLink(user.id) });
-    await db.insert(schema.notices).values({ userId: user.id, kind: "morning_off", meta: { profileId: profile.id, reason } });
+    await db.insert(schema.notices).values({ userId: user.id, kind: "morning_off", meta: { profileId: profile.id, reason: "balance" } });
+    track(user.id, "morning_search_waiting", { reason: "balance" });
   } catch (e) {
-    console.error("[morning] off email failed", profile.id, e);
+    console.error("[morning] waiting email failed", profile.id, e);
   }
 }
 

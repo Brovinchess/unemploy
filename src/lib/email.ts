@@ -187,21 +187,21 @@ export async function sendWeeklyDigestEmail(args: { to: string; role: string; pl
 // The day's searches ran and found nothing, so daily search paused: one email with the one
 // change most likely to help, and where to turn it back on.
 export async function sendMorningZeroEmail(args: { to: string; label: string; role: string; place: string; headline: string; body: string; cta: string; link: string; unsubscribe: string }) {
-  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} twice today and nothing passed every check, so daily search is paused rather than spend more on the same results. ${args.headline} ${args.body} Make the change, then turn daily search back on from your headhunter's page.`;
+  const intro = `Your ${args.label} headhunter searched for ${args.role} in ${args.place} today and nothing passed every check. It will look again tomorrow, since new jobs are posted every day. ${args.headline} ${args.body} One change in your settings gives it more to work with.`;
   await send(
     args.to,
-    "Daily search paused, and the one change that helps",
+    "Nothing new today, and the one change that helps",
     `${intro}\n\n${args.cta}: ${args.link}\n\nTurn these emails off: ${args.unsubscribe}`,
-    searchDoneHtml({ title: "Daily search paused", intro, jobs: [], more: 0, link: args.link, empty: true, cta: args.cta, unsubscribe: args.unsubscribe }),
+    searchDoneHtml({ title: "Nothing new today", intro, jobs: [], more: 0, link: args.link, empty: true, cta: args.cta, unsubscribe: args.unsubscribe }),
   );
 }
 
-// The balance could not cover a morning search, so morning searches switched themselves off.
+// The balance could not cover even a small daily search, so daily search is waiting for cognition.
 export async function sendMorningOffEmail(args: { to: string; label: string; topUp: string; unsubscribe: string }) {
-  const intro = `Your ${args.label} headhunter's cognition ran out, so today's search could not start and your daily search is now off. Top up on Hello Minds, then turn it back on from your headhunter's page. Your settings and your jobs are as you left them.`;
+  const intro = `Your ${args.label} headhunter's cognition ran out, so today's search could not start. Daily search is still on: top up on Hello Minds and it starts again by itself within the hour. Your settings and your jobs are as you left them.`;
   await send(
     args.to,
-    "Your daily search has stopped",
+    "Your daily search is waiting for cognition",
     `${intro}\n\nTop up: ${args.topUp}\n\nTurn these emails off: ${args.unsubscribe}`,
     searchDoneHtml({ title: "Daily search", intro, jobs: [], more: 0, link: args.topUp, empty: true, cta: "Top up on Hello Minds", unsubscribe: args.unsubscribe }),
   );

@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import { and, isNotNull, isNull } from "drizzle-orm";
 import { db, schema } from "@/db";
-import { pauseAfterDryDay, runFollowUps, runMorningSearches, sendCardsWaiting } from "@/lib/morning";
+import { runFollowUps, runMorningSearches, sendCardsWaiting, sendDryDayEmails } from "@/lib/morning";
 import { endSearch, isSearching, nudgeIfQuiet, reconcileFromChat } from "@/lib/search";
 
-// Runs every hour (vercel.json). Morning searches start for whoever's clock says 9, follow-ups
-// three hours after a short morning, the day's "nothing today" email, and the "cards waiting"
+// Runs every hour (vercel.json). Daily searches start for whoever's new day has begun, follow-ups
+// three hours after a short first search, the day's "nothing today" email, and the "cards waiting"
 // email. Open searches get the same upkeep the daily watchdog gives them, an hour sooner.
 export const maxDuration = 300;
 
@@ -31,9 +31,9 @@ export async function GET(request: Request) {
 
   const morning = await runMorningSearches(now).catch((e) => (console.error("[hourly] morning", e), 0));
   const followUps = await runFollowUps(now).catch((e) => (console.error("[hourly] follow-ups", e), 0));
-  const paused = await pauseAfterDryDay(now).catch((e) => (console.error("[hourly] dry day", e), 0));
+  const dryDays = await sendDryDayEmails(now).catch((e) => (console.error("[hourly] dry day", e), 0));
   const cards = await sendCardsWaiting(now).catch((e) => (console.error("[hourly] cards", e), 0));
 
-  console.log(`[hourly] daily ${morning}, follow-ups ${followUps}, paused after a dry day ${paused}, cards emails ${cards}, stale searches ${stale}`);
-  return NextResponse.json({ daily: morning, followUps, paused, cards, staleSearches: stale });
+  console.log(`[hourly] daily ${morning}, follow-ups ${followUps}, dry-day emails ${dryDays}, cards emails ${cards}, stale searches ${stale}`);
+  return NextResponse.json({ daily: morning, followUps, dryDays, cards, staleSearches: stale });
 }
