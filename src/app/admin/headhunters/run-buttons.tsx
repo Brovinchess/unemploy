@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { createHeadhunterFor, mindHistory, probeCredits, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { createHeadhunterFor, mindHistory, probeCredits, probeSearchWindow, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
@@ -243,6 +243,20 @@ export function CreditsProbe({ profileId }: { profileId: string }) {
     <div className="mt-3">
       <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => start(async () => setOut(JSON.stringify(await probeCredits(profileId), null, 1)))}>
         {pending ? "Reading…" : "Read raw credits"}
+      </button>
+      {out && <pre data-probe className="admin-text-3 mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white/[0.04] p-3 text-xs">{out}</pre>}
+    </div>
+  );
+}
+
+// Read-only: Hello Minds' raw minute ledger and conversation rows around one search.
+export function SearchWindowProbe({ searchId }: { searchId: string }) {
+  const [pending, start] = useTransition();
+  const [out, setOut] = useState<string>();
+  return (
+    <div className="mt-3">
+      <button type="button" className="btn btn-ghost btn-sm" disabled={pending} onClick={() => start(async () => setOut(JSON.stringify(await probeSearchWindow(searchId), null, 1)))}>
+        {pending ? "Reading…" : "Read minute ledger and raw conversation"}
       </button>
       {out && <pre data-probe className="admin-text-3 mt-2 max-h-96 overflow-auto whitespace-pre-wrap rounded-xl bg-white/[0.04] p-3 text-xs">{out}</pre>}
     </div>

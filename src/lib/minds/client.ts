@@ -29,6 +29,9 @@ export interface MindsApi {
   listMinds(): Promise<{ mindId: string; name: string | null; createdAt: Date | null; isEnabled: boolean }[]>;
   // Admin diagnostic: the raw credits replies from every place Hello Minds might report a balance.
   creditsProbe(mindId: string): Promise<Record<string, { status?: number; body?: string; error?: string }>>;
+  // Admin diagnostic: Hello Minds' raw replies for one window, as they come (minute ledger, hourly
+  // ledger by tool, conversation rows with every field), to see what a search spent and when.
+  windowProbe(mindId: string, alias: string | null, from: Date, to: Date): Promise<Record<string, { status?: number; body?: string; error?: string }>>;
 }
 
 export class MindsApiError extends Error {
@@ -163,6 +166,24 @@ function liveMinds(user: User): MindsApi {
         get(`${CORE}/v1/minds/${mindId}/runway`),
       ]);
       return { builderMind, builderRunway, builderUser, coreMind, coreHuman, coreRunway };
+    },
+    async windowProbe(mindId, alias, from, to) {
+      const token = await accessTokenFor(user);
+      const get = async (url: string, max = 60_000) => {
+        try {
+          const res = await fetch(url, { headers: { Accept: "application/json", Authorization: `Bearer ${token}` }, cache: "no-store" });
+          return { status: res.status, body: (await res.text()).slice(0, max) };
+        } catch (e) {
+          return { error: String((e as Error)?.message ?? e).slice(0, 200) };
+        }
+      };
+      const span = new URLSearchParams({ startTime: from.toISOString(), endTime: to.toISOString() });
+      const [usageByMinute, usageByToolHour, conversation] = await Promise.all([
+        get(`${BUILDER_API}/v1/minds/${mindId}/cognition/usage?interval=1m&${span}`),
+        get(`${BUILDER_API}/v1/minds/${mindId}/cognition/usage-by-tool?interval=hour&${span}`),
+        alias ? get(`${BUILDER_API}/v1/messaging/histories/${encodeURIComponent(alias)}?limit=60`, 200_000) : Promise.resolve({ error: "no conversation" }),
+      ]);
+      return { usageByMinute, usageByToolHour, conversation };
     },
     async toolUsage(mindId, since) {
       const q = new URLSearchParams({ interval: "hour", startTime: since.toISOString(), endTime: new Date().toISOString() });

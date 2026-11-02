@@ -69,6 +69,9 @@ export const mockMinds: MindsApi = {
   async creditsProbe() {
     return {};
   },
+  async windowProbe() {
+    return {};
+  },
   async listMinds() {
     // MOCK_HM_MINDS=4 pretends the person already had Minds on Hello Minds, to try that setup path.
     return Array.from({ length: Number(process.env.MOCK_HM_MINDS ?? 0) }, (_, i) => ({ mindId: `mock-${i}`, name: `mock-${i}`, createdAt: null, isEnabled: true }));

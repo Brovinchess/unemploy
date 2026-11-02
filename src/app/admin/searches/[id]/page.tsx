@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { SearchWindowProbe } from "../../headhunters/run-buttons";
 import { stageLabel, when } from "@/lib/admin";
 import { searchDetail } from "@/lib/admin-data";
 import { summarizePreferences } from "@/lib/preferences";
@@ -90,6 +91,7 @@ export default async function SearchDetail({ params }: { params: Promise<{ id: s
           empty="Nothing recorded yet."
           emptyMood="sleeping"
         />
+        <SearchWindowProbe searchId={search.id} />
       </div>
 
       <SectionTitle title="What was said" hint="The conversation with the Mind since this search started, read from Hello Minds. Our request is folded; the Mind's replies are in full." />

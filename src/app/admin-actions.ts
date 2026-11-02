@@ -181,6 +181,25 @@ export async function probeCredits(profileId: string) {
   }
 }
 
+// Read-only: what Hello Minds recorded around one search, raw, from a few minutes before it
+// started to an hour after it ended (late charges land after the end).
+export async function probeSearchWindow(searchId: string) {
+  await requireAdmin();
+  const s = await db.query.searches.findFirst({ where: eq(schema.searches.id, searchId) });
+  if (!s) return { error: "no search" };
+  const p = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, s.profileId) });
+  if (!p?.mindId) return { error: "no headhunter" };
+  const u = await db.query.users.findFirst({ where: eq(schema.users.id, p.userId) });
+  if (!u?.refreshToken) return { error: "signed out, no token" };
+  const from = new Date(s.startedAt.getTime() - 10 * 60_000);
+  const to = new Date((s.endedAt ?? new Date()).getTime() + 60 * 60_000);
+  try {
+    return { from: from.toISOString(), to: to.toISOString(), ...(await minds(u).windowProbe(p.mindId, p.conversationAlias, from, to)) };
+  } catch (e) {
+    return { error: String((e as Error)?.message ?? e).slice(0, 200) };
+  }
+}
+
 export type MindHistoryRow = {
   username: string; userId: string; joined: string; balance: number | null; ours: string; total: number; older: number; oldest: string | null; error?: string;
 };
