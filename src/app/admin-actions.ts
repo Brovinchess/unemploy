@@ -13,6 +13,7 @@ import { minds } from "@/lib/minds/client";
 import { trustsStaged } from "@/lib/minds/balance";
 import { mindsConfig } from "@/lib/minds/config";
 import { forget } from "@/lib/admin-data";
+import { poolFor } from "@/lib/pool";
 
 export type RunResult = { username: string; label: string; ok: boolean; note: string };
 
@@ -94,6 +95,48 @@ export async function rerunShortSearches(zeroOnly = true): Promise<RunResult[]> 
   return out;
 }
 
+// ---- Check-first list only ------------------------------------------------------------------
+// People with a confirmed email whose check-first list (the postings other headhunters saw open,
+// filtered to their roles and places and minus everything they were shown) has something on it.
+// Their own headhunter judges each posting against the resume before any card reaches them.
+
+export type PoolCandidate = { id: string; username: string; label: string; balance: number | null; matches: number; sample: string[]; note: string };
+
+export async function poolCheckCandidates(): Promise<PoolCandidate[]> {
+  const admin = await requireAdmin();
+  const rows = await db
+    .select({ profile: schema.profiles, user: schema.users })
+    .from(schema.profiles)
+    .innerJoin(schema.users, eq(schema.users.id, schema.profiles.userId))
+    .where(and(eq(schema.profiles.status, "hunting"), isNotNull(schema.profiles.preferences), isNotNull(schema.profiles.mindId), isNotNull(schema.users.emailVerifiedAt), sql`${schema.profiles.userId} <> ${admin.id}`));
+  // All at once: each list link-checks up to 30 postings, which takes a while one by one.
+  const out: PoolCandidate[] = await Promise.all(
+    rows.map(async ({ profile, user }) => {
+      const list = await poolFor(profile).catch(() => []);
+      const balance = list.length ? await freshBalance(user, profile) : profile.balanceCache;
+      const note = isSearching(profile) ? "searching now" : !list.length ? "nothing new on the list" : (balance ?? 0) <= 0 ? "no cognition" : "";
+      return { id: profile.id, username: user.username ?? "(no name yet)", label: profile.label, balance: balance == null ? null : Math.round(balance), matches: list.length, sample: list.slice(0, 3).map((r) => `${r.title} · ${r.company}`), note };
+    }),
+  );
+  return out.sort((a, b) => Number(!!a.note) - Number(!!b.note) || b.matches - a.matches);
+}
+
+// Starts a check of the list for each chosen headhunter, asking for up to as many jobs as the
+// list holds (at most their usual number). The person pays from their Mind, as for any search.
+export async function runPoolChecks(profileIds: string[]): Promise<RunResult[]> {
+  await requireAdmin();
+  const out: RunResult[] = [];
+  for (const c of (await poolCheckCandidates()).filter((c) => profileIds.includes(c.id) && !c.note)) {
+    const profile = await db.query.profiles.findFirst({ where: eq(schema.profiles.id, c.id) });
+    const user = profile && (await db.query.users.findFirst({ where: eq(schema.users.id, profile.userId) }));
+    if (!profile || !user) continue;
+    const jobs = Math.min(c.matches, profile.preferences?.jobsPerDay ?? 5);
+    const r = await startSearch(user, profile, jobs, "", { fitToBalance: true, via: "pool" }).catch((e) => ({ error: String(e?.message ?? e) }));
+    out.push({ username: c.username, label: c.label, ok: !r?.error, note: r?.error ?? `Checking ${c.matches} postings for up to ${jobs} jobs.` });
+    await new Promise((res) => setTimeout(res, 1500));
+  }
+  return out;
+}
 
 // ---- Sign-in tokens: what they carry --------------------------------------------------------
 // People who signed in before the email scope was asked for have tokens granted without it. If

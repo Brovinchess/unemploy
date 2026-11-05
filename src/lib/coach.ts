@@ -3,6 +3,7 @@ import { and, desc, eq, gte, lte } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DropReason, Profile } from "@/db/schema";
 import { postingAgeDays } from "./preferences";
+import { notPoolCheck } from "./outcome";
 
 // The search coach: how fast the last search was (minutes per delivered job) and, when it
 // was slow, what to change. Plain rules over data the app already has: the drop reasons the
@@ -24,7 +25,7 @@ export type Pace = {
 };
 
 export async function searchPace(profileId: string): Promise<Pace | null> {
-  const s = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profileId)), orderBy: desc(schema.searches.startedAt) });
+  const s = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profileId), notPoolCheck), orderBy: desc(schema.searches.startedAt) });
   if (!s || !s.endedAt) return null;
   const jobs = await db
     .select({ at: schema.jobs.createdAt })

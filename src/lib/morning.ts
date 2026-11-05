@@ -80,7 +80,8 @@ async function todays(a: Auto, now: Date) {
     where: and(eq(schema.searches.profileId, a.profile.id), gte(schema.searches.startedAt, new Date(now.getTime() - 36 * HOUR))),
     orderBy: desc(schema.searches.startedAt),
   });
-  return rows.filter((r) => localDay(a.tz, r.startedAt) === a.day).reverse();
+  // A check of the check-first list (via "pool") is not the day's search.
+  return rows.filter((r) => r.via !== "pool" && localDay(a.tz, r.startedAt) === a.day).reverse();
 }
 
 const outOfCognition = (error?: string) => !!error && /cognition/i.test(error);

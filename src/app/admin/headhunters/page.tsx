@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ratio, sortParams, when } from "@/lib/admin";
 import { headhunters } from "@/lib/admin-data";
 import { Badge, Clamp, ClearLink, FilterForm, Page, PageHead, Select, SortLink, Table, TextInput, UserLink, hhTone } from "../ui";
-import { RefreshBalances, RerunShort, RunOne } from "./run-buttons";
+import { PoolChecks, RefreshBalances, RerunShort, RunOne } from "./run-buttons";
 
 const BASE = "/admin/headhunters";
 const STATUSES = ["draft", "needs_resume", "needs_preferences", "needs_topup", "hunting", "paused"];
@@ -23,6 +23,7 @@ export default async function Headhunters({ searchParams }: { searchParams: Prom
           <>
             <RefreshBalances />
             <RerunShort />
+            <PoolChecks />
             <FilterForm q={q}>
               <TextInput name="user" value={q.user} placeholder="User" size={14} />
               <Select name="status" value={q.status} blank="Any status" options={STATUSES.map((s) => [s, s.replace(/_/g, " ")])} />

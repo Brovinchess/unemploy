@@ -348,11 +348,11 @@ export type Question = typeof questions.$inferSelect;
 
 // Every push the Mind makes, accepted or not — the first place to look when a headhunter goes quiet.
 // One row per search the user asked for, for the headhunter's history.
-export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean; continued?: boolean; followUp?: boolean };
-// Where a search was started from: the person's button, setup, the admin, a re-run, or the morning
-// cron (and its same-day follow-up).
+export type SearchOverrides = { maxPostingAgeDays?: number; remoteScope?: "region" | "anywhere"; budget?: { searches: number; opened: number }; first?: boolean; continued?: boolean; followUp?: boolean; poolOnly?: boolean };
+// Where a search was started from: the person's button, setup, the admin, a re-run, the morning
+// cron (and its same-day follow-up), or a check of the check-first list only (no web search).
 export type AutoSearchDays = "daily" | "weekdays" | "alternate" | "weekly";
-export type SearchVia = "find" | "setup" | "admin" | "rerun" | "morning" | "followup";
+export type SearchVia = "find" | "setup" | "admin" | "rerun" | "morning" | "followup" | "pool";
 
 export const searches = pgTable(
   "searches",

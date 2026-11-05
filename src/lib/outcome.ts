@@ -1,5 +1,5 @@
 import "server-only";
-import { and, desc, eq, gte, isNotNull, isNull, or } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, ne, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { DropReason, Profile } from "@/db/schema";
 import { checkRoles } from "./job-titles";
@@ -56,10 +56,14 @@ const cityIsCountry = (p: Preferences) => !p.city || p.city.trim().toLowerCase()
 
 const or_ = (...xs: (string | false | null | undefined)[]) => xs.filter(Boolean).join("");
 
+// Searches that count as the person's searches: a check of the check-first list only (via "pool")
+// is extra, so it never decides the outcome card, the "last time" line or the pace.
+export const notPoolCheck = or(isNull(schema.searches.via), ne(schema.searches.via, "pool"));
+
 export async function searchOutcome(profile: Profile, opts: { topUpUrl: string }): Promise<Outcome | null> {
   if (isSearching(profile) || !profile.preferences) return null;
   const prefs = profile.preferences;
-  const search = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNotNull(schema.searches.endedAt)), orderBy: desc(schema.searches.startedAt) });
+  const search = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), isNotNull(schema.searches.endedAt), notPoolCheck), orderBy: desc(schema.searches.startedAt) });
   if (!search) return null;
   const found = search.jobsAdded ?? 0;
   const wanted = search.jobsWanted;

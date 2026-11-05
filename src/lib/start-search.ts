@@ -19,6 +19,8 @@ export type SearchStart = { error?: string } | undefined;
 
 export const FIRST_SEARCH_EXTRA_COGNITION = 10;
 const FIRST_BUDGET = { searches: 20, opened: 50 };
+// A check of the check-first list: no web search, and at most the 30 postings the list holds.
+const POOL_CHECK_BUDGET = { searches: 0, opened: 30 };
 
 // Until a headhunter has delivered at least one job, every search runs wide.
 export async function firstSearchOverrides(profileId: string, prefs: Preferences): Promise<SearchOverrides | null> {
@@ -113,8 +115,12 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const extra = profile.preferences?.extraPlaces?.length ?? 0;
     // A headhunter that has never found a job casts a wider net the first time: older postings,
     // remote from the region, a bigger budget. The person's own settings return after a success.
-    const first = profile.preferences ? await firstSearchOverrides(profile.id, profile.preferences) : null;
-    const overrides: SearchOverrides | null = first ?? (followUp && profile.preferences ? followUpOverrides(profile.preferences, followUp.found, followUp.wanted) : null);
+    // A check of the check-first list only opens what is on it: no first-search net, no web search.
+    const poolOnly = via === "pool";
+    const first = profile.preferences && !poolOnly ? await firstSearchOverrides(profile.id, profile.preferences) : null;
+    const overrides: SearchOverrides | null = poolOnly
+      ? { poolOnly: true, budget: POOL_CHECK_BUDGET }
+      : (first ?? (followUp && profile.preferences ? followUpOverrides(profile.preferences, followUp.found, followUp.wanted) : null));
     let need = estimateSearchCost(wanted, perJob, extra).cognition + (first ? FIRST_SEARCH_EXTRA_COGNITION : 0);
     if (need > balance && fitToBalance) {
       const fits = Math.floor((balance - estimateSearchCost(0, perJob, extra).cognition) / Math.max(1, perJob));
@@ -200,10 +206,11 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
         focus: note || undefined,
         skip: await skipLinks(user.id, profile.id),
         blocked: await blockedHosts(profile.id),
-        employers: profile.preferences ? await localEmployers(profile.preferences).catch(() => []) : [],
+        employers: profile.preferences && !poolOnly ? await localEmployers(profile.preferences).catch(() => []) : [],
         lastTime: await lastSearchLine(profile.id),
         maxAgeDays: overrides?.maxPostingAgeDays ?? (profile.preferences ? postingAgeDays(profile.preferences) : undefined),
         budget,
+        poolOnly,
         firstSearch: first ? firstSearchLine(profile.preferences!, first) : followUp && overrides ? followUpLine(profile.preferences!, overrides, followUp.found, followUp.wanted) : "",
         resumeChanged: newResume,
         facts: newBrief ? "" : factsText(user), // a new brief below already carries it

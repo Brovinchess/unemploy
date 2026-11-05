@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { Play } from "lucide-react";
-import { createHeadhunterFor, mindHistory, probeCredits, probeSearchWindow, refreshBalances, rerunShortSearches, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
+import { createHeadhunterFor, mindHistory, poolCheckCandidates, type PoolCandidate, probeCredits, probeSearchWindow, refreshBalances, rerunShortSearches, runPoolChecks, type MindHistoryRow, runSearchFor, setRolesFor, shortCandidates, type RunResult } from "@/app/admin-actions";
 import { RefreshCw } from "lucide-react";
 
 // One headhunter: start a search with its own settings. The person pays from their cognition.
@@ -100,6 +100,76 @@ export function RerunShort() {
               <div className="mt-3 flex gap-2">
                 <button type="button" className="btn btn-accent btn-sm" onClick={run} disabled={pending || !list?.length}>
                   {pending ? "Starting…" : `Start ${list?.length ?? 0} searches`}
+                </button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} disabled={pending}>
+                  Cancel
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// People with a confirmed email whose check-first list has postings they have never seen: show
+// who and what, confirm, then each one's own headhunter checks that list only (no web search).
+export function PoolChecks() {
+  const [open, setOpen] = useState(false);
+  const [list, setList] = useState<PoolCandidate[]>();
+  const [results, setResults] = useState<RunResult[]>();
+  const [pending, start] = useTransition();
+  const router = useRouter();
+  const ready = list?.filter((c) => !c.note) ?? [];
+  const load = () =>
+    start(async () => {
+      setOpen(true);
+      setList(await poolCheckCandidates());
+    });
+  const run = () =>
+    start(async () => {
+      setResults(await runPoolChecks(ready.map((c) => c.id)));
+      router.refresh();
+    });
+  return (
+    <div className="relative">
+      <button type="button" className="btn btn-ghost btn-sm" onClick={load} disabled={pending}>
+        <Play className="size-3.5" aria-hidden /> Check the lists
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-2 w-[30rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-[#141b22] p-4 text-sm shadow-[0_30px_80px_-20px_rgba(0,0,0,0.8)]">
+          {results ? (
+            <>
+              <p className="font-medium text-white">Done. {results.filter((r) => r.ok).length} of {results.length} started.</p>
+              <ul className="mt-2 max-h-64 space-y-1 overflow-auto">
+                {results.map((r) => (
+                  <li key={r.username + r.label} className={r.ok ? "text-white/70" : "text-rose-300"}>
+                    {r.username} · {r.label}: {r.note}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" className="btn btn-ghost btn-sm mt-3" onClick={() => (setOpen(false), setResults(undefined))}>
+                Close
+              </button>
+            </>
+          ) : !list ? (
+            <p className="text-white/70">Reading everyone&apos;s check-first list and checking the links…</p>
+          ) : (
+            <>
+              <p className="font-medium text-white">{ready.length} of {list.length} people with a confirmed email have new postings on their check-first list.</p>
+              <p className="admin-text-3 mt-1 text-xs">Each one&apos;s own headhunter checks only that list against the resume (no web search) and sends the postings that pass as cards. The person pays from their Mind. An email goes out only when something is found; it never counts as their daily search.</p>
+              <ul className="mt-2 max-h-72 space-y-1.5 overflow-auto text-white/70">
+                {list.map((c) => (
+                  <li key={c.id} className={c.note ? "opacity-50" : ""}>
+                    <span className="text-white">{c.username}</span> · {c.label} · {c.matches} on the list · {c.balance ?? "?"} cognition{c.note ? ` · ${c.note}` : ""}
+                    {!c.note && c.sample.length > 0 && <span className="admin-text-3 block text-xs">{c.sample.join("; ")}</span>}
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-3 flex gap-2">
+                <button type="button" className="btn btn-accent btn-sm" onClick={run} disabled={pending || !ready.length}>
+                  {pending ? "Starting…" : `Start ${ready.length} checks`}
                 </button>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setOpen(false)} disabled={pending}>
                   Cancel

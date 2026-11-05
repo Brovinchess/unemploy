@@ -10,7 +10,7 @@ import { minds } from "./minds/client";
 import { SAME_ROLE_DAYS } from "./dedupe";
 import { track } from "./analytics/server";
 import { mindsConfig, topUpUrlFor } from "./minds/config";
-import { searchOutcome } from "./outcome";
+import { notPoolCheck, searchOutcome } from "./outcome";
 import { FACTS_RULE, factsText } from "./facts";
 import { DROP_LABELS, dropAdvice } from "./dropped";
 import { PACK_RULES } from "./brief";
@@ -83,7 +83,7 @@ export async function blockedHosts(profileId: string) {
 // One line about the previous search, from the summary the app wrote when it ended.
 export async function lastSearchLine(profileId: string) {
   const row = await db.query.searches.findFirst({
-    where: and(eq(schema.searches.profileId, profileId), isNotNull(schema.searches.endedAt)),
+    where: and(eq(schema.searches.profileId, profileId), isNotNull(schema.searches.endedAt), notPoolCheck),
     orderBy: desc(schema.searches.startedAt),
     columns: { summary: true },
   });
@@ -105,8 +105,9 @@ export function searchRequestText(args: {
   resumeText?: string; // the resume as text, sent with every request so no file is ever read
   budget?: { searches: number; opened: number }; // this search's cap, when it differs from the brief
   firstSearch?: string; // one line on the wider net a first search (or a same-day follow-up) casts
+  poolOnly?: boolean; // check the check-first list only: no ladder, no web search
 }) {
-  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "", budget, firstSearch = "" } = args;
+  const { username, jobs, n, focus, skip = [], blocked = [], employers = [], lastTime = "", maxAgeDays, resumeChanged = false, facts = "", resumeText = "", budget, firstSearch = "", poolOnly = false } = args;
   const base = mindsConfig.ingestUrl;
   const resume = resumeText
     ? `${resumeChanged ? "My resume changed; the new text is at the end of this message and replaces the old one." : "My resume's full text is at the end of this message."} Quote from it; do not open any file for it.`
@@ -115,13 +116,17 @@ export function searchRequestText(args: {
       : "My resume is attached in case you need it. Use the copy already in your memory; only if you no longer have its text, read the attached file once and keep it. Never stop to ask me for it.";
   return [
     `SEARCH REQUEST #${n} from ${username}. ${resume}`,
-    `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
-    `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
+    poolOnly
+      ? `This time, check one list only. Find up to ${jobs} jobs among the postings on the check-first list below, and nothing else: no web search, no ladder, no other careers pages. The list holds postings seen open recently whose title and place may suit me; most will not. Judge each one exactly as your brief says (still open, open to me where I am, my level, every must-have against my resume) and send only those that truly pass. None passing is a fine result.`
+      : `Find up to ${jobs} jobs now. Follow THE LADDER in your brief, rung by rung, and widen only when a rung is dry. Every check in the brief applies.`,
+    poolOnly
+      ? `The list: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). Confirm each posting is still open before sending; none is pre-approved.`
+      : `Rung 0, check first: GET ${base}/api/leads with header "x-unemploy-key" (your key from the brief). It lists postings seen open recently that may fit me. Confirm each is still open and passes every check before sending; none is pre-approved.`,
     `CAREERS PAGES: to see an employer's open jobs, GET ${base}/api/careers?url=<the careers page or job board link, URL-encoded> with header "x-unemploy-key". Career Ninja reads the whole board for you and lists the jobs that may fit me first, then every other title, with links. To check one job on Ashby, Greenhouse, Lever, Workable, SmartRecruiters or Workday, pass that job's link the same way: you get the full posting as text and whether it is still open (opened directly, these pages often come back empty or blocked). Never fetch a careers page, job board or job-system API yourself: a whole board comes back as a file that costs me cognition every time you read it. Open a page yourself only when Career Ninja says it can't read it, or when the job is on another site.`,
     `POST each job to ${base}/api/ingest as soon as it passes (use this address even if your brief says another). Format: GET ${base}/api/ingest?brief=1 once if you are unsure of the fields. Dry-run at most once, then POST directly. Cards only: no cover letter, answers or form questions during the search. I ask for packs separately, for the jobs I keep.`,
     `Progress notes: one line, only when something changes. Dropped leads go in "dropped" on your next POST, one short line each, with "posting" on every poor_fit, not_eligible, work_setting or duplicate drop whose page you saw (step 5 of your brief). Keep to the BUDGET in your brief: at most ${budget?.searches ?? 12} web searches and ${budget?.opened ?? 40} opened postings${budget ? " (these numbers replace the ones in your brief, for this search only)" : ""}.`,
     firstSearch,
-    employers.length ? `Employers near me that post my kind of role: ${employers.join(", ")}. In rung 1, read each one's careers page through CAREERS PAGES before searching the web; a careers page lists every open role at once.` : "",
+    employers.length && !poolOnly ? `Employers near me that post my kind of role: ${employers.join(", ")}. In rung 1, read each one's careers page through CAREERS PAGES before searching the web; a careers page lists every open role at once.` : "",
     maxAgeDays ? `Posting age for this search: up to ${maxAgeDays} days old (this replaces the number in your brief).` : "",
     focus ? `For this search only, focus on: ${focus}. Every check in the brief still applies.` : "",
     lastTime,
@@ -380,10 +385,12 @@ async function emailResults(profile: Profile, reason: EndReason) {
   });
   const search = await db.query.searches.findFirst({ where: eq(schema.searches.profileId, profile.id), orderBy: desc(schema.searches.startedAt) });
   // A morning search that found nothing sends no email of its own: the follow-up may still
-  // deliver, and the day's one email (see lib/morning) says what to change if it does not.
-  if ((search?.via === "morning" || search?.via === "followup") && jobs.length === 0) return;
-  const outcome = search && (search.jobsAdded ?? 0) < search.jobsWanted ? await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null) : null;
-  const short = outcome ? `${outcome.headline} ${outcome.body}` : search && (search.jobsAdded ?? 0) < search.jobsWanted ? await shortLine(profile, search) : undefined;
+  // deliver, and the day's one email (see lib/morning) says what to change if it does not. A
+  // check of the check-first list is quiet unless it found something, and never "came back short".
+  if ((search?.via === "morning" || search?.via === "followup" || search?.via === "pool") && jobs.length === 0) return;
+  const short_ = search && search.via !== "pool" && (search.jobsAdded ?? 0) < search.jobsWanted;
+  const outcome = short_ ? await searchOutcome(profile, { topUpUrl: topUpUrlFor(profile.mindId) }).catch(() => null) : null;
+  const short = outcome ? `${outcome.headline} ${outcome.body}` : short_ ? await shortLine(profile, search) : undefined;
   await sendSearchDoneEmail({
     to: user.email,
     mindName: profile.mindName ?? "Your headhunter",
