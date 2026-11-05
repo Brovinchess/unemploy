@@ -20,7 +20,10 @@ export type SearchStart = { error?: string } | undefined;
 export const FIRST_SEARCH_EXTRA_COGNITION = 10;
 const FIRST_BUDGET = { searches: 20, opened: 50 };
 // A check of the check-first list: no web search, and at most the 30 postings the list holds.
+// It reads one list and opens a few postings (the first ones, 5 Nov 2026, cost almost nothing),
+// so it is not priced like a search.
 const POOL_CHECK_BUDGET = { searches: 0, opened: 30 };
+export const POOL_CHECK_COGNITION = 10;
 
 // Until a headhunter has delivered at least one job, every search runs wide.
 export async function firstSearchOverrides(profileId: string, prefs: Preferences): Promise<SearchOverrides | null> {
@@ -121,8 +124,8 @@ export async function startSearch(user: User, profile: Profile, jobs: number, fo
     const overrides: SearchOverrides | null = poolOnly
       ? { poolOnly: true, budget: POOL_CHECK_BUDGET }
       : (first ?? (followUp && profile.preferences ? followUpOverrides(profile.preferences, followUp.found, followUp.wanted) : null));
-    let need = estimateSearchCost(wanted, perJob, extra).cognition + (first ? FIRST_SEARCH_EXTRA_COGNITION : 0);
-    if (need > balance && fitToBalance) {
+    let need = poolOnly ? POOL_CHECK_COGNITION : estimateSearchCost(wanted, perJob, extra).cognition + (first ? FIRST_SEARCH_EXTRA_COGNITION : 0);
+    if (need > balance && fitToBalance && !poolOnly) {
       const fits = Math.floor((balance - estimateSearchCost(0, perJob, extra).cognition) / Math.max(1, perJob));
       if (fits >= 2) {
         wanted = Math.min(wanted, fits);

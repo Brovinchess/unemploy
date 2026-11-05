@@ -1,8 +1,9 @@
 import "server-only";
-import { and, desc, eq, gte, isNull, notInArray, or, sql, inArray } from "drizzle-orm";
+import { and, desc, eq, gte, isNotNull, isNull, notInArray, or, sql, inArray } from "drizzle-orm";
 import { db, schema } from "@/db";
 import type { Profile } from "@/db/schema";
 import { countryCodeOf } from "./normalise";
+import { jobKey } from "./dedupe";
 import { allPlaces, postingAgeDays } from "./preferences";
 import { checkPosting, eligibilityProblemFor } from "./quality";
 import { isPublicHttpUrl } from "./ingest";
@@ -24,16 +25,18 @@ export async function poolFor(profile: Profile) {
   const codes = [...new Set(allPlaces(prefs).map((p) => countryCodeOf(p.country)).filter((c): c is string => !!c))];
 
   // Everything this person has already been shown or had ruled out, so nothing comes back twice.
-  const sentKeys = await db
-    .select({ k: schema.jobs.postingKey })
+  // By the posting's key and by the key of the link itself: a lead dropped without "posting" has
+  // only its link, and the Mind's skip list is links, so a key-only test let judged postings back.
+  const sent = await db
+    .select({ k: schema.jobs.postingKey, url: schema.jobs.url })
     .from(schema.jobs)
     .innerJoin(schema.profiles, eq(schema.jobs.profileId, schema.profiles.id))
-    .where(and(eq(schema.profiles.userId, profile.userId), sql`${schema.jobs.postingKey} is not null`));
-  const ruledKeys = await db
-    .select({ k: schema.leads.postingKey })
+    .where(eq(schema.profiles.userId, profile.userId));
+  const ruled = await db
+    .select({ k: schema.leads.postingKey, url: schema.leads.url })
     .from(schema.leads)
-    .where(and(eq(schema.leads.profileId, profile.id), gte(schema.leads.createdAt, since), sql`${schema.leads.postingKey} is not null`));
-  const skip = new Set([...sentKeys, ...ruledKeys].map((r) => r.k!).filter(Boolean));
+    .where(and(eq(schema.leads.profileId, profile.id), gte(schema.leads.createdAt, since), or(isNotNull(schema.leads.postingKey), isNotNull(schema.leads.url))));
+  const skip = new Set([...sent, ...ruled].flatMap((r) => [r.k, r.url ? jobKey(r.url) : null]).filter((k): k is string => !!k));
 
   // The title must share a word with the roles wanted: a product marketer is not helped by a
   // list of fifteen engineering jobs, and reading it costs a rung. No role words, no filter.
@@ -68,7 +71,7 @@ export async function poolFor(profile: Profile) {
         gte(schema.postings.lastSeenAt, since),
         or(isNull(schema.postings.postedOn), gte(schema.postings.postedOn, minPosted)),
         prefs.remoteScope === "country" && codes.length ? inCountry : or(inCountry, eq(schema.postings.workSetting, "remote"), isNull(schema.postings.countryCode)),
-        skip.size ? notInArray(schema.postings.postingKey, [...skip].slice(0, 2000)) : undefined,
+        skip.size ? notInArray(schema.postings.postingKey, [...skip].slice(0, 4000)) : undefined,
         titled,
       ),
     )

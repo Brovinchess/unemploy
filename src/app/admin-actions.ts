@@ -6,7 +6,7 @@ import { requireAdmin } from "@/lib/admin";
 import { endSearch, isSearching } from "@/lib/search";
 import { decrypt } from "@/lib/crypto";
 import { tokenClaimKeys, tokenEmail } from "@/lib/minds/oauth";
-import { startSearch } from "@/lib/start-search";
+import { POOL_CHECK_COGNITION, startSearch } from "@/lib/start-search";
 import { preferencesSchema } from "@/lib/preferences";
 import { freshBalance } from "@/lib/app-context";
 import { minds } from "@/lib/minds/client";
@@ -114,7 +114,7 @@ export async function poolCheckCandidates(): Promise<PoolCandidate[]> {
     rows.map(async ({ profile, user }) => {
       const list = await poolFor(profile).catch(() => []);
       const balance = list.length ? await freshBalance(user, profile) : profile.balanceCache;
-      const note = isSearching(profile) ? "searching now" : !list.length ? "nothing new on the list" : (balance ?? 0) <= 0 ? "no cognition" : "";
+      const note = isSearching(profile) ? "searching now" : !list.length ? "nothing new on the list" : (balance ?? 0) < POOL_CHECK_COGNITION ? "too little cognition" : "";
       return { id: profile.id, username: user.username ?? "(no name yet)", label: profile.label, balance: balance == null ? null : Math.round(balance), matches: list.length, sample: list.slice(0, 3).map((r) => `${r.title} · ${r.company}`), note };
     }),
   );
