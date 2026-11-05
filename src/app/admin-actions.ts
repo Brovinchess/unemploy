@@ -100,6 +100,8 @@ export async function rerunShortSearches(zeroOnly = true): Promise<RunResult[]> 
 // filtered to their roles and places and minus everything they were shown) has something on it.
 // Their own headhunter judges each posting against the resume before any card reaches them.
 
+const POOL_RECHECK_MS = 20 * 60 * 60 * 1000;
+
 export type PoolCandidate = { id: string; username: string; label: string; balance: number | null; matches: number; sample: string[]; note: string };
 
 export async function poolCheckCandidates(): Promise<PoolCandidate[]> {
@@ -114,7 +116,10 @@ export async function poolCheckCandidates(): Promise<PoolCandidate[]> {
     rows.map(async ({ profile, user }) => {
       const list = await poolFor(profile).catch(() => []);
       const balance = list.length ? await freshBalance(user, profile) : profile.balanceCache;
-      const note = isSearching(profile) ? "searching now" : !list.length ? "nothing new on the list" : (balance ?? 0) < POOL_CHECK_COGNITION ? "too little cognition" : "";
+      // Postings dropped from the title alone are not reported back, so a list checked lately
+      // would mostly show the same ones again.
+      const checked = await db.query.searches.findFirst({ where: and(eq(schema.searches.profileId, profile.id), eq(schema.searches.via, "pool"), gte(schema.searches.startedAt, new Date(Date.now() - POOL_RECHECK_MS))), columns: { id: true } });
+      const note = isSearching(profile) ? "searching now" : !list.length ? "nothing new on the list" : checked ? "list checked in the last 20 hours" : (balance ?? 0) < POOL_CHECK_COGNITION ? "too little cognition" : "";
       return { id: profile.id, username: user.username ?? "(no name yet)", label: profile.label, balance: balance == null ? null : Math.round(balance), matches: list.length, sample: list.slice(0, 3).map((r) => `${r.title} · ${r.company}`), note };
     }),
   );
