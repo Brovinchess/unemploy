@@ -20,15 +20,20 @@ export type BoardSystem = "ashby" | "greenhouse" | "lever" | "workable" | "smart
 type Setting = "remote" | "hybrid" | "onsite";
 export type BoardJob = { title: string; location: string; setting: Setting | null; posted: string | null; url: string };
 export type Board = { system: BoardSystem; company: string; total: number; jobs: BoardJob[]; text?: string; fetchedAt: number };
+// `job` is set when the link is one posting rather than the whole board.
 type Source =
-  | { system: "ashby" | "greenhouse" | "lever" | "workable" | "smartrecruiters"; slug: string; eu?: boolean }
-  | { system: "workday"; host: string; tenant: string; site: string }
+  | { system: "ashby" | "greenhouse" | "lever" | "workable" | "smartrecruiters"; slug: string; eu?: boolean; job?: string }
+  | { system: "workday"; host: string; tenant: string; site: string; job?: string }
   | { system: "page"; url: string };
+type JobSource = Exclude<Source, { system: "page" }> & { job: string };
+export type Posting = { company: string; job: BoardJob; text: string; closed: false } | { company: string; closed: true };
 
 const TIMEOUT_MS = 10_000;
 const PAGE_BYTES = 40_000;
 const CACHE_SECONDS = 3 * 3600;
 const MAX_JOBS = 600; // per board; a reply never lists more
+const POSTING_BYTES = 30_000; // one posting's text; descriptions run 3 to 10 KB
+const POSTING_CACHE_SECONDS = 3600;
 const WORKDAY_PAGE = 20; // Workday returns at most 20 per call
 const WORKDAY_BROWSE = 3; // pages of unfiltered titles from a Workday board
 const SYSTEM_NAME: Record<BoardSystem, string> = { ashby: "Ashby", greenhouse: "Greenhouse", lever: "Lever", workable: "Workable", smartrecruiters: "SmartRecruiters", workday: "Workday", page: "its own site" };
@@ -44,25 +49,29 @@ export function sourceOf(raw: string): Source | null {
   if (!isPublicHttpUrl(u.toString())) return null;
   const h = u.hostname.toLowerCase();
   const seg = u.pathname.split("/").filter(Boolean);
-  if (h === "jobs.ashbyhq.com" && seg[0]) return { system: "ashby", slug: seg[0] };
+  if (h === "jobs.ashbyhq.com" && seg[0]) return { system: "ashby", slug: seg[0], job: uuidOf(seg[1]) };
   if (h === "api.ashbyhq.com" && seg[0] === "posting-api" && seg[2]) return { system: "ashby", slug: seg[2] };
   if (/^(boards|job-boards)(\.eu)?\.greenhouse\.io$/.test(h)) {
     const slug = seg[0] === "embed" ? u.searchParams.get("for") : seg[0];
-    if (slug) return { system: "greenhouse", slug };
+    const job = seg[0] === "embed" ? u.searchParams.get("token") : seg[1] === "jobs" ? seg[2] : null;
+    if (slug) return { system: "greenhouse", slug, job: job && /^\d+$/.test(job) ? job : undefined };
   }
-  if (h === "boards-api.greenhouse.io" && seg[2]) return { system: "greenhouse", slug: seg[2] };
-  if ((h === "jobs.lever.co" || h === "jobs.eu.lever.co") && seg[0]) return { system: "lever", slug: seg[0], eu: h.includes(".eu.") };
-  if (h === "apply.workable.com" && seg[0] && seg[0] !== "j" && seg[0] !== "api") return { system: "workable", slug: seg[0] };
-  if (/^[a-z0-9-]+\.workable\.com$/.test(h) && !/^(www|apply)\./.test(h)) return { system: "workable", slug: h.split(".")[0] };
-  if ((h === "jobs.smartrecruiters.com" || h === "careers.smartrecruiters.com") && seg[0]) return { system: "smartrecruiters", slug: seg[0] };
+  if (h === "boards-api.greenhouse.io" && seg[2]) return { system: "greenhouse", slug: seg[2], job: seg[3] === "jobs" && /^\d+$/.test(seg[4] ?? "") ? seg[4] : undefined };
+  if ((h === "jobs.lever.co" || h === "jobs.eu.lever.co") && seg[0]) return { system: "lever", slug: seg[0], eu: h.includes(".eu."), job: uuidOf(seg[1]) };
+  if (h === "apply.workable.com" && seg[0] && seg[0] !== "j" && seg[0] !== "api") return { system: "workable", slug: seg[0], job: seg[1] === "j" && seg[2] ? seg[2] : undefined };
+  if (/^[a-z0-9-]+\.workable\.com$/.test(h) && !/^(www|apply)\./.test(h)) return { system: "workable", slug: h.split(".")[0], job: seg[0] === "j" && seg[1] ? seg[1] : undefined };
+  if ((h === "jobs.smartrecruiters.com" || h === "careers.smartrecruiters.com") && seg[0]) return { system: "smartrecruiters", slug: seg[0], job: seg[1]?.match(/^(\d{6,})/)?.[1] };
   const wd = h.match(/^([a-z0-9-]+)\.wd\d+\.myworkdayjobs\.com$/);
   if (wd) {
     const site = seg.find((s, i) => !(i === 0 && /^[a-z]{2}-[A-Z]{2}$/.test(s)) && s !== "wday" && s !== "cxs");
-    if (site && site !== "job") return { system: "workday", host: h, tenant: wd[1], site };
+    const at = seg.indexOf("job");
+    if (site && site !== "job") return { system: "workday", host: h, tenant: wd[1], site, job: at > 0 && seg.length > at + 1 ? `/${seg.slice(at).join("/")}` : undefined };
   }
   if (isAggregator(u.toString())) return null;
   return { system: "page", url: u.toString() };
 }
+
+const uuidOf = (s: string | undefined) => (s && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s) ? s.toLowerCase() : undefined);
 
 async function get(url: string, init?: RequestInit) {
   const ctl = new AbortController();
@@ -139,11 +148,11 @@ async function readLever(slug: string, eu?: boolean): Promise<Omit<Board, "fetch
 }
 
 async function readWorkable(slug: string): Promise<Omit<Board, "fetchedAt">> {
-  type J = { title: string; city?: string; state?: string; country?: string; telecommuting?: boolean; published_on?: string; created_at?: string; url?: string; shortlink?: string; locations?: { city?: string; country?: string }[] };
+  type J = { title: string; shortcode?: string; city?: string; state?: string; country?: string; telecommuting?: boolean; published_on?: string; created_at?: string; url?: string; shortlink?: string; locations?: { city?: string; country?: string }[] };
   const d = await getJson<{ name?: string; jobs?: J[] }>(`https://apply.workable.com/api/v1/widget/accounts/${encodeURIComponent(slug)}`);
   const jobs = (d.jobs ?? []).map((j) => {
     const places = j.locations?.length ? j.locations.map((l) => [l.city, l.country].filter(Boolean).join(", ")) : [[j.city, j.state, j.country].filter(Boolean).join(", ")];
-    return { title: clean(j.title), location: places.filter(Boolean).join("; "), setting: j.telecommuting ? ("remote" as const) : null, posted: day(j.published_on ?? j.created_at), url: j.url ?? j.shortlink ?? `https://apply.workable.com/${slug}/` };
+    return { title: clean(j.title), location: places.filter(Boolean).join("; "), setting: j.telecommuting ? ("remote" as const) : null, posted: day(j.published_on ?? j.created_at), url: j.shortcode ? `https://apply.workable.com/${slug}/j/${j.shortcode}/` : j.url ?? j.shortlink ?? `https://apply.workable.com/${slug}/` };
   });
   return { system: "workable", company: d.name || pretty(slug), total: jobs.length, jobs };
 }
@@ -211,6 +220,130 @@ async function readPage(url: string): Promise<Omit<Board, "fetchedAt">> {
   return { system: "page", company: new URL(url).hostname.replace(/^(www|careers|jobs)\./, ""), total: links.length, jobs: links.slice(0, MAX_JOBS), text: text.slice(0, PAGE_BYTES / 2) };
 }
 
+// One posting, read from the job system's public feed. These pages are drawn by scripts, so a Mind
+// that opens one directly often gets an empty page or a block. Gone from the feed means closed.
+const gone = (e: unknown) => /^(404|410)$/.test(String((e as Error)?.message ?? ""));
+const htmlText = (html: string | null | undefined) =>
+  entities(entities(html ?? "")
+    .replace(/<\/(p|div|h\d|li|ul|ol|tr)>|<br\s*\/?>/gi, "\n")
+    .replace(/<li\b[^>]*>/gi, "- ")
+    .replace(/<[^>]+>/g, " "))
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n[\s\n]*/g, "\n")
+    .trim();
+
+async function postingAshby(slug: string, id: string): Promise<Posting> {
+  type J = { id: string; title: string; location?: string; secondaryLocations?: { location?: string }[]; isRemote?: boolean; workplaceType?: string; publishedAt?: string; jobUrl: string; descriptionPlain?: string; descriptionHtml?: string };
+  const d = await getJson<{ jobs?: J[] }>(`https://api.ashbyhq.com/posting-api/job-board/${encodeURIComponent(slug)}?includeCompensation=true`);
+  const j = (d.jobs ?? []).find((x) => x.id.toLowerCase() === id);
+  if (!j) return { company: pretty(slug), closed: true };
+  const location = [j.location, ...(j.secondaryLocations ?? []).map((s) => s.location)].filter(Boolean).join("; ");
+  return { company: pretty(slug), closed: false, job: { title: clean(j.title), location, setting: settingOf(j.workplaceType, j.isRemote ?? null), posted: day(j.publishedAt), url: j.jobUrl }, text: j.descriptionPlain?.trim() || htmlText(j.descriptionHtml) };
+}
+
+async function postingGreenhouse(slug: string, id: string): Promise<Posting> {
+  type J = { title: string; location?: { name?: string }; first_published?: string; updated_at?: string; absolute_url: string; company_name?: string; content?: string };
+  const j = await getJson<J>(`https://boards-api.greenhouse.io/v1/boards/${encodeURIComponent(slug)}/jobs/${id}`);
+  const company = j.company_name || pretty(slug);
+  return { company, closed: false, job: { title: clean(j.title), location: clean(j.location?.name), setting: settingOf(j.location?.name), posted: day(j.first_published ?? j.updated_at), url: j.absolute_url }, text: htmlText(j.content) };
+}
+
+async function postingLever(slug: string, id: string, eu?: boolean): Promise<Posting> {
+  type J = { text: string; categories?: { location?: string; allLocations?: string[]; commitment?: string }; workplaceType?: string; createdAt?: number; hostedUrl: string; descriptionPlain?: string; lists?: { text?: string; content?: string }[]; additionalPlain?: string };
+  const j = await getJson<J>(`https://api${eu ? ".eu" : ""}.lever.co/v0/postings/${encodeURIComponent(slug)}/${id}?mode=json`);
+  const where = j.categories?.allLocations?.length ? j.categories.allLocations.join("; ") : clean(j.categories?.location);
+  const text = [j.descriptionPlain, ...(j.lists ?? []).map((l) => `${clean(l.text)}\n${htmlText(l.content)}`), j.additionalPlain].filter(Boolean).join("\n\n");
+  return { company: pretty(slug), closed: false, job: { title: clean(j.text), location: where, setting: settingOf(j.workplaceType, where), posted: day(j.createdAt), url: j.hostedUrl }, text };
+}
+
+async function postingWorkable(slug: string, code: string): Promise<Posting> {
+  type J = { title: string; shortcode: string; remote?: boolean; workplace?: string; state?: string; published?: string; location?: { display?: string; city?: string; country?: string }; locations?: { city?: string; country?: string }[]; description?: string; requirements?: string; benefits?: string };
+  const j = await getJson<J>(`https://apply.workable.com/api/v2/accounts/${encodeURIComponent(slug)}/jobs/${encodeURIComponent(code)}`);
+  if (j.state && j.state !== "published") return { company: pretty(slug), closed: true };
+  const location = j.locations?.length ? j.locations.map((l) => [l.city, l.country].filter(Boolean).join(", ")).join("; ") : clean(j.location?.display);
+  const text = [htmlText(j.description), j.requirements ? `Requirements\n${htmlText(j.requirements)}` : "", j.benefits ? `Benefits\n${htmlText(j.benefits)}` : ""].filter(Boolean).join("\n\n");
+  return { company: pretty(slug), closed: false, job: { title: clean(j.title), location, setting: settingOf(j.workplace, j.remote ?? null), posted: day(j.published), url: `https://apply.workable.com/${slug}/j/${j.shortcode}/` }, text };
+}
+
+async function postingSmartRecruiters(slug: string, id: string): Promise<Posting> {
+  type J = { name: string; active?: boolean; releasedDate?: string; postingUrl?: string; company?: { name?: string }; location?: { fullLocation?: string; city?: string; country?: string; remote?: boolean; hybrid?: boolean }; jobAd?: { sections?: Record<string, { title?: string; text?: string }> } };
+  const j = await getJson<J>(`https://api.smartrecruiters.com/v1/companies/${encodeURIComponent(slug)}/postings/${id}`);
+  const company = j.company?.name || pretty(slug);
+  if (j.active === false) return { company, closed: true };
+  const text = Object.values(j.jobAd?.sections ?? {}).filter((x) => x.text).map((x) => `${x.title ?? ""}\n${htmlText(x.text)}`.trim()).join("\n\n");
+  const location = clean(j.location?.fullLocation) || [j.location?.city, j.location?.country].filter(Boolean).join(", ");
+  return { company, closed: false, job: { title: clean(j.name), location, setting: j.location?.hybrid ? "hybrid" : j.location?.remote ? "remote" : null, posted: day(j.releasedDate), url: j.postingUrl || `https://jobs.smartrecruiters.com/${slug}/${id}` }, text };
+}
+
+async function postingWorkday(host: string, tenant: string, site: string, path: string): Promise<Posting> {
+  type J = { jobPostingInfo?: { title?: string; jobDescription?: string; location?: string; additionalLocations?: string[]; postedOn?: string; startDate?: string; timeType?: string; posted?: boolean; externalUrl?: string; remoteType?: string }; hiringOrganization?: { name?: string } };
+  const d = await getJson<J>(`https://${host}/wday/cxs/${tenant}/${site}${path}`);
+  const company = d.hiringOrganization?.name || pretty(tenant);
+  const i = d.jobPostingInfo;
+  if (!i?.title || i.posted === false) return { company, closed: true };
+  const location = [i.location, ...(i.additionalLocations ?? [])].filter(Boolean).join("; ");
+  return { company, closed: false, job: { title: clean(i.title), location, setting: settingOf(i.remoteType, location), posted: day(i.startDate) ?? workdayDay(i.postedOn), url: i.externalUrl || `https://${host}/${site}${path}` }, text: [i.timeType ? `Time type: ${i.timeType}` : "", htmlText(i.jobDescription)].filter(Boolean).join("\n\n") };
+}
+
+async function readPostingSource(src: JobSource): Promise<Posting> {
+  try {
+    switch (src.system) {
+      case "ashby":
+        return await postingAshby(src.slug, src.job);
+      case "greenhouse":
+        return await postingGreenhouse(src.slug, src.job);
+      case "lever":
+        return await postingLever(src.slug, src.job, src.eu);
+      case "workable":
+        return await postingWorkable(src.slug, src.job);
+      case "smartrecruiters":
+        return await postingSmartRecruiters(src.slug, src.job);
+      case "workday":
+        return await postingWorkday(src.host, src.tenant, src.site, src.job);
+    }
+  } catch (e) {
+    // The feed itself answered "no such job": the posting is gone. Anything else is a failed read.
+    if (gone(e)) return { company: "slug" in src ? pretty(src.slug) : pretty(src.tenant), closed: true };
+    throw e;
+  }
+}
+
+// One read per posting per hour, whoever asks; a posting closes often enough that longer would mislead.
+const cachedPosting = unstable_cache(
+  async (key: string, src: JobSource): Promise<Posting & { fetchedAt: number }> => {
+    void key;
+    const p = await readPostingSource(src);
+    return p.closed ? { ...p, fetchedAt: Date.now() } : { ...p, text: p.text.slice(0, POSTING_BYTES), fetchedAt: Date.now() };
+  },
+  ["careers-posting-v1"],
+  { revalidate: POSTING_CACHE_SECONDS },
+);
+
+export function readPosting(src: JobSource) {
+  const key = src.system === "workday" ? `workday:${src.host}/${src.site}${src.job}` : `${src.system}:${"slug" in src ? src.slug.toLowerCase() : ""}:${src.job}`;
+  return cachedPosting(key, src);
+}
+
+export function postingText(p: Posting, system: BoardSystem, link: string) {
+  if (p.closed) return `Career Ninja checked this job on ${p.company}'s own job board (${SYSTEM_NAME[system]}): it is no longer listed, so it is closed. Drop it as closed; do not open it.\n${link}`;
+  const j = p.job;
+  return [
+    `Career Ninja read this job on ${p.company}'s own job board (${SYSTEM_NAME[system]}): it is listed there today, so it is open. Judge the fit from the posting below; you do not need to open the page.`,
+    `title | place | setting | posted | link`,
+    [j.title, j.location || "place not listed", j.setting ?? "", j.posted ?? "", j.url].join(" | "),
+    `THE POSTING:`,
+    p.text || "(the job system gave no description text; open the link if you need it)",
+  ].join("\n");
+}
+
+// What one posting read teaches the shared postings: open with its facts, or closed.
+export async function recordPosting(p: Posting, system: BoardSystem, link: string) {
+  if (!p.closed) return saveBoardPostings({ system, company: p.company, total: 1, jobs: [p.job], fetchedAt: Date.now() });
+  const now = new Date();
+  await db.update(schema.postings).set({ closedAt: now, lastCheckedAt: now }).where(sql`${schema.postings.postingKey} = ${jobKey(link)} and ${schema.postings.closedAt} is null`);
+  return 0;
+}
+
 async function readSource(src: Source, words: string[]): Promise<Omit<Board, "fetchedAt">> {
   switch (src.system) {
     case "ashby":
@@ -276,7 +409,7 @@ export function splitBoard(board: Board, profile: Pick<Profile, "preferences">) 
 
 // The reply, in pages of at most PAGE_BYTES: the fitting jobs in full, then every other title.
 export function boardText(board: Board, fits: BoardJob[], rest: BoardJob[], page = 1) {
-  const head = `Career Ninja read ${board.company}'s careers page (${SYSTEM_NAME[board.system]}): ${board.total} open ${board.total === 1 ? "job" : "jobs"}. Open only the single job links you want to check, and confirm each one there as usual. Do not open this careers page or its job board yourself.`;
+  const head = `Career Ninja read ${board.company}'s careers page (${SYSTEM_NAME[board.system]}): ${board.total} open ${board.total === 1 ? "job" : "jobs"}. To check a single job, pass its link to Career Ninja the same way (?url=<the job link>): you get the whole posting as text and whether it is still open. Do not open this careers page or its job board yourself.`;
   const full = (j: BoardJob) => [j.title, j.location || "place not listed", j.setting ?? "", j.posted ?? "", j.url].join(" | ");
   const short = (j: BoardJob) => `${j.title}${j.location ? ` (${j.location})` : ""} ${j.url}`;
   const lines = [

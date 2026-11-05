@@ -1,13 +1,14 @@
 import { NextResponse, after } from "next/server";
 import { noteRejectedKey, profileForKey } from "@/lib/keys";
 import { sendFreshKey } from "@/lib/search";
-import { boardText, readBoard, saveBoardPostings, sourceOf, splitBoard } from "@/lib/boards";
+import { boardText, postingText, readBoard, readPosting, recordPosting, saveBoardPostings, sourceOf, splitBoard } from "@/lib/boards";
 import { roleWords } from "@/lib/pool";
 import { track } from "@/lib/analytics/server";
 
 // An employer's careers page, read by Career Ninja for the Mind (see lib/boards): the whole board
 // as plain text, jobs that may fit first, then every other title, in pages small enough that the
-// Mind reads them without paying for a file. Same key as the ingest endpoint.
+// Mind reads them without paying for a file. A single job link from a job system comes back as
+// that posting's text, or as closed. Same key as the ingest endpoint.
 export const maxDuration = 60;
 
 const text = (body: string, status = 200) => new NextResponse(body, { status, headers: { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" } });
@@ -27,8 +28,22 @@ export async function GET(request: Request) {
   const src = sourceOf(link);
   if (!src) return text(`Career Ninja can't read that link (${link ? "not a public careers page" : "no url given"}). Pass the careers page as ?url=..., or open it yourself if it is a careers page.`, 400);
 
-  const words = profile.preferences ? roleWords(profile.preferences) : [];
   const started = Date.now();
+  if (src.system !== "page" && src.job) {
+    const job = { ...src, job: src.job };
+    try {
+      const posting = await readPosting(job);
+      if (posting.fetchedAt >= started) after(() => recordPosting(posting, src.system, link).catch((e) => console.error("[careers] save posting", e)));
+      track(profile.userId, "careers_read", { system: src.system, ok: true, kind: "job", closed: posting.closed, cached: posting.fetchedAt < started });
+      return text(postingText(posting, src.system, link));
+    } catch (e) {
+      console.warn(`[careers] ${src.system} job read failed`, link, String(e).slice(0, 120));
+      track(profile.userId, "careers_read", { system: src.system, ok: false, kind: "job" });
+      return text(`Career Ninja could not read this job just now (${src.system}). Open it yourself as usual.`);
+    }
+  }
+
+  const words = profile.preferences ? roleWords(profile.preferences) : [];
   let board;
   try {
     board = await readBoard(src, words);
