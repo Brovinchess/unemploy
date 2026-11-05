@@ -35,8 +35,17 @@ export async function poolFor(profile: Profile) {
     .where(and(eq(schema.leads.profileId, profile.id), gte(schema.leads.createdAt, since), sql`${schema.leads.postingKey} is not null`));
   const skip = new Set([...sentKeys, ...ruledKeys].map((r) => r.k!).filter(Boolean));
 
+  // The title must share a word with the roles wanted: a product marketer is not helped by a
+  // list of fifteen engineering jobs, and reading it costs a rung. No role words, no filter.
+  // Tested in the query, before the limit: whole boards read for other people fill the newest
+  // rows by the thousand, and a limit taken first left nothing with the right title.
+  const words = roleWords(prefs);
+  const titled = words.length ? or(...words.map((w) => sql`lower(${schema.postings.title}) like ${"%" + w + "%"}`)) : undefined;
+  const inCountry = codes.length ? inArray(schema.postings.countryCode, codes) : sql`false`;
+
   // Candidates: open, fresh, and either in the person's country or remote in a way that may
   // include them. The country filter is loose on purpose; the location line decides below.
+  // The person's own country first, then the rest, newest verified first within each.
   const candidates = await db
     .select({
       postingKey: schema.postings.postingKey,
@@ -58,18 +67,14 @@ export async function poolFor(profile: Profile) {
         eq(schema.postings.demo, false),
         gte(schema.postings.lastSeenAt, since),
         or(isNull(schema.postings.postedOn), gte(schema.postings.postedOn, minPosted)),
-        prefs.remoteScope === "country" && codes.length
-          ? inArray(schema.postings.countryCode, codes)
-          : or(codes.length ? inArray(schema.postings.countryCode, codes) : sql`false`, eq(schema.postings.workSetting, "remote"), isNull(schema.postings.countryCode)),
+        prefs.remoteScope === "country" && codes.length ? inCountry : or(inCountry, eq(schema.postings.workSetting, "remote"), isNull(schema.postings.countryCode)),
         skip.size ? notInArray(schema.postings.postingKey, [...skip].slice(0, 2000)) : undefined,
+        titled,
       ),
     )
-    .orderBy(desc(schema.postings.lastVerifiedOpenAt), desc(schema.postings.lastSeenAt))
+    .orderBy(sql`(${inCountry}) desc`, sql`${schema.postings.lastVerifiedOpenAt} desc nulls last`, desc(schema.postings.lastSeenAt))
     .limit(MAX_ROWS * 3);
 
-  // The title must share a word with the roles wanted: a product marketer is not helped by a
-  // list of fifteen engineering jobs, and reading it costs a rung. No role words, no filter.
-  const words = roleWords(prefs);
   // The location line is the real test, the same one ingest applies to a sent job.
   const fits = candidates.filter((p) => {
     if (skip.has(p.postingKey)) return false;
